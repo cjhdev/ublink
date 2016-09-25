@@ -1,0 +1,77 @@
+PREDEFINED             = DOXYGEN
+
+PROJECT_NAME            = uBlink
+PROJECT_BRIEF           = The Blink Protocol
+PROJECT_NUMBER          = <%= version %>
+
+# Targets ##############################################################
+
+INPUT                   = <%= input %>
+USE_MDFILE_AS_MAINPAGE  = <%= use_mdfile_as_mainpage %>
+EXAMPLE_PATH            = <%= example_path %>
+TAGFILES                =
+
+# Presentation #########################################################
+
+OPTIMIZE_OUTPUT_FOR_C   = YES 
+
+MARKDOWN_SUPPORT        = YES
+
+GENERATE_TODOLIST       = NO
+GENERATE_TESTLIST       = NO
+GENERATE_BUGLIST        = NO
+GENERATE_DEPRECATEDLIST = NO
+
+LAYOUT_FILE             = layout.xml
+
+ENUM_VALUES_PER_LINE    = 4
+
+INLINE_SIMPLE_STRUCTS   = YES
+
+ALIASES                 += "license=@par License:\n"
+
+JAVADOC_AUTOBRIEF      = YES
+
+GENERATE_TREEVIEW = YES
+DISABLE_INDEX = NO
+SHOW_FILES = NO
+
+# Build Options ########################################################
+
+OUTPUT_DIRECTORY        = output
+
+QUIET                   = YES
+WARNINGS                = YES
+WARN_IF_UNDOCUMENTED    = YES
+WARN_IF_DOC_ERROR       = YES
+WARN_NO_PARAMDOC        = NO
+
+FULL_PATH_NAMES         = YES
+STRIP_FROM_PATH         = <%= strip_from_path %>
+
+SHORT_NAMES            = NO
+
+# HTML #################################################################
+
+GENERATE_HTML           = YES
+HTML_OUTPUT             = html
+
+HTML_HEADER             = 
+HTML_FOOTER             = footer.html
+HTML_STYLESHEET         =
+
+HTML_TIMESTAMP          = NO
+
+SEARCHENGINE            = NO
+SERVER_BASED_SEARCH     = NO
+
+HTML_DYNAMIC_SECTIONS  = NO
+
+# Latex ################################################################
+
+GENERATE_LATEX          = NO
+
+# XML ##################################################################
+
+GENERATE_XML            = NO
+XML_OUTPUT              = xml

@@ -1,0 +1,30 @@
+require_relative "doxyfile.rb"
+
+DIR_ROOT = "../.."
+DIR_OUTPUT = "output"
+DIR_HTML = "#{DIR_OUTPUT}/html"
+
+desc "run doxygen to produce documentation"
+task :run do
+
+    config = Doxyfile.new(File.read("doxyfile.erb")) do |d|
+        d.version = File.new("#{DIR_ROOT}/version", "r").read.gsub("\n", "")
+        d.commit_number = `git rev-parse HEAD`        
+        d.input = ["#{DIR_ROOT}/include", "#{DIR_ROOT}/readme.md"]
+        d.strip_from_path = ["#{Dir.pwd}/#{DIR_ROOT}/include"]        
+        d.use_mdfile_as_mainpage = "readme.md"
+    end
+
+    puts config.to_s
+    IO.popen('doxygen -', "w+") {|f| f.puts(config.to_s)}
+
+end
+    
+desc "remove doxygen output"
+task :clean do
+
+    system "rm -R #{DIR_HTML}"
+
+end    
+
+task :default => :run
