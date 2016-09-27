@@ -1,22 +1,16 @@
 uBlink
 =======
 
-uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.org/ "The Blink Protocol") suitable for resource constrained applications.
+uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.org/ "The Blink Protocol") suitable for integrating into larger applications.
 
 This project is currently under development and not very useful.
-
-## Highlights
-
-- Zero-copy schema definition parser
-- Event driven compact form decoder
-- Compact form encode/decode functions
 
 ## Examples
 
 ### Create a blink_schema object from a single schema definition
 
 ~~~c
-#include "blink_schema.h"
+#include "blink_parser.h"
 
 const char syntax[] = "Hello/0 -> string greeting";
 

@@ -24,9 +24,9 @@
 #define BLINK_COMPACT_FORM_H
 
 /**
- * @defgroup blink_compact_form Compact Form
+ * @defgroup blink_compact_form Compact form
  *
- * - Compact Form encode/decode primitives
+ * Compact form primitives.
  * 
  * @{
  * */

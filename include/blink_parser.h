@@ -20,15 +20,13 @@
  * 
  * */
 
-#ifndef BLINK_SCHEMA_H
-#define BLINK_SCHEMA_H
+#ifndef BLINK_PARSER_H
+#define BLINK_PARSER_H
 
 /**
- * @defgroup blink_schema Schema Parser
+ * @defgroup blink_parser Parser
  *
- * - Structures for representing schema syntax
- * - Functions for converting schema syntax to structures
- * - Functions for interacting with structures
+ * Convert tokens to a schema.
  * 
  * @{
  * */
@@ -54,31 +52,62 @@ extern "C" {
 
 /** field */
 struct blink_field {
-    const char *name;               /**< name of this field */
-    uint16_t nameLen;               /**< byte length of `name` */
-    bool isOptional;                /**< field is optional */
     struct blink_field *next;       /**< next field in group */
+    const char *name;               /**< name of this field */
+    size_t nameLen;               /**< byte length of `name` */
+    bool isOptional;                /**< field is optional */
+    bool isSequence;
+    enum {
+        T_BOOL,
+        T_U8,
+        T_U16,
+        T_U32,
+        T_U64,
+        T_I8,
+        T_I16,
+        T_I32,
+        T_I64,
+        T_F64,
+        T_STRING,
+        T_BINARY,
+        T_DECIMAL,
+        T_DATE,
+        T_MILLI_TIME,
+        T_NANO_TIME,
+        T_MILLI_TIME_OF_DAY,
+        T_NANO_TIME_OF_DAY,
+        T_REF
+    } type;
+    union {
+        uint32_t size;
+        struct {
+            bool dynamic;
+            const char *name;
+            size_t nameLen;
+        } ref;
+    } attr;    
 };
 
 /** group */
 struct blink_group {
+    struct blink_group *next;
     const char *name;               /**< name of this group */
-    uint16_t nameLen;               /**< byte length of `name` */
+    size_t nameLen;               /**< byte length of `name` */
     bool hasID;                     /**< group has an ID */
     uint64_t id;                    /**< group ID */
-    const char *super;              /**< name of super group */
-    uint16_t superLen;              /**< byte length of supergroup name */
+    const char *superGroup;              /**< name of super group */
+    size_t superGroupLen;              /**< byte length of supergroup name */
     const struct blink_group *s;    /**< pointer to supergroup definition */
     struct blink_field *f;          /**< fields belonging to group */
 };
 
 /** namespace */
 struct blink_namespace {
-    const char *name;               /**< name of this namespace */
-    uint16_t nameLen;               /**< byte length of `name` */
-    struct blink_group *groups;     /**< groups defined in namespace */
-    struct blink_enum *enums;       /**< enums defined in namespace */    
     struct blink_namespace *next;   /**< next namespace definition in schema */
+    const char *name;               /**< name of this namespace */
+    size_t nameLen;               /**< byte length of `name` */
+    struct blink_group *groups;     /**< groups defined in namespace */
+    struct blink_enum *enums;       /**< enums defined in namespace */        
 };
 
 /** schema */
@@ -89,17 +118,18 @@ struct blink_schema {
 
 /** enumeration */
 struct blink_enum {
+    struct blink_enum *next;
     const char *name;               /**< name of this field */
-    uint16_t nameLen;               /**< byte length of `name` */
-    struct blink_symbol *symbol;    /**< symbols belonging to enumeration */
+    size_t nameLen;               /**< byte length of `name` */
+    struct blink_symbol *symbol;    /**< symbols belonging to enumeration */    
 };
 
 /** enumeration symbol */
 struct blink_symbol {
-    const char *name;
-    uint16_t nameLen;
-    uint64_t value;
     struct blink_symbol *next;
+    const char *name;
+    size_t nameLen;
+    uint64_t value;    
 };
 
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
@@ -175,7 +205,7 @@ struct blink_schema *BLINK_Parse(struct blink_schema *ctxt, const char *in, size
  * @return pointer to blink_group
  *
  * */
-const struct blink_group *BLINK_GetGroupByName(struct blink_schema *ctxt, const char *qName, uint16_t qNameLen);
+const struct blink_group *BLINK_GetGroupByName(struct blink_schema *ctxt, const char *qName, size_t qNameLen);
 
 /** Find a group by ID
  * 
