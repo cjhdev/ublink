@@ -57,35 +57,14 @@ struct blink_field {
     size_t nameLen;               /**< byte length of `name` */
     bool isOptional;                /**< field is optional */
     bool isSequence;
+    uint32_t size;
+    bool dynamic;
+    const char *ref;
+    size_t refLen;
     enum {
-        T_BOOL,
-        T_U8,
-        T_U16,
-        T_U32,
-        T_U64,
-        T_I8,
-        T_I16,
-        T_I32,
-        T_I64,
-        T_F64,
-        T_STRING,
-        T_BINARY,
-        T_DECIMAL,
-        T_DATE,
-        T_MILLI_TIME,
-        T_NANO_TIME,
-        T_MILLI_TIME_OF_DAY,
-        T_NANO_TIME_OF_DAY,
-        T_REF
-    } type;
-    union {
-        uint32_t size;
-        struct {
-            bool dynamic;
-            const char *name;
-            size_t nameLen;
-        } ref;
-    } attr;    
+        TYPE_STRING,
+        TYPE_BINARY
+    } type;    
 };
 
 /** group */

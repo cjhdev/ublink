@@ -33,7 +33,7 @@ tests: $(TEST_FILES:.c=)
 # below we pattern match similar groups of test binaries
 # 
 
-tc_BLINK%: $(addprefix $(DIR_BUILD)/, run_tc_BLINK%.o tc_BLINK%.o blink_schema.o unity.o  $(TARGET_OBJ))
+tc_BLINK%: $(addprefix $(DIR_BUILD)/, run_tc_BLINK%.o tc_BLINK%.o blink_parser.o blink_lexer.o unity.o  $(TARGET_OBJ))
 	$(CC) $(LDFLAGS) $^ -o $(DIR_BIN)/$@
 
 $(DIR_BUILD)/%.o: %.c

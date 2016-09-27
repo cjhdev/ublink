@@ -44,25 +44,22 @@ extern "C" {
 
 /** The following tokens are returned by #BLINK_GetToken */
 enum blink_token {
-
     T_EQUAL,            /**< `=` */
     T_COMMA,            /**< `,` */
     T_PERIOD,           /**< `. ` */
     T_QUESTION,         /**< `?` */    
-    T_LEFT_BRACKET,     /**< `[` */
-    T_RIGHT_BRACKET,    /**< `]` */
-    T_LEFT_PAREN,       /**< `(` */
-    T_RIGHT_PAREN,      /**< `)` */
+    T_LBRACKET,         /**< `[` */
+    T_RBRACKET,         /**< `]` */
+    T_LPAREN,           /**< `(` */
+    T_RPAREN,           /**< `)` */
     T_STAR,             /**< `*` */
     T_BAR,              /**< `|` */
     T_SLASH,            /**< `/` */
-    T_AMP,              /**< `@` */
-    T_COLON,            /**< `:` */
-    
-    T_RIGHT_ARROW,      /**< `->` */
-    T_LEFT_ARROW,       /**< `<-` */
-
-    T_BOOLEAN           /**< `bool` */
+    T_AT,               /**< `@` */
+    T_COLON,            /**< `:` */    
+    T_RARROW,           /**< `->` */
+    T_LARROW,           /**< `<-` */
+    T_BOOL,             /**< `bool` */
     T_I8,               /**< `i8` */
     T_I16,              /**< `i16` */
     T_I32,              /**< `i32` */
@@ -76,24 +73,28 @@ enum blink_token {
     T_DATE,             /**< `date` */
     T_MILLI_TIME,       /**< `milltime` */
     T_NANO_TIME,        /**< `nanotime` */
-    T_MILLI_TIME_OF_DAY,    /**< `milliTimeOfDay` */
-    T_NANO_TIME_OF_DAY,     /**< `nanoTimeOfDay` */
+    T_TIME_OF_DAY_MILLI,    /**< `timeOfDayMilli` */
+    T_TIME_OF_DAY_NANO,     /**< `timeOfDayNano` */
     T_OBJECT,               /**< `object` */
     T_FIXED,                /**< `fixed` */
-
-    T_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */
+    T_STRING,               /**< `string` */
+    T_BINARY,               /**< `binary` */
+    T_NAMESPACE,        /**< `namespace` */
+    T_SCHEMA,           /**< `schema` */    
+    T_TYPE,             /**< `type` */    
+    T_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */    
     T_NAME,             /**< `[\\]?[A-Za-z_][A-Za-z_0-9]+` */
-    T_QNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9] | [\\]?[A-Za-z_][A-Za-z_0-9]+` */
-                        
+    T_CNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                    
+    
     T_UNKNOWN,          /**< <no match> */
-    T_EOF               /**< <end of file> */
+    T_EOF,               /**< <end of file> */
 };
 
 /* unions *************************************************************/
 
 /** Some tokens have a value returned by #BLINK_GetToken */
 union blink_token_value {    
-    /** Initialised for #T_NAME and #T_QNAME */
+    /** Initialised for #T_NAME and #T_CNAME */
     struct {
         const char *ptr;    /**< pointer to printable string */
         size_t len;         /**< byte length of `ptr` */
@@ -109,7 +110,7 @@ union blink_token_value {
  * @param[in] in input buffer
  * @param[in] inLen byte length of `in`
  * @param[out] read bytes read from `in`
- * @param[out] value value of token (only initialised for T_NAME, T_QNAME, T_NUMBER)
+ * @param[out] value value of token (only initialised for T_NAME, T_CNAME, T_NUMBER)
  *
  * @return token parsed
  *
