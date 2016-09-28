@@ -1,6 +1,8 @@
 uBlink
 =======
 
+[![Build Status](https://travis-ci.org/cjhdev/ublink.svg?branch=master)](https://travis-ci.org/cjhdev/ublink)
+
 uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.org/ "The Blink Protocol") suitable for integrating into larger applications.
 
 This project is currently under development and not very useful.
