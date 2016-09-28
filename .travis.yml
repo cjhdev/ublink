@@ -4,3 +4,4 @@ language: C
 script:
     - cd build/unit_test
     - make
+    - make coverage
