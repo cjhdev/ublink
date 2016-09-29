@@ -33,7 +33,9 @@ void test_BLINK_GetToken_escaped_name(void)
     TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value));
     TEST_ASSERT_EQUAL(strlen(input), read);
     TEST_ASSERT_EQUAL(strlen(input)-1, value.literal.len);
-    TEST_ASSERT_EQUAL_MEMORY(&input[1], &value.literal.ptr, value.literal.len);
+    TEST_ASSERT_EQUAL_MEMORY(&input[1], value.literal.ptr, value.literal.len);
+
+    
 }
 
 void test_BLINK_GetToken_namespace(void)

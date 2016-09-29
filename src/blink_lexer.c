@@ -252,14 +252,14 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
         switch(state){
         case START:
 
-            if('\\'){
+            if(c == '\\'){
 
-                state = FIRST_CHAR;
+                state = FIRST_CHAR;                
             }
             else if(isFirstNameChar(c)){
 
                 *out = &in[*read];
-                *outLen = 1;
+                *outLen = 1U;
                 state = NAME;
             }
             else{
@@ -273,7 +273,7 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
             if(isFirstNameChar(c)){
                 
                 *out = &in[*read];
-                *outLen = 1;
+                *outLen = 1U;
                 state = NAME;
             }
             else{
@@ -284,12 +284,14 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
 
         case NAME:
 
-            (*outLen)++;
-            
             if(!isNameChar(c)){
 
                 retval = true;                
                 state = EXIT;
+            }
+            else{
+
+                (*outLen)++;
             }
             break;
 
@@ -365,9 +367,11 @@ static bool isCName(const char *in, size_t inLen, size_t *read, const char **out
 
         case SECOND:
 
-            (*outLen)++;
-            
-            if(*out[*outLen] == ':'){
+            if(isNameChar(c)){
+
+                (*outLen)++;
+            }
+            else if(*out[*outLen] == ':'){
 
                 state = EXIT;
             }
