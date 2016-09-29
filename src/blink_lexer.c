@@ -95,7 +95,12 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
 
     if(pos < inLen){
 
+        (*read)++;
+
         switch(in[pos]){
+        case '*':
+            retval = T_STAR;
+            break;
         case '=':
             retval = T_EQUAL;
             break;
@@ -129,7 +134,12 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
         case '@':
             retval = T_AT;
             break;
+        case '|':
+            retval = T_BAR;
+            break;
         default:
+
+            (*read)--;
 
             if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
 
@@ -164,6 +174,7 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
                     }
                     else{
 
+                        printf("its unknown");
                         retval = T_UNKNOWN;
                     }
                 }
@@ -405,8 +416,6 @@ static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
     ASSERT(read != NULL)
     ASSERT(out != NULL)
 
-    TRACE(" ")
-
     char c;
     bool retval = false;
     *read = 0U;
@@ -414,31 +423,30 @@ static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
     uint8_t digit;
 
     enum {
-        NEXT,
+        START,
         NUMBER,
         EXIT
-    } state = NEXT;
+    } state = START;
     
     while(*read < inLen){
 
         c = in[*read];
 
         switch(state){
-        case NEXT:
+        case START:
+            
+            if(isInteger(c, &digit)){
 
-            if(!isspace((int)c)){
-
-                if(isInteger(c, &digit)){
-
-                    *out = (uint64_t)digit;
-                    state = NUMBER;
-                    retval = true;
-                }
-                else{
-
-                    state = EXIT;
-                }
+                *out = (uint64_t)digit;
+                state = NUMBER;
+                retval = true;
+                digits++;
             }
+            else{
+
+                state = EXIT;
+            }
+            
             break;
 
         case NUMBER:
@@ -447,7 +455,7 @@ static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
 
                 if(digits <= 20){
 
-                    *out *= 10;
+                    *out *= 10;                
                     *out += digit;
                     digits++;                    
                 }
@@ -457,6 +465,11 @@ static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
                     retval = false;
                     state = EXIT;
                 }
+            }
+            else if((c == 'x') && (digits == 1) && (in[(*read)-1] == '0')){
+
+                retval = false;
+                state = EXIT;
             }
             else{
                 
@@ -491,32 +504,30 @@ static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
     *read = 0U;
     uint8_t digits = 0;
     uint8_t digit;
+    *out = 0U;
 
     enum {
-        NEXT,
+        START,
         PRE,
         NUMBER,
         EXIT
-    }state;
+    }state = START;
     
     while(*read < inLen){
 
         c = in[*read];
 
         switch(state){
-        case NEXT:
+        case START:
+            
+            if(c == '0'){
 
-            if(!isspace((int)c)){
-
-                if(c == '0'){
-
-                    state = PRE;
-                }
-                else{
-
-                    state = EXIT;
-                }
+                state = PRE;
             }
+            else{
+
+                state = EXIT;
+            }            
             break;
             
         case PRE:
