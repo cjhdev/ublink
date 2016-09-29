@@ -23,6 +23,53 @@ void test_BLINK_GetToken_name(void)
     TEST_ASSERT_EQUAL_MEMORY(input, value.literal.ptr, value.literal.len);
 }
 
+void test_BLINK_GetToken_name_leadingWS(void)
+{
+    size_t read;
+    const char input[] = " test";
+    union blink_token_value value;
+    enum blink_token expected = T_NAME;
+
+    TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value));
+    TEST_ASSERT_EQUAL(strlen(" test"), read);
+    TEST_ASSERT_EQUAL(strlen("test"), value.literal.len);
+    TEST_ASSERT_EQUAL_MEMORY("test", value.literal.ptr, value.literal.len);
+}
+
+void test_BLINK_GetToken_name_leadingWS_trailingWS(void)
+{
+    size_t read;
+    const char input[] = " test ";
+    union blink_token_value value;
+    enum blink_token expected = T_NAME;
+
+    TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value));
+    TEST_ASSERT_EQUAL(strlen(" test"), read);
+    TEST_ASSERT_EQUAL(strlen("test"), value.literal.len);
+    TEST_ASSERT_EQUAL_MEMORY("test", value.literal.ptr, value.literal.len);
+}
+
+void test_BLINK_GetToken_double_name(void)
+{
+    size_t read;
+    size_t readAgain;
+    const char input[] = "test again";
+    union blink_token_value value;
+    enum blink_token expected = T_NAME;
+
+    TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value));
+
+    TEST_ASSERT_EQUAL(strlen("test"), read);
+    TEST_ASSERT_EQUAL(strlen("test"), value.literal.len);
+    TEST_ASSERT_EQUAL_MEMORY("test", value.literal.ptr, value.literal.len);
+
+    TEST_ASSERT_EQUAL(expected, BLINK_GetToken(&input[read], sizeof(input) - read, &readAgain, &value));
+
+    TEST_ASSERT_EQUAL(strlen(" again"), readAgain);
+    TEST_ASSERT_EQUAL(strlen("again"), value.literal.len);
+    TEST_ASSERT_EQUAL_MEMORY("again", value.literal.ptr, value.literal.len);
+}
+
 void test_BLINK_GetToken_escaped_name(void)
 {
     size_t read;
@@ -34,8 +81,6 @@ void test_BLINK_GetToken_escaped_name(void)
     TEST_ASSERT_EQUAL(strlen(input), read);
     TEST_ASSERT_EQUAL(strlen(input)-1, value.literal.len);
     TEST_ASSERT_EQUAL_MEMORY(&input[1], value.literal.ptr, value.literal.len);
-
-    
 }
 
 void test_BLINK_GetToken_namespace(void)
