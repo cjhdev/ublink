@@ -13,7 +13,7 @@ GXX := g++
 RULES := au-misra.lnt co-gcc.lnt settings.lnt   
 
 # sources to lint
-SRC := $(addprefix $(DIR_ROOT)/src/, blink_schema.c)
+SRC := $(addprefix $(DIR_ROOT)/src/, blink_lexer.c)
 
 # included from sources to lint
 INCLUDES := -I$(DIR_ROOT)/include

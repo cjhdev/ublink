@@ -24,8 +24,13 @@
 
 #ifdef NDEBUG
 
+    /*lint -e(9026) Allow functionality to be removed completely */
     #define ERROR(...) ;
+
+    /*lint -e(9026) Allow functionality to be removed completely */
     #define TRACE(...) ;
+
+    /*lint -e(9026) Allow functionality to be removed completely */
     #define ASSERT(X) ;
 
 #else
@@ -33,9 +38,14 @@
     #include <assert.h>
     #include <stdio.h>
 
+    /*lint -e(9026) Allow functionality to be removed completely */
     #define ERROR(...)  do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
+
+    /*lint -e(9026) Allow functionality to be removed completely */
     #define TRACE(...)  do{fprintf(stderr, "trace: %s(): ", __FUNCTION__);fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
-    #define ASSERT(X)   assert((X));
+
+    /*lint -e(9026) Allow functionality to be removed completely */
+    #define ASSERT(X)   /*lint -e(9034) Call to assert */assert((X));
     
 #endif
 

@@ -38,6 +38,8 @@ struct token_table {
 
 /* static prototypes **************************************************/
 
+static bool isInteger(char c, uint8_t *out);
+static bool isHexInteger(char c, uint8_t *out);
 static bool isNameChar(char c);
 static bool isFirstNameChar(char c);
 static bool isName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
@@ -47,6 +49,7 @@ static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out);
 
 /* functions **********************************************************/
 
+/*lint -e(9018) advisory */
 enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value)
 {
     size_t pos = 0U;
@@ -174,11 +177,11 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
                     }
                     else{
 
-                        printf("its unknown");
                         retval = T_UNKNOWN;
                     }
                 }
             }
+            break;
         }
     }
 
@@ -195,7 +198,7 @@ static bool isInteger(char c, uint8_t *out)
 
     if((c >= '0') && (c <= '9')){
 
-        *out = c - '0';
+        *out = (uint8_t)(c - '0');
         retval = true;
     }
 
@@ -210,15 +213,15 @@ static bool isHexInteger(char c, uint8_t *out)
     
     if((c >= '0') && (c <= '9')){
 
-        *out = c - '0';
+        *out = (uint8_t)(c - '0');
     }
     else if((c >= 'a') && (c <= 'f')){
 
-        *out = c - 'a'+ 10;
+        *out = (uint8_t)(c - 'a' + 10);
     }
     else if((c >= 'A') && (c <= 'F')){
         
-        *out = c - 'A' + 10;        
+        *out = (uint8_t)(c - 'A' + 10);        
     }
     else{
         
