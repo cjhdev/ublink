@@ -115,7 +115,6 @@ struct blink_symbol {
 struct blink_field_iterator {
     const struct blink_group *group[BLINK_INHERIT_DEPTH]; /**< stack of pointers to groups (inheritence is limited to MAX_DEPTH) */
     uint16_t depth;                             /**< current depth in `group` */
-    const struct blink_field *field;            /**< current field pointer */
 };
 
 /* function prototypes ************************************************/

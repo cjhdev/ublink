@@ -33,7 +33,7 @@ tests: $(TEST_FILES:.c=)
 # below we pattern match similar groups of test binaries
 # 
 
-tc_BLINK%: $(addprefix $(DIR_BUILD)/, run_tc_BLINK%.o tc_BLINK%.o blink_lexer.o unity.o  $(TARGET_OBJ))
+tc_BLINK%: $(addprefix $(DIR_BUILD)/, run_tc_BLINK%.o tc_BLINK%.o blink_lexer.o blink_parser.o unity.o  $(TARGET_OBJ))
 	$(CC) $(LDFLAGS) $^ -o $(DIR_BIN)/$@
 
 $(DIR_BUILD)/%.o: %.c
@@ -54,7 +54,7 @@ run: $(addprefix run_, $(TESTS))
 run_%: %
 	@-./$(DIR_BIN)/$^
 
-coverage: $(addprefix $(DIR_BUILD)/, blink_lexer.gcda)
+coverage: $(addprefix $(DIR_BUILD)/, blink_parser.gcda blink_lexer.gcda)
 	@echo "coverage report:"
 	gcov --no-output --object-directory $(DIR_BUILD) $(^)
 
