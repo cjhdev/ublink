@@ -31,11 +31,16 @@
 /* static prototypes **************************************************/
 
 static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, size_t inLen);
+static struct blink_enum *parseEnum(struct blink_schema *ctxt, struct blink_namespace *ns, const char *in, size_t inLen, size_t *read);
 static void splitCName(const char *in, size_t inLen, const char **nsName, size_t *nsNameLen, const char **name, size_t *nameLen);
+static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type);
 
 static struct blink_namespace *newNamespace(struct blink_schema *ctxt, const char *name, size_t nameLen);
 static struct blink_group *newGroup(struct blink_schema *ctxt, struct blink_namespace *ns);
 static struct blink_field *newField(struct blink_schema *ctxt, struct blink_group *group);
+static struct blink_enum *newEnum(struct blink_schema *ctxt, struct blink_namespace *ns);
+static struct blink_symbol *newSymbol(struct blink_schema *ctxt, struct blink_enum *e);
+static struct blink_type_def *newTypeDef(struct blink_schema *ctxt, struct blink_namespace *ns);
 
 /* functions **********************************************************/
 
@@ -142,15 +147,15 @@ const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_gro
 
     for(iter->depth=0U; iter->depth < BLINK_INHERIT_DEPTH; iter->depth++){
 
-        iter->group[iter->depth] = ptr;
+        iter->field[iter->depth] = ptr->f;
         
-        if(group->s == NULL){
+        if(ptr->s == NULL){
 
             break;            
         }
         else{
 
-            ptr = group->s;
+            ptr = ptr->s;
         }
     }
 
@@ -170,10 +175,10 @@ const struct blink_field *BLINK_NextField(struct blink_field_iterator *iter)
 
     while(retval == NULL){
 
-        if(iter->group[iter->depth] != NULL){
+        if(iter->field[iter->depth] != NULL){
 
-            retval = iter->group[iter->depth];
-            iter->group[iter->depth] = iter->group[iter->depth]->next;
+            retval = iter->field[iter->depth];
+            iter->field[iter->depth] = iter->field[iter->depth]->next;
         }
         else if(iter->depth > 0U){
 
@@ -190,6 +195,9 @@ const struct blink_field *BLINK_NextField(struct blink_field_iterator *iter)
 
 struct blink_schema *BLINK_Parse(struct blink_schema *ctxt, const char *in, size_t inLen)
 {
+    ASSERT(ctxt != NULL)
+    ASSERT(in != NULL)
+    
     bool errors = false;
     struct blink_schema *retval = parse(ctxt, in, inLen);
 
@@ -220,8 +228,50 @@ struct blink_schema *BLINK_Parse(struct blink_schema *ctxt, const char *in, size
             ns = ns->next;
         }
     }
+    else{
 
-    return ((errors) ? NULL : retval);
+        errors = true;
+    }
+
+    if(errors){
+
+        BLINK_DestroySchema(ctxt);
+        retval = NULL;        
+    }
+    
+    return retval;
+}
+
+const char *BLINK_GetGroupName(const struct blink_group *group, size_t *nameLen)
+{
+    ASSERT(group != NULL)
+    ASSERT(nameLen != NULL)
+
+    *nameLen = group->nameLen;
+    return group->name;
+}
+
+const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *group)
+{
+    ASSERT(group != NULL)
+    
+    return group->s;
+}
+
+const char *BLINK_GetFieldName(const struct blink_field *field, size_t *nameLen)
+{
+    ASSERT(field != NULL)
+    ASSERT(nameLen != NULL)
+
+    *nameLen = field->nameLen;
+    return field->name;
+}
+
+bool BLINK_FieldIsOptional(const struct blink_field *field)
+{
+    ASSERT(field != NULL)
+
+    return field->isOptional;
 }
 
 /* static functions ***************************************************/
@@ -235,18 +285,17 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
     struct blink_schema *retval = NULL;
     size_t read;
 
-    const char *name = NULL;
-    size_t nameLen = 0U;
-
     struct blink_namespace *ns;
     struct blink_group *g;
     union blink_token_value value;
+    enum blink_token tok;
+    enum blink_token tokn;
 
-    if(BLINK_GetToken(in, inLen, &read, &value) == T_NAMESPACE){
+    if(BLINK_GetToken(in, inLen, &read, &value) == TOK_NAMESPACE){
 
         pos += read;
 
-        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_NAME){
+        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_NAME){
         
             pos += read;
             ns = newNamespace(ctxt, value.literal.ptr, value.literal.len);            
@@ -265,12 +314,12 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
     if(ns != NULL){
 
         /* parse all definitions */
-        while(BLINK_GetToken(&in[pos], inLen-pos, &read, &value) != T_EOF){
+        while(BLINK_GetToken(&in[pos], inLen-pos, &read, &value) != TOK_EOF){
 
             const char *name = NULL;
             size_t nameLen = 0U;
 
-            if(BLINK_GetToken(&in[pos], inLen-pos, &read, &value) == T_NAME){
+            if(BLINK_GetToken(&in[pos], inLen-pos, &read, &value) == TOK_NAME){
 
                 pos += read;
 
@@ -280,11 +329,11 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
                 uint64_t id = 0U;
                 bool hasID = false;
                 
-                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_SLASH){
+                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_SLASH){
 
                     pos += read;
 
-                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_NUMBER){
+                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_NUMBER){
 
                         pos += read;
                         id = value.number;
@@ -297,10 +346,59 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
                     }                
                 }
                 
-                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_EQUAL){
+                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_EQUAL){
 
-                    ERROR("no support")
-                    return retval;                    
+                    pos += read;
+
+                    tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value);
+
+                    if(tok == TOK_BAR){
+
+                        if(parseEnum(ctxt, ns, &in[pos], inLen - pos, &read) == NULL){
+
+                            return retval;
+                        }
+                        else{
+
+                            pos += read;
+                        }
+                    }
+                    else{
+
+                        tokn = BLINK_GetToken(&in[pos+read], inLen - (pos + read), &read, &value);
+
+                        if((tok == TOK_NAME) && ((tokn == TOK_SLASH) || (tok == TOK_BAR))){
+    
+                            if(parseEnum(ctxt, ns, &in[pos], inLen - pos, &read) == NULL){
+
+                                return retval;
+                            }
+                            else{
+
+                                pos += read;
+                            }   
+                        }
+                        else{
+
+                            struct blink_type_def *t = newTypeDef(ctxt, ns);
+
+                            t->name = name;
+                            t->nameLen = nameLen;
+
+                            if(t != NULL){
+
+                                if(parseType(&in[pos], inLen - pos, &read, &t->type) == NULL){
+                                    
+                                    return retval;
+                                }
+                            }
+                            else{
+
+                                ERROR("malloc")
+                                return retval;
+                            }
+                        }
+                    }                    
                 }
                 else{
 
@@ -313,11 +411,11 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
                         g->id = id;
                         g->hasID = hasID;
 
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_COLON){
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_COLON){
 
                             pos += read;
                             
-                            if((BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_CNAME) || (BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_NAME)){
+                            if((BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_CNAME) || (BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_NAME)){
 
                                 pos += read;
 
@@ -331,149 +429,47 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
                             }
                         }
 
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_RARROW){
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_RARROW){
 
                             pos += read;
 
                             do{
 
                                 struct blink_field *f = newField(ctxt, g);
-                                enum blink_token t = BLINK_GetToken(&in[pos], inLen - pos, &read, &value);
 
-                                switch(t){
-                                case T_U8:
-                                case T_U16:
-                                case T_U32:
-                                case T_U64:
-                                case T_I8:
-                                case T_I16:
-                                case T_I32:
-                                case T_I64:
-                                case T_F64:
-                                case T_STRING:
-                                case T_BINARY:
-                                case T_FIXED:
-                                case T_DECIMAL:
-                                case T_DATE:
-                                case T_MILLI_TIME:
-                                case T_NANO_TIME:
-                                case T_TIME_OF_DAY_MILLI:
-                                case T_TIME_OF_DAY_NANO:
+                                if(parseType(&in[pos], inLen - pos, &read, &f->type) == &f->type){
 
                                     pos += read;
+                                    
+                                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_NAME){
 
-                                    if((t == T_STRING) || (t == T_BINARY)){
+                                        pos += read;
 
-                                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_LPAREN){
+                                        f->name = value.literal.ptr;
+                                        f->nameLen = value.literal.len;
 
+                                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_QUESTION){
+                                            
                                             pos += read;
-
-                                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_NUMBER){
-
-                                                pos += read;
-                                            }
-                                            else{
-
-                                                ERROR("expecting a size");
-                                                return retval;
-                                            }
-
-                                            if(value.number > 0xffffffffU){
-
-                                                ERROR("size decode but is out of range")
-                                                return retval;
-                                            }
-
-                                            f->size = (uint32_t)value.number;
-            
-                                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_RPAREN){
-
-                                                pos += read;
-                                            }   
-                                            else{
-
-                                                ERROR("expecting a ')'")
-                                                return retval;
-                                            }
+                                            f->isOptional = true;
                                         }
                                         else{
 
-                                            f->size = 0xffffffffU;
+                                            f->isOptional = false;
                                         }
                                     }
-                                    break;
-
-                                case T_NAME:
-                                case T_CNAME:
-                
-                                    pos += read;
-
-                                    f->ref = value.literal.ptr;
-                                    f->refLen = value.literal.len;
-
-                                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_STAR){
-
-                                        pos += read;
-                                        f->dynamic = true;                                    
-                                    }
                                     else{
 
-                                        f->dynamic = false;
-                                    }
-                                    break;
-
-                                default:
-
-                                    ERROR("expecting a type");
-                                    return retval;                                    
-                                }
-
-                                /* sequence of type */
-                                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_LBRACKET){
-
-                                    pos += read;
-
-                                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_RBRACKET){
-                                        
-                                        pos += read;
-                                        f->isSequence = true;
-                                    }
-                                    else{
-
-                                        ERROR("expecting ']' character")
+                                        ERROR("expecting field name")
                                         return retval;
-                                    }                        
+                                    }    
                                 }
                                 else{
 
-                                    f->isSequence = false;
-                                }
-
-                                /* field name */
-                                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_NAME){
-
-                                    pos += read;
-
-                                    f->name = value.literal.ptr;
-                                    f->nameLen = value.literal.len;
-
-                                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_QUESTION){
-                                        
-                                        pos += read;
-                                        f->isOptional = true;
-                                    }
-                                    else{
-
-                                        f->isOptional = false;
-                                    }
-                                }
-                                else{
-
-                                    ERROR("expecting field name")
                                     return retval;
-                                }
+                                }                                
                             }
-                            while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == T_COMMA);                   
+                            while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value) == TOK_COMMA);                   
                         }                    
                     }
                     else{
@@ -551,6 +547,262 @@ static struct blink_namespace *newNamespace(struct blink_schema *ctxt, const cha
     return retval;
 }
 
+static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type)
+{
+    ASSERT(in != NULL)
+    ASSERT(read != NULL)
+    ASSERT(type != NULL)
+
+    size_t pos = 0U;
+    size_t r;
+    union blink_token_value value;
+    enum blink_token tok = BLINK_GetToken(&in[pos], inLen - pos, &r, &value);
+    struct blink_type *retval = NULL;
+
+    enum blink_token tokenToType[] = {
+        TOK_STRING,
+        TOK_BINARY,
+        TOK_FIXED,
+        TOK_BOOL,
+        TOK_U8,
+        TOK_U16,
+        TOK_U32,
+        TOK_U64,
+        TOK_I8,
+        TOK_I16,
+        TOK_I32,
+        TOK_I64,
+        TOK_F64,
+        TOK_DATE,
+        TOK_TIME_OF_DAY_MILLI,
+        TOK_TIME_OF_DAY_NANO,
+        TOK_MILLI_TIME,
+        TOK_NANO_TIME,
+        TOK_DECIMAL,
+        TOK_OBJECT,
+    };
+    
+    switch(tok){
+    case TOK_U8:
+    case TOK_U16:
+    case TOK_U32:
+    case TOK_U64:
+    case TOK_I8:
+    case TOK_I16:
+    case TOK_I32:
+    case TOK_I64:
+    case TOK_F64:
+    case TOK_STRING:
+    case TOK_BINARY:
+    case TOK_FIXED:
+    case TOK_DECIMAL:
+    case TOK_DATE:
+    case TOK_MILLI_TIME:
+    case TOK_NANO_TIME:
+    case TOK_TIME_OF_DAY_MILLI:
+    case TOK_TIME_OF_DAY_NANO:
+
+        type->tag = tokenToType[tok];
+
+        pos += r;
+
+        if((tok == TOK_STRING) || (tok == TOK_BINARY) || (tok == TOK_FIXED)){
+
+            if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_LPAREN){
+
+                pos += r;
+
+                if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_NUMBER){
+
+                    pos += r;
+                }
+                else{
+
+                    ERROR("expecting a size");
+                    return retval;
+                }
+
+                if(value.number > 0xffffffffU){
+
+                    ERROR("size decode but is out of range")
+                    return retval;
+                }
+
+                type->size = (uint32_t)value.number;
+
+                if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_RPAREN){
+
+                    pos += r;
+                }   
+                else{
+
+                    ERROR("expecting a ')'")
+                    return retval;
+                }
+            }
+            else if(tok == TOK_FIXED){
+
+                ERROR("expecting a '('")
+                return retval;
+            }
+            else{
+
+                type->size = 0xffffffffU;
+            }
+        }
+        break;
+
+    case TOK_NAME:
+    case TOK_CNAME:
+
+        pos += r;
+
+        type->ref = value.literal.ptr;
+        type->refLen = value.literal.len;
+
+        if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_STAR){
+
+            pos += r;
+            type->tag = TYPE_DYNAMIC_REF;
+        }
+        else{
+
+            type->tag = TYPE_REF;
+        }
+        break;
+
+    case TOK_EQUAL:
+    case TOK_COMMA:
+    case TOK_PERIOD:
+    case TOK_QUESTION:
+    case TOK_LBRACKET:
+    case TOK_RBRACKET:
+    case TOK_LPAREN:
+    case TOK_RPAREN:
+    case TOK_STAR:
+    case TOK_BAR:
+    case TOK_SLASH:
+    case TOK_AT:
+    case TOK_COLON:
+    case TOK_RARROW:
+    case TOK_LARROW:
+    case TOK_NAMESPACE:
+    case TOK_SCHEMA:
+    case TOK_TYPE:
+    case TOK_NUMBER:
+    case TOK_UNKNOWN:
+    case TOK_EOF:
+    default:
+
+        ERROR("expecting a type");
+        return retval;                                    
+    }
+
+    /* sequence of type */
+    if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_LBRACKET){
+
+        pos += r;
+
+        if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_RBRACKET){
+            
+            pos += r;
+            type->isSequence = true;
+        }
+        else{
+
+            ERROR("expecting ']' character")
+            return retval;
+        }                        
+    }
+    else{
+
+        type->isSequence = false;
+    }
+
+    *read = pos;
+
+    return type;
+}
+
+static struct blink_enum *parseEnum(struct blink_schema *ctxt, struct blink_namespace *ns, const char *in, size_t inLen, size_t *read)
+{
+    ASSERT(ctxt != NULL)
+    ASSERT(ns != NULL)
+    ASSERT(in != NULL)
+    ASSERT(read != NULL)
+    
+    size_t pos = 0U;
+    size_t r;
+    union blink_token_value value;
+    struct blink_symbol *s;
+    struct blink_enum *retval = NULL;
+    struct blink_enum *e = newEnum(ctxt, ns);
+    bool single = false;
+
+    if(e != NULL){
+
+        if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_BAR){
+
+            pos += r;
+            single = true;
+        }
+
+        do{
+        
+            if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_NAME){
+
+                pos += r;
+
+                s = newSymbol(ctxt, retval);
+                
+                if(s != NULL){
+
+                    s->name = value.literal.ptr;
+                    s->nameLen = value.literal.len;
+                    
+                    if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_SLASH){
+
+                        pos += r;
+
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_NUMBER){
+
+                            pos += r;
+                            
+                            s->id = value.number;
+                            s->implicitID = false;
+                        }
+                        else{
+
+                            ERROR("expecting number")
+                            return retval;
+                        }
+                    }
+                    else{
+
+                        s->implicitID = true;
+                    }
+                }
+                else{
+
+                    ERROR("malloc")
+                    return retval;
+                }                        
+            }
+            else{
+
+                ERROR("error: expecting name")
+                return retval;
+            }
+        }
+        while(!single && (BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_BAR));
+
+        retval = e;
+        *read = r;
+    }
+
+    return retval;
+}
+
 static struct blink_group *newGroup(struct blink_schema *ctxt, struct blink_namespace *ns)
 {
     ASSERT(ctxt != NULL)
@@ -613,8 +865,97 @@ static struct blink_field *newField(struct blink_schema *ctxt, struct blink_grou
     return retval;
 }
 
-static void destructor(struct blink_schema *ctxt)
+static struct blink_enum *newEnum(struct blink_schema *ctxt, struct blink_namespace *ns)
 {
+    ASSERT(ctxt != NULL)
+    ASSERT(ns != NULL)
+    
+    struct blink_enum *retval;
+    struct blink_enum *ptr = ns->enums;
+
+    //fixme
+    retval = calloc(1, sizeof(struct blink_enum));
+
+    if(retval != NULL){
+
+        if(ptr == NULL){
+
+            ns->enums = retval;
+        }
+        else{
+
+            while(ptr->next != NULL){
+
+                ptr = ptr->next;
+            }
+
+            ptr->next = retval;
+        }       
+    }
+
+    return retval;
+}
+
+static struct blink_symbol *newSymbol(struct blink_schema *ctxt, struct blink_enum *e)
+{
+    ASSERT(ctxt != NULL)
+    ASSERT(e != NULL)
+
+    struct blink_symbol *ptr = e->s;
+    struct blink_symbol *retval;
+
+    //fixme
+    retval = calloc(1, sizeof(struct blink_enum));
+    
+    if(retval != NULL){
+    
+        if(ptr == NULL){
+
+            e->s = retval;
+        }
+        else{
+
+            while(ptr->next != NULL){
+
+                ptr = ptr->next;
+            }
+
+            ptr->next = retval;
+        }
+    }
+
+    return retval;
+}
+
+static struct blink_type_def *newTypeDef(struct blink_schema *ctxt, struct blink_namespace *ns)
+{
+    ASSERT(ctxt != NULL)
+    ASSERT(ns != NULL)
+    
+    struct blink_type_def *retval;
+    struct blink_type_def *ptr = ns->types;
+
+    //fixme
+    retval = calloc(1, sizeof(struct blink_type_def));
+
+    if(retval != NULL){
+
+        if(ptr == NULL){
+
+            ns->types = retval;
+        }
+        else{
+
+            while(ptr->next != NULL){
+
+                ptr = ptr->next;
+            }
+
+            ptr->next = retval;
+        }       
+    }
+
+    return retval;
 }
 
 static void splitCName(const char *in, size_t inLen, const char **nsName, size_t *nsNameLen, const char **name, size_t *nameLen)

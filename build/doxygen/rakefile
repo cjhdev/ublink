@@ -5,7 +5,7 @@ DIR_OUTPUT = "output"
 DIR_HTML = "#{DIR_OUTPUT}/html"
 
 desc "run doxygen to produce documentation"
-task :run do
+task :doxygen do
 
     config = Doxyfile.new(File.read("doxyfile.erb")) do |d|
         d.version = File.new("#{DIR_ROOT}/version", "r").read.gsub("\n", "")
@@ -22,9 +22,7 @@ end
     
 desc "remove doxygen output"
 task :clean do
-
-    system "rm -R #{DIR_HTML}"
-
+    system "rm -Rf #{DIR_HTML}"
 end    
 
 task :default => :run

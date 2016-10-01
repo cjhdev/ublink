@@ -48,45 +48,118 @@ extern "C" {
     #define BLINK_INHERIT_DEPTH   10U
 #endif    
 
+/* enums **************************************************************/
+
+enum blink_type_tag {
+    TYPE_STRING = 0,
+    TYPE_BINARY,
+    TYPE_FIXED,
+    TYPE_BOOL,
+    TYPE_U8,
+    TYPE_U16,
+    TYPE_U32,
+    TYPE_U64,
+    TYPE_I8,
+    TYPE_I16,
+    TYPE_I32,
+    TYPE_I64,
+    TYPE_F64,
+    TYPE_DATE,
+    TYPE_TIME_OF_DAY_MILLI,
+    TYPE_TIME_OF_DAY_NANO,
+    TYPE_NANO_TIME,
+    TYPE_MILLI_TIME,
+    TYPE_DECIMAL,
+    TYPE_OBJECT,
+    TYPE_REF,
+    TYPE_DYNAMIC_REF
+};    
+
 /* structs ************************************************************/
+
+/** type */
+struct blink_type {
+
+    bool isSequence;
+    uint32_t size;
+    const char *ref;
+    size_t refLen;
+    enum blink_type_tag tag;
+};
 
 /** field */
 struct blink_field {
-    struct blink_field *next;       /**< next field in group */
-    const char *name;               /**< name of this field */
-    size_t nameLen;               /**< byte length of `name` */
-    bool isOptional;                /**< field is optional */
-    bool isSequence;
-    uint32_t size;
-    bool dynamic;
-    const char *ref;
-    size_t refLen;
-    enum {
-        TYPE_STRING,
-        TYPE_BINARY
-    } type;    
+    struct blink_field *next;   /**< next field in group */
+    const char *name;           /**< name of this field */
+    size_t nameLen;             /**< byte length of `name` */
+    bool isOptional;            /**< field is optional */
+    struct blink_type type;     
 };
 
 /** group */
 struct blink_group {
     struct blink_group *next;
     const char *name;               /**< name of this group */
-    size_t nameLen;               /**< byte length of `name` */
+    size_t nameLen;                 /**< byte length of `name` */
     bool hasID;                     /**< group has an ID */
     uint64_t id;                    /**< group ID */
-    const char *superGroup;              /**< name of super group */
-    size_t superGroupLen;              /**< byte length of supergroup name */
+    const char *superGroup;         /**< name of super group */
+    size_t superGroupLen;           /**< byte length of supergroup name */
     const struct blink_group *s;    /**< pointer to supergroup definition */
     struct blink_field *f;          /**< fields belonging to group */
+};
+
+/** enumeration symbol */
+struct blink_symbol {
+    struct blink_symbol *next;
+    const char *name;
+    size_t nameLen;
+    uint64_t id;
+    bool implicitID;            /**< true if ID is not explicitly defined */
+};
+
+/** enumeration */
+struct blink_enum {
+    struct blink_enum *next;
+    const char *name;           /**< name of this field */
+    size_t nameLen;             /**< byte length of `name` */
+    struct blink_symbol *s;     /**< symbols belonging to enumeration */    
+};
+
+/** type definition */
+struct blink_type_def {
+    struct blink_type_def *next;
+    const char *name;
+    size_t nameLen;
+    struct blink_type type;
+};
+
+/** annotation */
+struct blink_annote {
+    struct blink_annote *next;
+    const char *key;
+    size_t keyLen;
+    const char *value;
+    size_t valueLen;
+    uint64_t number;
+    bool isNumeric;         /**< true if this annotation is a numeric value (not a string) */    
+};
+
+struct blink_inline_annote {
+    struct blink_inline_annote *next;
+    const char *name;
+    size_t nameLen;
+    struct blink_annote *a;         /** list of annotes to apply */
 };
 
 /** namespace */
 struct blink_namespace {
     struct blink_namespace *next;   /**< next namespace definition in schema */
     const char *name;               /**< name of this namespace */
-    size_t nameLen;               /**< byte length of `name` */
+    size_t nameLen;                 /**< byte length of `name` */
     struct blink_group *groups;     /**< groups defined in namespace */
     struct blink_enum *enums;       /**< enums defined in namespace */        
+    struct blink_type_def *types;   /**< types defined in namespace */    
 };
 
 /** schema */
@@ -95,26 +168,10 @@ struct blink_schema {
     bool finalised;             /**< when true no more schema definitions can be appended */
 };
 
-/** enumeration */
-struct blink_enum {
-    struct blink_enum *next;
-    const char *name;               /**< name of this field */
-    size_t nameLen;               /**< byte length of `name` */
-    struct blink_symbol *symbol;    /**< symbols belonging to enumeration */    
-};
-
-/** enumeration symbol */
-struct blink_symbol {
-    struct blink_symbol *next;
-    const char *name;
-    size_t nameLen;
-    uint64_t value;    
-};
-
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
 struct blink_field_iterator {
-    const struct blink_group *group[BLINK_INHERIT_DEPTH]; /**< stack of pointers to groups (inheritence is limited to MAX_DEPTH) */
-    uint16_t depth;                             /**< current depth in `group` */
+    const struct blink_field *field[BLINK_INHERIT_DEPTH];   /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
+    uint16_t depth;                                         /**< current depth in `group` */
 };
 
 /* function prototypes ************************************************/
@@ -213,6 +270,44 @@ const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_gro
  *
  * */
 const struct blink_field *BLINK_NextField(struct blink_field_iterator *iter);
+
+/** Get name of a group
+ *
+ * @param[in] group group definition
+ * @param[out] nameLen byte length of group name
+ * 
+ * @return pointer to group name
+ *
+ * */
+const char *BLINK_GetGroupName(const struct blink_group *group, size_t *nameLen);
+
+/** Get super group definition (if it exists)
+ *
+ * @param[in] group group definition
+ *
+ * @return super group definition
+ *
+ * */
+const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *group);
+
+/** Get name of a field
+ *
+ * @param[in] field field definition
+ * @param[out] nameLen byte length of field name
+ *
+ * @return pointer to field name
+ *
+ * */
+const char *BLINK_GetFieldName(const struct blink_field *field, size_t *nameLen);
+
+/** Is this field optional?
+ *
+ * @param[in] field field definition
+ *
+ * @return is this field optional?
+ *
+ * */
+bool BLINK_FieldIsOptional(const struct blink_field *field);
 
 #ifdef __cplusplus
 }

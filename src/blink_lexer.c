@@ -53,36 +53,36 @@ static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out);
 enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value)
 {
     size_t pos = 0U;
-    enum blink_token retval = T_EOF;
+    enum blink_token retval = TOK_EOF;
     size_t i;
     size_t r;
 
     const static struct token_table tt[] = {
-        {"->", sizeof("->")-1U, T_RARROW},
-        {"<-", sizeof("<-")-1U, T_LARROW},
-        {"i8", sizeof("i8")-1U, T_I8},
-        {"i16", sizeof("i16")-1U, T_I16},
-        {"i32", sizeof("i32")-1U, T_I32},
-        {"i64", sizeof("i64")-1U, T_I64},
-        {"u8", sizeof("u8")-1U, T_U8},
-        {"u16", sizeof("u16")-1U, T_U16},
-        {"u32", sizeof("u32")-1U, T_U32},
-        {"u64", sizeof("u64")-1U, T_U64},
-        {"f64", sizeof("f64")-1U, T_F64},
-        {"decimal", sizeof("decimal")-1U, T_DECIMAL},
-        {"date", sizeof("date")-1U, T_DATE},
-        {"timeOfDayMilli", sizeof("timeOfDayMilli")-1U, T_TIME_OF_DAY_MILLI},
-        {"timeOfDayNano", sizeof("timeOfDayNano")-1U, T_TIME_OF_DAY_NANO},
-        {"nanotime", sizeof("nanotime")-1U, T_NANO_TIME},
-        {"millitime", sizeof("millitime")-1U, T_MILLI_TIME},
-        {"bool", sizeof("bool")-1U, T_BOOL},
-        {"string", sizeof("string")-1U, T_STRING},
-        {"binary", sizeof("binary")-1U, T_BINARY},
-        {"object", sizeof("object")-1U, T_OBJECT},
-        {"namespace", sizeof("namespace")-1U, T_NAMESPACE},
-        {"type", sizeof("type")-1U, T_TYPE},
-        {"schema", sizeof("schema")-1U, T_SCHEMA},
-        {"fixed", sizeof("fixed")-1U, T_FIXED}        
+        {"->", sizeof("->")-1U, TOK_RARROW},
+        {"<-", sizeof("<-")-1U, TOK_LARROW},
+        {"i8", sizeof("i8")-1U, TOK_I8},
+        {"i16", sizeof("i16")-1U, TOK_I16},
+        {"i32", sizeof("i32")-1U, TOK_I32},
+        {"i64", sizeof("i64")-1U, TOK_I64},
+        {"u8", sizeof("u8")-1U, TOK_U8},
+        {"u16", sizeof("u16")-1U, TOK_U16},
+        {"u32", sizeof("u32")-1U, TOK_U32},
+        {"u64", sizeof("u64")-1U, TOK_U64},
+        {"f64", sizeof("f64")-1U, TOK_F64},
+        {"decimal", sizeof("decimal")-1U, TOK_DECIMAL},
+        {"date", sizeof("date")-1U, TOK_DATE},
+        {"timeOfDayMilli", sizeof("timeOfDayMilli")-1U, TOK_TIME_OF_DAY_MILLI},
+        {"timeOfDayNano", sizeof("timeOfDayNano")-1U, TOK_TIME_OF_DAY_NANO},
+        {"nanotime", sizeof("nanotime")-1U, TOK_NANO_TIME},
+        {"millitime", sizeof("millitime")-1U, TOK_MILLI_TIME},
+        {"bool", sizeof("bool")-1U, TOK_BOOL},
+        {"string", sizeof("string")-1U, TOK_STRING},
+        {"binary", sizeof("binary")-1U, TOK_BINARY},
+        {"object", sizeof("object")-1U, TOK_OBJECT},
+        {"namespace", sizeof("namespace")-1U, TOK_NAMESPACE},
+        {"type", sizeof("type")-1U, TOK_TYPE},
+        {"schema", sizeof("schema")-1U, TOK_SCHEMA},
+        {"fixed", sizeof("fixed")-1U, TOK_FIXED}        
     };
 
     /* skip whitespace */
@@ -102,43 +102,43 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
 
         switch(in[pos]){
         case '*':
-            retval = T_STAR;
+            retval = TOK_STAR;
             break;
         case '=':
-            retval = T_EQUAL;
+            retval = TOK_EQUAL;
             break;
         case '.':
-            retval = T_PERIOD;
+            retval = TOK_PERIOD;
             break;
         case ',':
-            retval = T_COMMA;
+            retval = TOK_COMMA;
             break;        
         case '(':
-            retval = T_LPAREN;
+            retval = TOK_LPAREN;
             break;    
         case ')':
-            retval = T_RPAREN;
+            retval = TOK_RPAREN;
             break;    
         case '[':
-            retval = T_LBRACKET;
+            retval = TOK_LBRACKET;
             break;    
         case ']':
-            retval = T_RBRACKET;
+            retval = TOK_RBRACKET;
             break;        
         case ':':
-            retval = T_COLON;
+            retval = TOK_COLON;
             break;    
         case '/':
-            retval = T_SLASH;
+            retval = TOK_SLASH;
             break;    
         case '?':
-            retval = T_QUESTION;
+            retval = TOK_QUESTION;
             break;    
         case '@':
-            retval = T_AT;
+            retval = TOK_AT;
             break;
         case '|':
-            retval = T_BAR;
+            retval = TOK_BAR;
             break;
         default:
 
@@ -147,7 +147,7 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
             if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
 
                 *read += r;
-                retval = T_CNAME;
+                retval = TOK_CNAME;
             }
             else{
 
@@ -168,16 +168,16 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
                     if(isName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
 
                         *read += r;
-                        retval = T_NAME;
+                        retval = TOK_NAME;
                     }
                     else if(isHexNum(&in[pos], inLen - pos, &r, &value->number) || isNum(&in[pos], inLen - pos, read, &value->number)){
 
                         *read += r;
-                        retval = T_NUMBER;
+                        retval = TOK_NUMBER;
                     }
                     else{
 
-                        retval = T_UNKNOWN;
+                        retval = TOK_UNKNOWN;
                     }
                 }
             }

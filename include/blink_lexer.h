@@ -44,62 +44,61 @@ extern "C" {
 
 /** The following tokens are returned by #BLINK_GetToken */
 enum blink_token {
-    T_EQUAL,            /**< `=` */
-    T_COMMA,            /**< `,` */
-    T_PERIOD,           /**< `. ` */
-    T_QUESTION,         /**< `?` */    
-    T_LBRACKET,         /**< `[` */
-    T_RBRACKET,         /**< `]` */
-    T_LPAREN,           /**< `(` */
-    T_RPAREN,           /**< `)` */
-    T_STAR,             /**< `*` */
-    T_BAR,              /**< `|` */
-    T_SLASH,            /**< `/` */
-    T_AT,               /**< `@` */
-    T_COLON,            /**< `:` */    
-    T_RARROW,           /**< `->` */
-    T_LARROW,           /**< `<-` */
-    T_BOOL,             /**< `bool` */
-    T_I8,               /**< `i8` */
-    T_I16,              /**< `i16` */
-    T_I32,              /**< `i32` */
-    T_I64,              /**< `i64` */
-    T_U8,               /**< `u8` */
-    T_U16,              /**< `u16` */
-    T_U32,              /**< `u32` */
-    T_U64,              /**< `u64` */
-    T_F64,              /**< `f64` */
-    T_DECIMAL,          /**< `decimal` */    
-    T_DATE,             /**< `date` */
-    T_MILLI_TIME,       /**< `milltime` */
-    T_NANO_TIME,        /**< `nanotime` */
-    T_TIME_OF_DAY_MILLI,    /**< `timeOfDayMilli` */
-    T_TIME_OF_DAY_NANO,     /**< `timeOfDayNano` */
-    T_OBJECT,               /**< `object` */
-    T_FIXED,                /**< `fixed` */
-    T_STRING,               /**< `string` */
-    T_BINARY,               /**< `binary` */
-    T_NAMESPACE,        /**< `namespace` */
-    T_SCHEMA,           /**< `schema` */    
-    T_TYPE,             /**< `type` */    
-    T_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */    
-    T_NAME,             /**< `[\\]?[A-Za-z_][A-Za-z_0-9]+` */
-    T_CNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                    
-    
-    T_UNKNOWN,          /**< <no match> */
-    T_EOF,               /**< <end of file> */
+    TOK_STRING = 0,       /**< `string` */
+    TOK_BINARY,           /**< `binary` */
+    TOK_FIXED,            /**< `fixed` */
+    TOK_BOOL,             /**< `bool` */            
+    TOK_U8,               /**< `u8` */
+    TOK_U16,              /**< `u16` */
+    TOK_U32,              /**< `u32` */
+    TOK_U64,              /**< `u64` */
+    TOK_I8,               /**< `i8` */
+    TOK_I16,              /**< `i16` */
+    TOK_I32,              /**< `i32` */
+    TOK_I64,              /**< `i64` */
+    TOK_F64,              /**< `f64` */
+    TOK_DATE,             /**< `date` */
+    TOK_TIME_OF_DAY_MILLI,    /**< `timeOfDayMilli` */
+    TOK_TIME_OF_DAY_NANO,     /**< `timeOfDayNano` */
+    TOK_MILLI_TIME,       /**< `milltime` */
+    TOK_NANO_TIME,        /**< `nanotime` */    
+    TOK_DECIMAL,          /**< `decimal` */
+    TOK_OBJECT,           /**< `object` */
+    TOK_NAME,             /**< `[\\]?[A-Za-z_][A-Za-z_0-9]+` */
+    TOK_CNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                        
+    TOK_EQUAL,            /**< `=` */
+    TOK_COMMA,            /**< `,` */
+    TOK_PERIOD,           /**< `. ` */
+    TOK_QUESTION,         /**< `?` */    
+    TOK_LBRACKET,         /**< `[` */
+    TOK_RBRACKET,         /**< `]` */
+    TOK_LPAREN,           /**< `(` */
+    TOK_RPAREN,           /**< `)` */
+    TOK_STAR,             /**< `*` */
+    TOK_BAR,              /**< `|` */
+    TOK_SLASH,            /**< `/` */
+    TOK_AT,               /**< `@` */
+    TOK_COLON,            /**< `:` */    
+    TOK_RARROW,           /**< `->` */
+    TOK_LARROW,           /**< `<-` */
+    TOK_NAMESPACE,        /**< `namespace` */
+    TOK_SCHEMA,           /**< `schema` */    
+    TOK_TYPE,             /**< `type` */    
+    TOK_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */        
+    TOK_UNKNOWN,          /**< <no match> */
+    TOK_EOF,               /**< <end of file> */
 };
 
 /* unions *************************************************************/
 
 /** Some tokens have a value returned by #BLINK_GetToken */
 union blink_token_value {    
-    /** Initialised for #T_NAME and #T_CNAME */
+    /** Initialised for #TOK_NAME and #TOK_CNAME */
     struct {
         const char *ptr;    /**< pointer to printable string */
         size_t len;         /**< byte length of `ptr` */
     } literal;
-    /** Initialised for #T_NUMBER */
+    /** Initialised for #TOK_NUMBER */
     uint64_t number;            
 };
 
@@ -110,7 +109,7 @@ union blink_token_value {
  * @param[in] in input buffer
  * @param[in] inLen byte length of `in`
  * @param[out] read bytes read from `in`
- * @param[out] value value of token (only initialised for T_NAME, T_CNAME, T_NUMBER)
+ * @param[out] value value of token (only initialised for TOK_NAME, TOK_CNAME, TOK_NUMBER)
  *
  * @return token parsed
  *
