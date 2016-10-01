@@ -274,6 +274,29 @@ bool BLINK_FieldIsOptional(const struct blink_field *field)
     return field->isOptional;
 }
 
+enum blink_type_tag BLINK_GetFieldType(const struct blink_field *field)
+{
+    ASSERT(field != NULL)
+
+    return field->type.tag;
+}
+
+uint32_t BLINK_GetFieldSize(const struct blink_field *field)
+{
+    ASSERT(field != NULL)
+
+    return field->type.size;
+}
+
+const char *BLINK_GetFieldRef(const struct blink_field *field, size_t *refLen)
+{
+    ASSERT(field != NULL)
+    ASSERT(refLen != NULL)
+
+    *refLen = field->nameLen;
+    return field->name;
+}
+
 /* static functions ***************************************************/
 
 static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, size_t inLen)

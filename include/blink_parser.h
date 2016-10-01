@@ -50,20 +50,21 @@ extern "C" {
 
 /* enums **************************************************************/
 
+/** A #blink_field shall be one of the following types */
 enum blink_type_tag {
-    TYPE_STRING = 0,
-    TYPE_BINARY,
-    TYPE_FIXED,
-    TYPE_BOOL,
-    TYPE_U8,
-    TYPE_U16,
-    TYPE_U32,
-    TYPE_U64,
-    TYPE_I8,
-    TYPE_I16,
-    TYPE_I32,
-    TYPE_I64,
-    TYPE_F64,
+    TYPE_STRING = 0,        /**< UTF8 encoded string */
+    TYPE_BINARY,            /**< octet string */
+    TYPE_FIXED,             /**< fixed size string */
+    TYPE_BOOL,              /**< boolean */
+    TYPE_U8,                /**< 8 bit unsigned integer */
+    TYPE_U16,               /**< 16 bit unsigned integer */
+    TYPE_U32,               /**< 32 bit unsigned integer */
+    TYPE_U64,               /**< 64 bit unsigned integer */
+    TYPE_I8,                /**< 8 bit signed integer */
+    TYPE_I16,               /**< 16 bit signed integer */
+    TYPE_I32,               /**< 32 bit signed integer */
+    TYPE_I64,               /**< 64 bit signed integer */
+    TYPE_F64,               /**<  */
     TYPE_DATE,
     TYPE_TIME_OF_DAY_MILLI,
     TYPE_TIME_OF_DAY_NANO,
@@ -71,8 +72,8 @@ enum blink_type_tag {
     TYPE_MILLI_TIME,
     TYPE_DECIMAL,
     TYPE_OBJECT,
-    TYPE_REF,
-    TYPE_DYNAMIC_REF
+    TYPE_REF,               /**< reference */
+    TYPE_DYNAMIC_REF        /**< dynamic reference */
 };    
 
 /* structs ************************************************************/
@@ -180,7 +181,7 @@ struct blink_field_iterator {
  *
  * @param[in] ctxt schema object
  *
- * @return pointer to blink_schema
+ * @return struct blink_schema *
  *
  * */
 struct blink_schema *BLINK_NewSchema(struct blink_schema *ctxt);
@@ -192,40 +193,48 @@ struct blink_schema *BLINK_NewSchema(struct blink_schema *ctxt);
  * */
 void BLINK_DestroySchema(struct blink_schema *ctxt);
 
-/**
- * Parse next Blink Protocol schema definition
+/** Parse next Blink Protocol schema definition
  *
- * - Use this interface to append several schema definitions
- * - Use BLINK_ParseNext to append the final definition
+ * @see BLINK_ParseFinal
  *
+ * @note does not finalise the schema representation
  * 
  * @param[in] ctxt schema object
  * @param[in] in Blink Protocol schema definition
  * @param[in] inLen byte length of `in`
  *
- * @return initialised schema or NULL
+ * @return struct blink_schema *
+ * @retval NULL (`in` could not be parsed)
  *
  * */
 struct blink_schema *BLINK_ParseNext(struct blink_schema *ctxt, const char *in, size_t inLen);
 
-/**
- * Parse final Blink Protocol schema definition
+/** Parse final Blink Protocol schema definition
  *
- * - Identical functionality to BLINK_Parse
+ * @see BLINK_ParseNext
  *
- * @see BLINK_Parse
- *
- * */
-struct blink_schema *BLINK_ParseFinal(struct blink_schema *ctxt, const char *in, size_t inLen);
-
-/**
- * Parse a single Blink Protocol schema definition
+ * @note finalises the schema representation
  *
  * @param[in] ctxt schema object
  * @param[in] in Blink Protocol schema definition
  * @param[in] inLen byte length of `in`
  *
- * @return initialised schema or NULL
+ * @return struct blink_schema *
+ * @retval NULL (`in` could not be parsed)
+ *
+ * */
+struct blink_schema *BLINK_ParseFinal(struct blink_schema *ctxt, const char *in, size_t inLen);
+
+/** Parse a single Blink Protocol schema definition
+ *
+ * @note finalises the schema representation
+ * 
+ * @param[in] ctxt schema object
+ * @param[in] in Blink Protocol schema definition
+ * @param[in] inLen byte length of `in`
+ *
+ * @return struct blink_schema *
+ * @retval NULL (`in` could not be parsed)
  *
  * */
 struct blink_schema *BLINK_Parse(struct blink_schema *ctxt, const char *in, size_t inLen);
@@ -237,7 +246,8 @@ struct blink_schema *BLINK_Parse(struct blink_schema *ctxt, const char *in, size
  * @param[in] qName qualified group name
  * @param[in] qNameLen byte length of `qName`
  *
- * @return pointer to blink_group
+ * @return const struct blink_group *
+ * @retval NULL (no group found)
  *
  * */
 const struct blink_group *BLINK_GetGroupByName(struct blink_schema *ctxt, const char *qName, size_t qNameLen);
@@ -247,7 +257,8 @@ const struct blink_group *BLINK_GetGroupByName(struct blink_schema *ctxt, const 
  * @param[in] ctxt schema object
  * @param[in] id group ID
  *
- * @return pointer to blink_group
+ * @return const struct blink_group *
+ * @retval NULL (no group found)
  *
  * */
 const struct blink_group *BLINK_GetGroupByID(struct blink_schema *ctxt, uint64_t id);
@@ -257,7 +268,8 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *ctxt, uint64_t
  * @param[in] group group to iterate
  * @param[in] iter iterator state
  *
- * @return pointer to blink_field_iterator
+ * @return const struct blink_field_iterator *
+ * @retval NULL (could not initialise iterator)
  * 
  * */
 const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_group *group, struct blink_field_iterator *iter);
@@ -266,36 +278,38 @@ const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_gro
  *
  * @param[in] iter field iterator
  * 
- * @return pointer to blink_field
+ * @return const struct blink_field *
+ * @retval NULL (no next field)
  *
  * */
 const struct blink_field *BLINK_NextField(struct blink_field_iterator *iter);
 
-/** Get name of a group
+/** Get the name of this group
  *
  * @param[in] group group definition
  * @param[out] nameLen byte length of group name
  * 
- * @return pointer to group name
+ * @return const char *
  *
  * */
 const char *BLINK_GetGroupName(const struct blink_group *group, size_t *nameLen);
 
-/** Get super group definition (if it exists)
+/** Get the super group definition for this group
  *
  * @param[in] group group definition
  *
- * @return super group definition
+ * @return const struct blink_group *
+ * @retval NULL (this group does not have a super group)
  *
  * */
 const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *group);
 
-/** Get name of a field
+/** Get the name of this field
  *
  * @param[in] field field definition
  * @param[out] nameLen byte length of field name
  *
- * @return pointer to field name
+ * @return const char *
  *
  * */
 const char *BLINK_GetFieldName(const struct blink_field *field, size_t *nameLen);
@@ -304,10 +318,46 @@ const char *BLINK_GetFieldName(const struct blink_field *field, size_t *nameLen)
  *
  * @param[in] field field definition
  *
- * @return is this field optional?
+ * @return bool
+ * @retval true (field is optional)
+ * @retval false (field is not optional)
  *
  * */
 bool BLINK_FieldIsOptional(const struct blink_field *field);
+
+/** Get the type of this field
+ *
+ * @param[in] field field definition
+ * 
+ * @return enum #blink_type_tag
+ * 
+ * */
+enum blink_type_tag BLINK_GetFieldType(const struct blink_field *field);
+
+/** Get the size of this field (if applicable)
+ *
+ * @note applicable if #TYPE_FIXED, #TYPE_BINARY, or #TYPE_STRING
+ * @note for #TYPE_STRING and #TYPE_BINARY size means maximum size
+ *
+ * @param[in] field field definition
+ * @return uint32_t
+ * 
+ * */
+uint32_t BLINK_GetFieldSize(const struct blink_field *field);
+
+/** Get the type referencestring of this field (if applicable)
+ *
+ * @note applicable if #TYPE_REF or #TYPE_DYNAMIC_REF
+ *
+ * @param[in] field field definition
+ * @param[out] refLen byte length of reference string
+ *
+ * @return const char *
+ * @retval NULL (this field is not a #TYPE_REF or #TYPE_DYNAMIC_REF)
+ *
+ * */
+const char *BLINK_GetFieldRef(const struct blink_field *field, size_t *refLen);
+
 
 #ifdef __cplusplus
 }

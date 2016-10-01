@@ -48,7 +48,8 @@ extern "C" {
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return bytes successfully written to `out`
+ * @return uint8_t
+ * @retval 0..255 (bytes successfully written to `out`)
  * 
  * */
 uint8_t BLINK_PutVLCNull(uint8_t *out, uint32_t outMax);
@@ -58,7 +59,8 @@ uint8_t BLINK_PutVLCNull(uint8_t *out, uint32_t outMax);
  *
  * @param[in] value value to encode as VLC
  *
- * @return minimum bytes to VLC encode value
+ * @return uint8_t
+ * @retval 1..9 (minimum number of bytes to VLC encode unsigned `value`)
  * 
  * */
 uint8_t BLINK_GetVLCSizeUnsigned(uint64_t value);
@@ -68,7 +70,8 @@ uint8_t BLINK_GetVLCSizeUnsigned(uint64_t value);
  *
  * @param[in] value value to encode as VLC
  *
- * @return minimum bytes to VLC encode value
+ * @return uint8_t
+ * @retval 1..9 (minimum number of bytes to VLC encode signed `value`)
  * 
  * */
 uint8_t BLINK_GetVLCSizeSigned(int64_t value);
@@ -81,7 +84,8 @@ uint8_t BLINK_GetVLCSizeSigned(int64_t value);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte lenght of `out`
  *
- * @return bytes successfully written to `out`
+ * @return uint8_t
+ * @retval 0..255 (bytes successfully written to `out`)
  *
  * */
 uint8_t BLINK_PutVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMax);
@@ -95,7 +99,8 @@ uint8_t BLINK_PutVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMax);
  * @param[out] out output integer buffer
  * @param[out] isNull set `true` if `in` decodes to NULL
  *
- * @return bytes successfully read from `in`
+ * @return uint8_t
+ * @retval 0..255 (bytes successfully read from `in`)
  *
  * */
 uint8_t BLINK_GetVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64_t *out, bool *isNull);

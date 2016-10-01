@@ -1,3 +1,8 @@
+/**
+ * @example tc_BLINK_Parse.c
+ *
+ * */
+
 #include "unity.h"
 #include "blink_parser.h"
 #include <string.h>
@@ -49,7 +54,23 @@ void test_BLINK_Parse_greeting(void)
     struct blink_field_iterator iter;
     TEST_ASSERT_EQUAL_PTR(&iter, BLINK_NewFieldIterator(BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")), &iter));
 
-    TEST_ASSERT_TRUE(BLINK_NextField(&iter) != NULL);
+    const struct blink_field *f = BLINK_NextField(&iter);
+    TEST_ASSERT_TRUE(f != NULL);
+
+    size_t len;
+    const char *name = BLINK_GetFieldName(f, &len);
+    enum blink_type_tag tag = BLINK_GetFieldType(f);
+    uint32_t size = BLINK_GetFieldSize(f);
+    
+    TEST_ASSERT_EQUAL(TYPE_STRING, tag);
+    TEST_ASSERT_EQUAL(0xffffffff, size);
+
+    TEST_ASSERT_EQUAL(strlen("Greeting"), len);
+    TEST_ASSERT_EQUAL_STRING_LEN("Greeting", name, len);
+    TEST_ASSERT_EQUAL_STRING_LEN("Greeting", name, len);
+
+    TEST_ASSERT_FALSE(BLINK_FieldIsOptional(f));
+
     TEST_ASSERT_TRUE(BLINK_NextField(&iter) == NULL);
 }
 
@@ -60,3 +81,22 @@ void test_BLINK_Parse_namespace_emptyGroup(void)
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
     TEST_ASSERT_TRUE(BLINK_GetGroupByName(&ctxt, "test:empty", strlen("test:empty")) != NULL);
 }
+
+void test_BLINK_Parse_enum_single(void)
+{
+    const char input[] = "test = | lonely";
+
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_enum_single_value(void)
+{
+    const char input[] = "test = | lonely/1";
+
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+
+
+
+

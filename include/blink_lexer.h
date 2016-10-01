@@ -104,16 +104,14 @@ union blink_token_value {
 
 /* function prototypes ************************************************/
 
-/** Return next token syntax
- *
+/** Return next token from syntax
+ * 
  * @param[in] in input buffer
  * @param[in] inLen byte length of `in`
  * @param[out] read bytes read from `in`
  * @param[out] value value of token (only initialised for TOK_NAME, TOK_CNAME, TOK_NUMBER)
  *
- * @return token parsed
- *
- * @see enum blink_token
+ * @return enum #blink_token
  *
  * */
 enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value);
