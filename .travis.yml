@@ -1,20 +1,10 @@
 notifications:
     email: false
 language: C
-install:
-    - sudo apt-get install doxygen
-before_script:
-    - git config user.name "travis"
-    - git config user.email "contact@cjh.id.au"
-    - echo $GH_PAGES_PUSH > ~/.ssh/id_rsa
-    - chmod 400 ~/.ssh/id_rsa
-    - GIT_SSH_COMMAND='ssh -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'    
 script:
     - cd build/unit_test
     - make
     - make coverage
-    - cd ../doxygen    
-    - rake ghpages
 
     
     
