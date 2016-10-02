@@ -13,8 +13,9 @@ script:
     - cd build/unit_test
     - make
     - make coverage
-after_script:
-    - cd build/doxygen    
+    - cd ../doxygen    
     - rake ghpages
+
+    
     
     
