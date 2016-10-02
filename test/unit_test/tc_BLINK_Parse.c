@@ -89,12 +89,6 @@ void test_BLINK_Parse_enum_single(void)
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));    
 }
 
-void test_BLINK_Parse_enum_single_value(void)
-{
-    const char input[] = "test = | lonely/1";
-
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));    
-}
 
 
 

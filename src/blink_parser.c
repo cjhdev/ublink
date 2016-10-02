@@ -238,6 +238,10 @@ struct blink_schema *BLINK_Parse(struct blink_schema *ctxt, const char *in, size
         BLINK_DestroySchema(ctxt);
         retval = NULL;        
     }
+    else{
+
+        ctxt->finalised = true;
+    }
     
     return retval;
 }
@@ -511,7 +515,7 @@ static struct blink_schema *parse(struct blink_schema *ctxt, const char *in, siz
                 }
                 else{
 
-                    ERROR("unknown character")
+                    ERROR("unknown character %u", in[pos + read])
                 }
                 break;
             }           
@@ -625,6 +629,7 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
     case TOK_TIME_OF_DAY_MILLI:
     case TOK_TIME_OF_DAY_NANO:
 
+        ASSERT(type->tag < (sizeof(tokenToType)/sizeof(*tokenToType)))
         type->tag = tokenToType[tok];
 
         pos += r;
@@ -766,17 +771,21 @@ static struct blink_enum *parseEnum(struct blink_schema *ctxt, struct blink_name
 
         if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_BAR){
 
-            pos += r;
+            pos += r;            
             single = true;
         }
 
+        r = 0U;
+
         do{
+
+            pos += r;
         
             if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_NAME){
 
                 pos += r;
 
-                s = newSymbol(ctxt, retval);
+                s = newSymbol(ctxt, e);
                 
                 if(s != NULL){
 
@@ -820,7 +829,7 @@ static struct blink_enum *parseEnum(struct blink_schema *ctxt, struct blink_name
         while(!single && (BLINK_GetToken(&in[pos], inLen - pos, &r, &value) == TOK_BAR));
 
         retval = e;
-        *read = r;
+        *read = pos;
     }
 
     return retval;

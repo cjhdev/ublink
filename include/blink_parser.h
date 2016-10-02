@@ -64,14 +64,15 @@ enum blink_type_tag {
     TYPE_I16,               /**< 16 bit signed integer */
     TYPE_I32,               /**< 32 bit signed integer */
     TYPE_I64,               /**< 64 bit signed integer */
-    TYPE_F64,               /**<  */
-    TYPE_DATE,
+    TYPE_F64,               /**< IEEE 754 double */
+    TYPE_DATE,              
     TYPE_TIME_OF_DAY_MILLI,
     TYPE_TIME_OF_DAY_NANO,
     TYPE_NANO_TIME,
-    TYPE_MILLI_TIME,
-    TYPE_DECIMAL,
-    TYPE_OBJECT,
+    TYPE_MILLI_TIME,        
+    TYPE_DECIMAL,           /**< 8 bit signed integer exponent, 64 bit signed integer mantissa */
+    TYPE_OBJECT,            /**< any group encoded as dynamic group */
+    TYPE_ENUM,              /**< 32 bit signed integer */
     TYPE_REF,               /**< reference */
     TYPE_DYNAMIC_REF        /**< dynamic reference */
 };    
@@ -81,8 +82,8 @@ enum blink_type_tag {
 /** type */
 struct blink_type {
 
-    bool isSequence;
-    uint32_t size;
+    bool isSequence;                
+    uint32_t size;                  
     const char *ref;
     size_t refLen;
     enum blink_type_tag tag;
@@ -192,38 +193,6 @@ struct blink_schema *BLINK_NewSchema(struct blink_schema *ctxt);
  *
  * */
 void BLINK_DestroySchema(struct blink_schema *ctxt);
-
-/** Parse next Blink Protocol schema definition
- *
- * @see BLINK_ParseFinal
- *
- * @note does not finalise the schema representation
- * 
- * @param[in] ctxt schema object
- * @param[in] in Blink Protocol schema definition
- * @param[in] inLen byte length of `in`
- *
- * @return struct blink_schema *
- * @retval NULL (`in` could not be parsed)
- *
- * */
-struct blink_schema *BLINK_ParseNext(struct blink_schema *ctxt, const char *in, size_t inLen);
-
-/** Parse final Blink Protocol schema definition
- *
- * @see BLINK_ParseNext
- *
- * @note finalises the schema representation
- *
- * @param[in] ctxt schema object
- * @param[in] in Blink Protocol schema definition
- * @param[in] inLen byte length of `in`
- *
- * @return struct blink_schema *
- * @retval NULL (`in` could not be parsed)
- *
- * */
-struct blink_schema *BLINK_ParseFinal(struct blink_schema *ctxt, const char *in, size_t inLen);
 
 /** Parse a single Blink Protocol schema definition
  *
