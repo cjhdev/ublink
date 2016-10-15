@@ -32,6 +32,10 @@ BLINK_DestroySchema(&s);
 #define BLINK_INHERIT_DEPTH   10
 ~~~
 
+## See Also
+
+[SlowBlink](https://github.com/cjhdev/slow_blink "SlowBlink"): Blink Protocol in Ruby
+
 ## License
 
 uBlink has an MIT license.

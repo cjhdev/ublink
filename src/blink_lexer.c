@@ -33,7 +33,50 @@
 struct token_table {
     const char *s;
     size_t size;
-    enum blink_token type;
+    enum blink_token token;
+};
+
+/* static variables ***************************************************/
+
+static const struct token_table tokenTable[] = {
+    {"*", sizeof("*")-1U, TOK_STAR},    
+    {"=", sizeof("=")-1U, TOK_EQUAL},
+    {".", sizeof(".")-1U, TOK_PERIOD},
+    {",", sizeof(",")-1U, TOK_COMMA},    
+    {"(", sizeof("(")-1U, TOK_LPAREN},    
+    {")", sizeof(")")-1U, TOK_RPAREN},    
+    {"[", sizeof("[")-1U, TOK_LBRACKET},    
+    {"]", sizeof("]")-1U, TOK_RBRACKET},    
+    {":", sizeof(":")-1U, TOK_COLON},
+    {"/", sizeof("/")-1U, TOK_SLASH},    
+    {"?", sizeof("?")-1U, TOK_QUESTION},    
+    {"@", sizeof("@")-1U, TOK_AT},    
+    {"|", sizeof("|")-1U, TOK_BAR},    
+    {"->", sizeof("->")-1U, TOK_RARROW},
+    {"<-", sizeof("<-")-1U, TOK_LARROW},
+    {"i8", sizeof("i8")-1U, TOK_I8},
+    {"i16", sizeof("i16")-1U, TOK_I16},
+    {"i32", sizeof("i32")-1U, TOK_I32},
+    {"i64", sizeof("i64")-1U, TOK_I64},
+    {"u8", sizeof("u8")-1U, TOK_U8},
+    {"u16", sizeof("u16")-1U, TOK_U16},
+    {"u32", sizeof("u32")-1U, TOK_U32},
+    {"u64", sizeof("u64")-1U, TOK_U64},
+    {"f64", sizeof("f64")-1U, TOK_F64},
+    {"decimal", sizeof("decimal")-1U, TOK_DECIMAL},
+    {"date", sizeof("date")-1U, TOK_DATE},
+    {"timeOfDayMilli", sizeof("timeOfDayMilli")-1U, TOK_TIME_OF_DAY_MILLI},
+    {"timeOfDayNano", sizeof("timeOfDayNano")-1U, TOK_TIME_OF_DAY_NANO},
+    {"nanotime", sizeof("nanotime")-1U, TOK_NANO_TIME},
+    {"millitime", sizeof("millitime")-1U, TOK_MILLI_TIME},
+    {"bool", sizeof("bool")-1U, TOK_BOOL},
+    {"string", sizeof("string")-1U, TOK_STRING},
+    {"binary", sizeof("binary")-1U, TOK_BINARY},
+    {"object", sizeof("object")-1U, TOK_OBJECT},
+    {"namespace", sizeof("namespace")-1U, TOK_NAMESPACE},
+    {"type", sizeof("type")-1U, TOK_TYPE},
+    {"schema", sizeof("schema")-1U, TOK_SCHEMA},
+    {"fixed", sizeof("fixed")-1U, TOK_FIXED}        
 };
 
 /* static prototypes **************************************************/
@@ -46,44 +89,37 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
 static bool isCName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
 static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out);
 static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out);
+static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token);
+static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
 
 /* functions **********************************************************/
 
-/*lint -e(9018) advisory */
-enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value)
+const char *BLINK_TokenToString(enum blink_token token, size_t *len)
+{
+    const char *retval = NULL;    
+    size_t i;
+
+    *len = 0U;
+    
+    for(i = 0U; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
+
+        if(tokenTable[i].token == token){
+
+            retval = tokenTable[i].s;
+            *len = tokenTable[i].size;
+            break;
+        }
+    }
+
+    return retval;
+}
+
+/*lint -e(9018) argument value is a union where the relevant field is determined by the function return value */
+enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location)
 {
     size_t pos = 0U;
     enum blink_token retval = TOK_EOF;
-    size_t i;
     size_t r;
-
-    const static struct token_table tt[] = {
-        {"->", sizeof("->")-1U, TOK_RARROW},
-        {"<-", sizeof("<-")-1U, TOK_LARROW},
-        {"i8", sizeof("i8")-1U, TOK_I8},
-        {"i16", sizeof("i16")-1U, TOK_I16},
-        {"i32", sizeof("i32")-1U, TOK_I32},
-        {"i64", sizeof("i64")-1U, TOK_I64},
-        {"u8", sizeof("u8")-1U, TOK_U8},
-        {"u16", sizeof("u16")-1U, TOK_U16},
-        {"u32", sizeof("u32")-1U, TOK_U32},
-        {"u64", sizeof("u64")-1U, TOK_U64},
-        {"f64", sizeof("f64")-1U, TOK_F64},
-        {"decimal", sizeof("decimal")-1U, TOK_DECIMAL},
-        {"date", sizeof("date")-1U, TOK_DATE},
-        {"timeOfDayMilli", sizeof("timeOfDayMilli")-1U, TOK_TIME_OF_DAY_MILLI},
-        {"timeOfDayNano", sizeof("timeOfDayNano")-1U, TOK_TIME_OF_DAY_NANO},
-        {"nanotime", sizeof("nanotime")-1U, TOK_NANO_TIME},
-        {"millitime", sizeof("millitime")-1U, TOK_MILLI_TIME},
-        {"bool", sizeof("bool")-1U, TOK_BOOL},
-        {"string", sizeof("string")-1U, TOK_STRING},
-        {"binary", sizeof("binary")-1U, TOK_BINARY},
-        {"object", sizeof("object")-1U, TOK_OBJECT},
-        {"namespace", sizeof("namespace")-1U, TOK_NAMESPACE},
-        {"type", sizeof("type")-1U, TOK_TYPE},
-        {"schema", sizeof("schema")-1U, TOK_SCHEMA},
-        {"fixed", sizeof("fixed")-1U, TOK_FIXED}        
-    };
 
     /* skip whitespace */
     while(pos < inLen){
@@ -91,104 +127,92 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
         if(!isspace((int)in[pos])){
             break;
         }
+        
         pos++;
+    }
+
+    /* skip comment */
+    if(in[pos] == '#'){
+
+        while(pos < inLen){
+
+            if(in[pos] == '\n'){
+                pos++;
+                break;
+            }
+
+            pos++;
+        }
     }
 
     *read = pos;
 
     if(pos < inLen){
 
-        (*read)++;
+        if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
 
-        switch(in[pos]){
-        case '*':
-            retval = TOK_STAR;
-            break;
-        case '=':
-            retval = TOK_EQUAL;
-            break;
-        case '.':
-            retval = TOK_PERIOD;
-            break;
-        case ',':
-            retval = TOK_COMMA;
-            break;        
-        case '(':
-            retval = TOK_LPAREN;
-            break;    
-        case ')':
-            retval = TOK_RPAREN;
-            break;    
-        case '[':
-            retval = TOK_LBRACKET;
-            break;    
-        case ']':
-            retval = TOK_RBRACKET;
-            break;        
-        case ':':
-            retval = TOK_COLON;
-            break;    
-        case '/':
-            retval = TOK_SLASH;
-            break;    
-        case '?':
-            retval = TOK_QUESTION;
-            break;    
-        case '@':
-            retval = TOK_AT;
-            break;
-        case '|':
-            retval = TOK_BAR;
-            break;
-        default:
+            *read += r;
+            retval = TOK_CNAME;
+        }
+        else if(stringToToken(&in[pos], inLen - pos, &r, &retval)){
 
-            (*read)--;
+            *read += r;
+        }
+        else{
 
-            if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
+            if(isLiteral(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
 
                 *read += r;
-                retval = TOK_CNAME;
+                retval = TOK_LITERAL;                
+            }
+            else if(isName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
+
+                *read += r;
+                retval = TOK_NAME;
+            }
+            else if(isHexNum(&in[pos], inLen - pos, &r, &value->number) || isNum(&in[pos], inLen - pos, read, &value->number)){
+
+                *read += r;
+                retval = TOK_NUMBER;
             }
             else{
 
-                for(i=0; i < (sizeof(tt)/sizeof(*tt)); i++){
-                    if(tt[i].size <= (inLen - pos)){
-
-                        if(!memcmp(tt[i].s, &in[pos], tt[i].size)){
-
-                            *read += tt[i].size;
-                            retval = tt[i].type;
-                            break;
-                        }
-                    }
-                }
-
-                if(i == (sizeof(tt)/sizeof(*tt))){
-
-                    if(isName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
-
-                        *read += r;
-                        retval = TOK_NAME;
-                    }
-                    else if(isHexNum(&in[pos], inLen - pos, &r, &value->number) || isNum(&in[pos], inLen - pos, read, &value->number)){
-
-                        *read += r;
-                        retval = TOK_NUMBER;
-                    }
-                    else{
-
-                        retval = TOK_UNKNOWN;
-                    }
-                }
+                retval = TOK_UNKNOWN;
             }
-            break;
-        }
+        }            
     }
 
     return retval;        
 }
 
 /* static functions ***************************************************/
+
+static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token)
+{
+    ASSERT(in != NULL)
+    ASSERT(read != NULL)
+
+    size_t i;
+    bool retval = false;
+    
+    *read = 0U;
+
+    for(i=0; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
+
+        if(tokenTable[i].size <= inLen){
+
+            if(memcmp(tokenTable[i].s, in, tokenTable[i].size) == 0){
+
+                *read = tokenTable[i].size;
+                *token = tokenTable[i].token;
+                retval = true;
+                break;
+            }
+        }
+    }
+
+    return retval;
+}
 
 static bool isInteger(char c, uint8_t *out)
 {
@@ -198,7 +222,7 @@ static bool isInteger(char c, uint8_t *out)
 
     if((c >= '0') && (c <= '9')){
 
-        *out = (uint8_t)(c - '0');
+        *out = (uint8_t)((((int)c) - '0') & 0xff);
         retval = true;
     }
 
@@ -580,6 +604,77 @@ static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
         }
 
         (*read)++;
+    }
+
+    return retval;
+}
+
+static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
+{
+    ASSERT(in != NULL)
+    ASSERT(read != NULL)
+    ASSERT(out != NULL);
+    ASSERT(outLen != NULL);
+
+    bool retval = false;
+    char c;
+    char mark;
+    enum {
+        EXIT,
+        START,
+        LITERAL
+    } state = START;
+
+    *read = 0U;
+
+    while(*read < inLen){
+
+        c = in[*read];
+        
+        switch(state){
+        case START:
+
+            if((c == '"') || (c == '\'')){
+
+                mark = c;
+                state = LITERAL;
+                *out = &in[1U];
+                *outLen = 0U;
+            }
+            else{
+
+                state = EXIT;
+            }
+            break;                
+
+        case LITERAL:
+
+            if(c == '\n'){
+
+                state = EXIT;
+            }
+            else if(c == mark){
+
+                retval = true;
+                state = EXIT;
+            }
+            else{
+        
+                (*outLen)++;
+            }
+            break;
+
+        case EXIT:
+        default:
+            break;
+        }
+
+        (*read)++;
+
+        if(state == EXIT){
+
+            break;
+        }
     }
 
     return retval;

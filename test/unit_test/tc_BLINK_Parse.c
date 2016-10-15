@@ -6,11 +6,13 @@
 #include "unity.h"
 #include "blink_parser.h"
 #include <string.h>
+#include <malloc.h>
 
 static struct blink_schema ctxt;
 
 void setUp(void)
-{    
+{
+    BLINK_NewSchema(&ctxt, calloc, free); 
 }
 
 void tearDown(void)
@@ -86,7 +88,14 @@ void test_BLINK_Parse_enum_single(void)
 {
     const char input[] = "test = | lonely";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
+}
+
+void test_BLINK_Parse_circular_type_reference(void)
+{
+    const char input[] = "test = testTwo testTwo = test";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
 }
 
 

@@ -68,7 +68,7 @@ enum blink_token {
     TOK_CNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                        
     TOK_EQUAL,            /**< `=` */
     TOK_COMMA,            /**< `,` */
-    TOK_PERIOD,           /**< `. ` */
+    TOK_PERIOD,           /**< period */
     TOK_QUESTION,         /**< `?` */    
     TOK_LBRACKET,         /**< `[` */
     TOK_RBRACKET,         /**< `]` */
@@ -84,22 +84,30 @@ enum blink_token {
     TOK_NAMESPACE,        /**< `namespace` */
     TOK_SCHEMA,           /**< `schema` */    
     TOK_TYPE,             /**< `type` */    
-    TOK_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */        
-    TOK_UNKNOWN,          /**< <no match> */
-    TOK_EOF,               /**< <end of file> */
+    TOK_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */
+    TOK_LITERAL,          /**< a string within double or single quotation marks */
+    TOK_UNKNOWN,          /**< no match */
+    TOK_EOF              /**< end of file */    
 };
 
 /* unions *************************************************************/
 
 /** Some tokens have a value returned by #BLINK_GetToken */
 union blink_token_value {    
-    /** Initialised for #TOK_NAME and #TOK_CNAME */
+    /** Initialised for #TOK_NAME, #TOK_CNAME, and #TOK_LITERAL */
     struct {
         const char *ptr;    /**< pointer to printable string */
         size_t len;         /**< byte length of `ptr` */
     } literal;
     /** Initialised for #TOK_NUMBER */
     uint64_t number;            
+};
+
+/* structs ************************************************************/
+
+struct blink_token_location {
+    size_t row;
+    size_t col;
 };
 
 /* function prototypes ************************************************/
@@ -114,7 +122,21 @@ union blink_token_value {
  * @return enum #blink_token
  *
  * */
-enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value);
+enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location);
+
+/** Try to convert a token to its string representation
+ *
+ * @note not all tokens can be converted to strings (e.g. #TOK_EOF)
+ * 
+ * @param[in] token token to convert to string
+ * @param[out] len byte length of string
+ *
+ * @return const char *
+ *
+ * @retval NULL (no string exists for this token)
+ *
+ * */
+const char *BLINK_TokenToString(enum blink_token token, size_t *len);
 
 #ifdef __cplusplus
 }

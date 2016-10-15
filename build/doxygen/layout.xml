@@ -140,6 +140,7 @@
     <briefdescription visible="no"/>
     <groupgraph visible="$GROUP_GRAPHS"/>
     <memberdecl>
+      <functions title=""/>
       <nestedgroups visible="yes" title=""/>
       <dirs visible="yes" title=""/>
       <files visible="yes" title=""/>
@@ -148,8 +149,7 @@
       <defines title=""/>
       <typedefs title=""/>
       <enums title=""/>
-      <enumvalues title=""/>
-      <functions title=""/>
+      <enumvalues title=""/>      
       <variables title=""/>
       <signals title=""/>
       <publicslots title=""/>
