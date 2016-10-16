@@ -55,7 +55,10 @@ extern "C" {
 
 /* typdefs ************************************************************/
 
+/** a calloc-like function */
 typedef void *(* fn_blink_calloc_t)(size_t, size_t);
+
+/** a free-like function */
 typedef void (* fn_blink_free_t)(void *);
 
 /* enums **************************************************************/
@@ -324,6 +327,7 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *field);
  * @note for #TYPE_STRING and #TYPE_BINARY size means maximum size
  *
  * @param[in] field field definition
+ * 
  * @return uint32_t
  * 
  * */

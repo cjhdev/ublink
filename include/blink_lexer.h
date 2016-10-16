@@ -44,8 +44,8 @@ extern "C" {
 
 /** The following tokens are returned by #BLINK_GetToken */
 enum blink_token {
-    TOK_STRING = 0,       /**< `string` */
-    TOK_BINARY,           /**< `binary` */
+    TOK_STRING = 0,         /**< `string` */
+    TOK_BINARY,             /**< `binary` */
     TOK_FIXED,            /**< `fixed` */
     TOK_BOOL,             /**< `bool` */            
     TOK_U8,               /**< `u8` */

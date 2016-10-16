@@ -29,7 +29,10 @@ BLINK_DestroySchema(&s);
 #define NDEBUG
 
 // define the maximum inheritence depth (default: 10)
-#define BLINK_INHERIT_DEPTH   10
+#define BLINK_INHERIT_DEPTH 10
+
+// define the maximum number of references allowed in a chain (default: 10)
+#define BLINK_LINK_DEPTH    10
 ~~~
 
 ## See Also
