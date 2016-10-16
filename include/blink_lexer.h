@@ -118,6 +118,7 @@ struct blink_token_location {
  * @param[in] inLen byte length of `in`
  * @param[out] read bytes read from `in`
  * @param[out] value value of token (only initialised for TOK_NAME, TOK_CNAME, TOK_NUMBER)
+ * @param[out] location optional location information
  *
  * @return enum #blink_token
  *

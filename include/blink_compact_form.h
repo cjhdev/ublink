@@ -79,12 +79,13 @@ uint8_t BLINK_GetVLCSizeSigned(int64_t value);
 /**
  * Encode signed/unsigned integer as VLC
  *
- * @param[in] value signed or unsigned value to encode
- * @param[in] isSigned `true` to indicated `value` is a signed integer
+ * @param[in] in value to encode
+ * @param[in] isSigned if true `value` will be interpreted as a signed integer
  * @param[out] out output buffer
- * @param[in] outMax maximum byte lenght of `out`
+ * @param[in] outMax byte length of `out`
  *
  * @return uint8_t
+ * 
  * @retval 0..9 (bytes successfully written to `out`)
  *
  * */
