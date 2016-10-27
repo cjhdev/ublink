@@ -28,7 +28,7 @@ void test_BLINK_DecodeU8(void)
 
 void test_BLINK_DecodeU8_max(void)
 {
-    const uint8_t in[] = {0x00};
+    const uint8_t in[] = {0xbf, 0x03};
     uint8_t out;
     bool isNull = true;
     uint8_t expectedOut = UINT8_MAX;
@@ -124,7 +124,7 @@ void test_BLINK_DecodeI8(void)
 
 void test_BLINK_DecodeI8_min(void)
 {
-    const uint8_t in[] = {0x00};
+    const uint8_t in[] = {0x80, 0xfe};
     int8_t out;
     bool isNull = true;
     int8_t expectedOut = INT8_MIN;
@@ -136,7 +136,7 @@ void test_BLINK_DecodeI8_min(void)
 
 void test_BLINK_DecodeI8_max(void)
 {
-    const uint8_t in[] = {0x00};
+    const uint8_t in[] = {0xbf,0x01};
     int8_t out;
     bool isNull = true;
     int8_t expectedOut = INT8_MAX;
@@ -171,7 +171,7 @@ void test_BLINK_DecodeI16_min(void)
 }
 void test_BLINK_DecodeI16_max(void)
 {
-    const uint8_t in[] = {0xc3, 0xff, 0x7f};
+    const uint8_t in[] = {0xc2, 0xff, 0x7f};
     int16_t out;
     bool isNull = true;
     int16_t expectedOut = INT16_MAX;
@@ -195,7 +195,7 @@ void test_BLINK_DecodeI32(void)
 
 void test_BLINK_DecodeI32_min(void)
 {
-    const uint8_t in[] = {0xc4, 0x00, 0x00, 0x00, 0x00};
+    const uint8_t in[] = {0xc4, 0x00, 0x00, 0x00, 0x80};
     int32_t out;
     bool isNull = true;
     int32_t expectedOut = INT32_MIN;
@@ -207,7 +207,7 @@ void test_BLINK_DecodeI32_min(void)
 
 void test_BLINK_DecodeI32_max(void)
 {
-    const uint8_t in[] = {0xc4, 0xff,0xff,0xff,0xff};
+    const uint8_t in[] = {0xc4, 0xff,0xff,0xff,0x7f};
     int32_t out;
     bool isNull = true;
     int32_t expectedOut = INT32_MAX;
@@ -231,7 +231,7 @@ void test_BLINK_DecodeI64(void)
 
 void test_BLINK_DecodeI64_min(void)
 {
-    const uint8_t in[] = {0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    const uint8_t in[] = {0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
     int64_t out;
     bool isNull = true;
     int64_t expectedOut = INT64_MIN;
@@ -243,7 +243,7 @@ void test_BLINK_DecodeI64_min(void)
 
 void test_BLINK_DecodeI64_max(void)
 {
-    const uint8_t in[] = {0xc8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    const uint8_t in[] = {0xc8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
     int64_t out;
     bool isNull = true;
     int64_t expectedOut = INT64_MAX;

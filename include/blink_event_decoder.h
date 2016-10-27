@@ -31,6 +31,11 @@
  * @{
  * */
 
+ 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* includes ***********************************************************/
 
 #include <stdint.h>
@@ -147,6 +152,10 @@ struct blink_decoder *BLINK_NewEventDecoder(struct blink_decoder *self, void *us
  *
  * */
 uint32_t BLINK_EventDecoderDecode(struct blink_decoder *self, const uint8_t *in, uint32_t inLen);
+
+#ifdef __cplusplus
+}
+#endif
 
 /** @} */
 #endif
