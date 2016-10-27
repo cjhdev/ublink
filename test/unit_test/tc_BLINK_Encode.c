@@ -76,6 +76,26 @@ void test_BLINK_EncodeU8_max(void)
     TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
 }
 
+void test_BLINK_EncodeU8_127(void)
+{
+    uint8_t in = 127;    
+    const uint8_t expectedOut[] = {0x7f};
+    uint8_t out[sizeof(expectedOut)];
+
+    TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeU8(in, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
+}
+
+void test_BLINK_EncodeU8_128(void)
+{
+    uint8_t in = 128;    
+    const uint8_t expectedOut[] = {0x80,0x02};
+    uint8_t out[sizeof(expectedOut)];
+
+    TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeU8(in, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
+}
+
 void test_BLINK_EncodeU16_max(void)
 {
     uint16_t in = UINT16_MAX;    
@@ -103,6 +123,46 @@ void test_BLINK_EncodeU64_max(void)
     uint8_t out[sizeof(expectedOut)];
 
     TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeU64(in, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
+}
+
+void test_BLINK_EncodeI8_63(void)
+{
+    int8_t in = 63;    
+    const uint8_t expectedOut[] = {0x3f};
+    uint8_t out[sizeof(expectedOut)];
+
+    TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeI8(in, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
+}
+
+void test_BLINK_EncodeI8_64(void)
+{
+    int8_t in = 64;    
+    const uint8_t expectedOut[] = {0x80, 0x01};
+    uint8_t out[sizeof(expectedOut)];
+
+    TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeI8(in, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
+}
+
+void test_BLINK_EncodeI8_minus64(void)
+{
+    int8_t in = -64;    
+    const uint8_t expectedOut[] = {0x40};
+    uint8_t out[sizeof(expectedOut)];
+
+    TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeI8(in, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
+}
+
+void test_BLINK_EncodeI8_minus65(void)
+{
+    int8_t in = -65;    
+    const uint8_t expectedOut[] = {0xbf, 0xfe};
+    uint8_t out[sizeof(expectedOut)];
+
+    TEST_ASSERT_EQUAL(sizeof(expectedOut), BLINK_EncodeI8(in, out, sizeof(out)));
     TEST_ASSERT_EQUAL_MEMORY(expectedOut, out, sizeof(expectedOut));
 }
 
