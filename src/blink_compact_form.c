@@ -25,6 +25,8 @@
 #include "blink_compact_form.h"
 #include "blink_debug.h"
 
+#include <string.h>
+
 /* functions **********************************************************/
 
 uint8_t BLINK_EncodeVLCNull(uint8_t *out, uint32_t outMax)
@@ -38,6 +40,19 @@ uint8_t BLINK_EncodeVLCNull(uint8_t *out, uint32_t outMax)
     }
 
     return retval;
+}
+
+uint8_t BLINK_EncodePresent(uint8_t *out, uint32_t outMax)
+{
+    uint8_t retval = 0U;
+
+    if(outMax > 0){
+
+        *out = 0x01U;
+        retval = 1U;
+    }
+
+    return retval;    
 }
 
 uint8_t BLINK_GetVLCSizeUnsigned(uint64_t value)
@@ -144,6 +159,8 @@ uint8_t BLINK_GetVLCSizeSigned(int64_t value)
 
 uint8_t BLINK_EncodeVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMax)
 {
+    ASSERT(out != NULL)
+
     uint8_t bytes = (isSigned) ? BLINK_GetVLCSizeSigned((int64_t)in) : BLINK_GetVLCSizeUnsigned(in);
     uint8_t retval = 0U;
     uint8_t i;
@@ -175,6 +192,10 @@ uint8_t BLINK_EncodeVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMa
 
 uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64_t *out, bool *isNull)
 {
+    ASSERT(in != NULL)
+    ASSERT(out != NULL)
+    ASSERT(isNull != NULL)
+
     uint8_t retval = 0U;
     uint8_t bytes;
     uint8_t i;
@@ -256,6 +277,8 @@ uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64
 
 uint8_t BLINK_DecodeBool(const uint8_t *in, uint32_t inLen, bool *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+
     uint64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
@@ -285,6 +308,8 @@ uint8_t BLINK_DecodeBool(const uint8_t *in, uint32_t inLen, bool *out, bool *isN
 
 uint8_t BLINK_DecodeU8(const uint8_t *in, uint32_t inLen, uint8_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+
     uint64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
@@ -306,6 +331,8 @@ uint8_t BLINK_DecodeU8(const uint8_t *in, uint32_t inLen, uint8_t *out, bool *is
 
 uint8_t BLINK_DecodeU16(const uint8_t *in, uint32_t inLen, uint16_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+    
     uint64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
@@ -327,6 +354,8 @@ uint8_t BLINK_DecodeU16(const uint8_t *in, uint32_t inLen, uint16_t *out, bool *
 
 uint8_t BLINK_DecodeU32(const uint8_t *in, uint32_t inLen, uint32_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+    
     uint64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
@@ -353,6 +382,8 @@ uint8_t BLINK_DecodeU64(const uint8_t *in, uint32_t inLen, uint64_t *out, bool *
 
 uint8_t BLINK_DecodeI8(const uint8_t *in, uint32_t inLen, int8_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+    
     int64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, true, (uint64_t *)&number, isNull);
@@ -374,6 +405,8 @@ uint8_t BLINK_DecodeI8(const uint8_t *in, uint32_t inLen, int8_t *out, bool *isN
 
 uint8_t BLINK_DecodeI16(const uint8_t *in, uint32_t inLen, int16_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+
     int64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, true, (uint64_t *)&number, isNull);
@@ -395,6 +428,8 @@ uint8_t BLINK_DecodeI16(const uint8_t *in, uint32_t inLen, int16_t *out, bool *i
 
 uint8_t BLINK_DecodeI32(const uint8_t *in, uint32_t inLen, int32_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+    
     int64_t number;
     uint8_t retval;
     retval = BLINK_DecodeVLC(in, inLen, true, (uint64_t *)&number, isNull);
@@ -416,11 +451,16 @@ uint8_t BLINK_DecodeI32(const uint8_t *in, uint32_t inLen, int32_t *out, bool *i
 
 uint8_t BLINK_DecodeI64(const uint8_t *in, uint32_t inLen, int64_t *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+    
     return BLINK_DecodeVLC(in, inLen, true, (uint64_t *)out, isNull);
 }
 
 uint32_t BLINK_DecodeBinary(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t *outLen, bool *isNull)
 {
+    ASSERT(out != NULL)
+    ASSERT(outLen != NULL)
+    
     uint64_t size;
     uint32_t retval;
     retval = BLINK_DecodeVLC(in, inLen, false, &size, isNull);
@@ -456,6 +496,8 @@ uint32_t BLINK_DecodeString(const uint8_t *in, uint32_t inLen, const uint8_t **o
 
 uint32_t BLINK_DecodeFixed(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t size)
 {
+    ASSERT(out != NULL)
+    
     uint32_t retval = 0U;
 
     if(inLen >= size){
@@ -473,6 +515,8 @@ uint32_t BLINK_DecodeFixed(const uint8_t *in, uint32_t inLen, const uint8_t **ou
 
 uint32_t BLINK_DecodeOptionalFixed(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t size, bool *isNull)
 {
+    ASSERT(out != NULL)
+
     uint8_t present;
     uint32_t retval;
 
@@ -505,6 +549,9 @@ uint32_t BLINK_DecodeOptionalFixed(const uint8_t *in, uint32_t inLen, const uint
 
 uint8_t BLINK_DecodeDecimal(const uint8_t *in, uint32_t inLen, int64_t *mantissa, int8_t *exponent, bool *isNull)
 {
+    ASSERT(mantissa != NULL)
+    ASSERT(exponent != NULL)
+
     uint8_t retval;
     uint8_t pos;
     
@@ -535,6 +582,8 @@ uint8_t BLINK_DecodeDecimal(const uint8_t *in, uint32_t inLen, int64_t *mantissa
 
 uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *isNull)
 {
+    ASSERT(out != NULL)
+
     uint8_t retval;
     uint64_t result;
 
@@ -548,3 +597,133 @@ uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *is
     return retval;
 }
 
+uint8_t BLINK_EncodeBool(bool in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((in ? 0x01U : 0x00U), false, out, outMax);
+}
+
+uint8_t BLINK_EncodeU8(uint8_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((uint64_t)in, false, out, outMax);
+}
+
+uint8_t BLINK_EncodeU16(uint16_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((uint64_t)in, false, out, outMax);
+}
+
+uint8_t BLINK_EncodeU32(uint32_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((uint64_t)in, false, out, outMax);
+}
+
+uint8_t BLINK_EncodeU64(uint64_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC(in, false, out, outMax);
+}
+
+uint8_t BLINK_EncodeI8(int8_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((uint64_t)in, true, out, outMax);
+}
+
+uint8_t BLINK_EncodeI16(int16_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((uint64_t)in, true, out, outMax);
+}
+
+uint8_t BLINK_EncodeI32(int32_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC((uint64_t)in, true, out, outMax);
+}
+
+uint8_t BLINK_EncodeI64(int64_t in, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeVLC(in, true, out, outMax);
+}
+
+uint32_t BLINK_EncodeBinary(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax)
+{
+    uint32_t retval = 0U;
+    uint32_t ret;
+    
+    ret = BLINK_EncodeVLC((uint64_t)inLen, false, out, outMax);
+
+    /* fail safe if (inLen + ret) > UINT32_MAX */
+    if((ret > 0U) && ((outMax - ret) >= inLen)){
+
+        memcpy(&out[ret], in, inLen);
+        retval = ret + inLen;
+    }
+
+    return retval;
+}
+
+uint32_t BLINK_EncodeString(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax)
+{
+    return BLINK_EncodeBinary(in, inLen, out, outMax);
+}
+
+uint32_t BLINK_EncodeFixed(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax)
+{
+    ASSERT(in != NULL)
+    ASSERT(out != NULL)
+
+    uint32_t retval = 0U;
+
+    if(outMax >= inLen){
+
+        memcpy(out, in, inLen);
+        retval = inLen;
+    }
+
+    return retval;
+}
+
+uint32_t BLINK_EncodeOptionalFixed(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax)
+{
+    ASSERT(in != NULL)
+    ASSERT(out != NULL)
+
+    uint32_t retval = 0U;
+
+    /* fail safe if (inLen + 1) > UINT32_MAX */
+    if((outMax > 0U) && ((outMax - 1U) >= inLen)){
+
+        out[0] = 0x01U;
+        memcpy(&out[1], in, inLen);
+        retval = inLen + 1U;
+    }
+        
+    return retval;
+}
+
+uint8_t BLINK_EncodeF64(double in, uint8_t *out, uint32_t outMax)
+{
+    uint64_t *value = (uint64_t *)&in;
+    
+    return BLINK_EncodeVLC(*value, false, out, outMax);
+}
+
+uint8_t BLINK_EncodeDecimal(int64_t mantissa, int8_t exponent, uint8_t *out, uint32_t outMax)
+{
+    uint8_t retval = 0U;
+    uint8_t ret;
+    uint8_t pos;
+
+    ret = BLINK_EncodeVLC((int64_t)exponent, true, out, outMax);
+
+    if(ret > 0U){
+
+        pos = ret;
+        
+        ret = BLINK_EncodeVLC(mantissa, true, &out[pos], outMax - pos);
+
+        if(ret > 0U){
+
+            retval = pos + ret;
+        }
+    }
+
+    return retval;
+}
