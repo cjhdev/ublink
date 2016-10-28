@@ -416,7 +416,7 @@ static bool nameIsUnique(const struct blink_namespace *ns, const char *name, siz
     while(!errors && (t != NULL)){
 
         if((t->nameLen == nameLen) && (memcmp(t->name, name, nameLen) == 0)){
-            
+
             errors = true;
         }
 
@@ -436,7 +436,7 @@ static bool nameIsUnique(const struct blink_namespace *ns, const char *name, siz
     while(!errors && (g != NULL)){
 
         if((g->nameLen == nameLen) && (memcmp(g->name, name, nameLen) == 0)){
-            
+
             errors = true;
         }
 
@@ -666,7 +666,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
     struct blink_group *g;
     union blink_token_value value;
     enum blink_token tok;
-    enum blink_token tokn;
+    enum blink_token nextTok;
 
     if(BLINK_GetToken(in, inLen, &read, &value, NULL) == TOK_NAMESPACE){
 
@@ -749,10 +749,10 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                     }
                     else{
 
-                        tokn = BLINK_GetToken(&in[pos+read], inLen - (pos + read), &read, &value, NULL);
+                        nextTok = BLINK_GetToken(&in[pos+read], inLen - (pos + read), &read, &value, NULL);
 
-                        if((tok == TOK_NAME) && ((tokn == TOK_SLASH) || (tok == TOK_BAR))){
-    
+                        if((tok == TOK_NAME) && ((nextTok == TOK_SLASH) || (nextTok == TOK_BAR))){
+
                             if(parseEnum(self, ns, &in[pos], inLen - pos, &read) == NULL){
 
                                 return retval;
@@ -766,14 +766,18 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 
                             struct blink_type_def *t = newTypeDef(self, ns);
 
-                            t->name = name;
-                            t->nameLen = nameLen;
-
                             if(t != NULL){
+
+                                t->name = name;
+                                t->nameLen = nameLen;
 
                                 if(parseType(&in[pos], inLen - pos, &read, &t->type) == NULL){
                                     
                                     return retval;
+                                }
+                                else{
+
+                                    pos += read;
                                 }
                             }
                             else{
