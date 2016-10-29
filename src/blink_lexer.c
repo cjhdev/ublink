@@ -189,8 +189,8 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
 
 static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token)
 {
-    ASSERT(in != NULL)
-    ASSERT(read != NULL)
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
 
     size_t i;
     bool retval = false;
@@ -216,7 +216,7 @@ static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink
 
 static bool isInteger(char c, uint8_t *out)
 {
-    ASSERT(out != NULL)
+    BLINK_ASSERT(out != NULL)
     
     bool retval = false;
 
@@ -231,7 +231,7 @@ static bool isInteger(char c, uint8_t *out)
 
 static bool isHexInteger(char c, uint8_t *out)
 {
-    ASSERT(out != NULL)
+    BLINK_ASSERT(out != NULL)
     
     bool retval = true;
     
@@ -267,10 +267,10 @@ static bool isFirstNameChar(char c)
 
 static bool isName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
 {
-    ASSERT(in != NULL)
-    ASSERT(read != NULL)
-    ASSERT(out != NULL);
-    ASSERT(outLen != NULL);
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL);
+    BLINK_ASSERT(outLen != NULL);
 
     bool retval = false;
     char c;
@@ -351,10 +351,10 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
 
 static bool isCName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
 {
-    ASSERT(in != NULL)
-    ASSERT(read != NULL)
-    ASSERT(out != NULL);
-    ASSERT(outLen != NULL);
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL);
+    BLINK_ASSERT(outLen != NULL);
 
     char c;
     enum {
@@ -439,9 +439,9 @@ static bool isCName(const char *in, size_t inLen, size_t *read, const char **out
     
 static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
 {
-    ASSERT(in != NULL)
-    ASSERT(read != NULL)
-    ASSERT(out != NULL)
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL)
 
     char c;
     bool retval = false;
@@ -488,7 +488,7 @@ static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
                 }
                 else{
 
-                    ERROR("too many digits for a 64bit number")
+                    BLINK_ERROR("too many digits for a 64bit number")
                     retval = false;
                     state = EXIT;
                 }
@@ -522,9 +522,9 @@ static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
 
 static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
 {
-    ASSERT(in != NULL)
-    ASSERT(read != NULL)
-    ASSERT(out != NULL)
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL)
 
     char c;
     bool retval = false;
@@ -584,7 +584,7 @@ static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
 
                     state = EXIT;
                     retval = false;
-                    ERROR("too many digits for 64 bit number")
+                    BLINK_ERROR("too many digits for 64 bit number")
                 }
             }
             else{
@@ -611,10 +611,10 @@ static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
 
 static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
 {
-    ASSERT(in != NULL)
-    ASSERT(read != NULL)
-    ASSERT(out != NULL);
-    ASSERT(outLen != NULL);
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL);
+    BLINK_ASSERT(outLen != NULL);
 
     bool retval = false;
     char c;

@@ -98,7 +98,33 @@ void test_BLINK_Parse_circular_type_reference(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
 }
 
+void test_BLINK_Parse_duplicate_type_definition(void)
+{
+    const char input[] = "test = u8 test = u16";
 
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_duplicate_type_group_definition(void)
+{
+    const char input[] = "test = u8 test -> u16 field";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_duplicate_group_definition(void)
+{
+    const char input[] = "test -> u8 field test -> u16 field";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_duplicate_enum_definition(void)
+{
+    const char input[] = "test = | bla test = | bla";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
 
 
 
