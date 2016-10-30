@@ -1052,7 +1052,7 @@ static struct blink_list_element *newListElement(struct blink_schema *self, stru
                 retval->ptr = self->calloc(1, sizeof(struct blink_symbol));
                 break;            
             case BLINK_ELEM_TYPE:
-                retval->ptr = self->calloc(1, sizeof(struct blink_type));
+                retval->ptr = self->calloc(1, sizeof(struct blink_type_def));
                 break;            
             case BLINK_ELEM_ANNOTE:
                 retval->ptr = self->calloc(1, sizeof(struct blink_annote));
