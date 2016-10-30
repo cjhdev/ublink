@@ -58,7 +58,7 @@ typedef void (* fn_blink_free_t)(void *);
 
 /* enums **************************************************************/
 
-/** A #blink_field shall be one of the following types */
+/** A field shall represent one of the following types */
 enum blink_type_tag {
     TYPE_STRING = 0,        /**< UTF8 encoded string */
     TYPE_BINARY,            /**< octet string */
