@@ -25,13 +25,13 @@
 #ifdef NDEBUG
 
     /*lint -e(9026) Allow functionality to be removed completely */
-    #define BLINK_ERROR(...) ;
+    #define BLINK_ERROR(...) /* BLINK_ERROR(__VA_ARGS__) */
 
     /*lint -e(9026) Allow functionality to be removed completely */
-    #define TRACE(...) ;
+    #define TRACE(...)  
 
     /*lint -e(9026) Allow functionality to be removed completely */
-    #define BLINK_ASSERT(X) ;
+    #define BLINK_ASSERT(X) /* BLINK_ASSERT(X) */
 
 #else
 

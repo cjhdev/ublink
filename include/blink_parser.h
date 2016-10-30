@@ -42,16 +42,11 @@ extern "C" {
 
 /* definitions ********************************************************/
 
-
 #ifndef BLINK_INHERIT_DEPTH
     /** maximum inheritence depth */
     #define BLINK_INHERIT_DEPTH   10U
 #endif
 
-#ifndef BLINK_LINK_DEPTH
-    /** maximum number of reference to reference links */
-    #define BLINK_LINK_DEPTH    10U
-#endif
 
 /* typdefs ************************************************************/
 
@@ -89,98 +84,28 @@ enum blink_type_tag {
     TYPE_REF,               /**< reference */
     TYPE_STATIC_GROUP,      /**< static reference to a group */
     TYPE_DYNAMIC_REF        /**< dynamic reference to a group */
-};    
+};
 
 /* structs ************************************************************/
 
-/** type */
-struct blink_type {
-    bool isSequence;            /**< this is a SEQUENCE of type */                
-    uint32_t size;              /**< size attribute (applicable to #TYPE_BINARY, #TYPE_FIXED, and #TYPE_STRING) */
-    const char *ref;            /**< name of reference (applicable to #TYPE_DYNAMIC_REF, #TYPE_REF, #TYPE_ENUM) */
-    size_t refLen;              /**< byte length of `ref` */
-    enum blink_type_tag tag;    /**< what type is this? */
-    const void *resolvedRef;    /**< `ref` resolves to this structure (cast according to `tag`) */
-};
+/** forward declaration */
+struct blink_namespace;
 
-/** field */
-struct blink_field {
-    struct blink_field *next;   /**< next field in group */
-    const char *name;           /**< name of this field */
-    size_t nameLen;             /**< byte length of `name` */
-    bool isOptional;            /**< field is optional */
-    struct blink_type type;     /**< field type information */
-};
+/** forward declaration */
+struct blink_list_element;
 
-/** group */
-struct blink_group {
-    struct blink_group *next;       /**< next group in namespace */
-    const char *name;               /**< name of this group */
-    size_t nameLen;                 /**< byte length of `name` */
-    bool hasID;                     /**< group has an ID */
-    uint64_t id;                    /**< group ID */
-    const char *superGroup;         /**< name of super group */
-    size_t superGroupLen;           /**< byte length of supergroup name */
-    const struct blink_group *s;    /**< pointer to supergroup definition */
-    struct blink_field *f;          /**< fields belonging to group */
-};
+/** forward declaration */
+struct blink_group;
 
-/** enumeration symbol */
-struct blink_symbol {
-    struct blink_symbol *next;      /**< next symbol in enum */
-    const char *name;               /**< name of symbol */
-    size_t nameLen;                 /**< byte length of `name` */
-    uint64_t value;                 /**< integer value */
-    bool implicitID;                /**< true if `value` is not explicitly defined */
-};
+/** forward declaration */
+struct blink_field;
 
-/** enumeration */
-struct blink_enum {
-    struct blink_enum *next;    /**< next enum in namespace */
-    const char *name;           /**< name of this field */
-    size_t nameLen;             /**< byte length of `name` */
-    struct blink_symbol *s;     /**< symbols belonging to enumeration */    
-};
-
-/** type definition */
-struct blink_type_def {
-    struct blink_type_def *next;    /**< next type definition in namespace */
-    const char *name;               /**< name of type definition */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_type type;         /**< type information */
-};
-
-/** annotation - key-value meta data */
-struct blink_annote {
-    struct blink_annote *next;      /**< next annotation in namespace */
-    const char *key;                /**< key */
-    size_t keyLen;                  /**< byte length of `key` */
-    const char *value;              /**< value */            
-    size_t valueLen;                /**< byte length of `value` */
-    uint64_t number;                /**< sometimes value is a numeric value */
-    bool isNumeric;                 /**< true if this annotation is a numeric value */  
-};
-
-struct blink_inline_annote {
-    struct blink_inline_annote *next;
-    const char *name;
-    size_t nameLen;
-    struct blink_annote *a;         /** list of annotes to apply */
-};
-
-/** namespace */
-struct blink_namespace {
-    struct blink_namespace *next;   /**< next namespace definition in schema */
-    const char *name;               /**< name of this namespace */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_group *groups;     /**< groups defined in namespace */
-    struct blink_enum *enums;       /**< enums defined in namespace */        
-    struct blink_type_def *types;   /**< types defined in namespace */    
-};
+/** forward declaration */
+struct blink_enum;
 
 /** schema */
 struct blink_schema {
-    struct blink_namespace *ns; /**< a schema has zero or more namespace definitions */
+    struct blink_list_element *ns; /**< a schema has zero or more namespace definitions */
     bool finalised;             /**< when true no more schema definitions can be appended */
     fn_blink_calloc_t calloc;   /**< pointer to a calloc-like function */
     fn_blink_free_t free;       /**< pointer to a free-like function */
@@ -188,17 +113,19 @@ struct blink_schema {
 
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
 struct blink_field_iterator {
-    const struct blink_field *field[BLINK_INHERIT_DEPTH];   /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
-    uint16_t depth;                                         /**< current depth in `group` */
+    const struct blink_list_element *field[BLINK_INHERIT_DEPTH];    /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
+    uint16_t depth;                                                 /**< current depth in `group` */
 };
 
 /* function prototypes ************************************************/
 
 /** Create a new schema object
  *
+ * @note Applications must provide a calloc-like function and may provide a free-like function
+ *
  * @param[in] self schema object
- * @param[in] calloc calloc()
- * @param[in] free free()
+ * @param[in] calloc a function like calloc() (MANDATORY)
+ * @param[in] free a function like free free() (OPTIONAL)
  *
  * @return struct blink_schema *
  *
@@ -207,6 +134,8 @@ struct blink_schema *BLINK_NewSchema(struct blink_schema *self, fn_blink_calloc_
 
 /** Destroy a schema object
  * 
+ * @note this function has no effect if `free` was not provided in the call to BLINK_NewSchema
+ *
  * @param[in] self schema object
  *
  * */
