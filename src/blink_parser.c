@@ -1099,6 +1099,24 @@ static struct blink_list_element *searchListByName(struct blink_list_element *he
         size_t nameLen;
     };
 
+    BLINK_ASSERT(offsetof(struct blink_namespace, name) == offsetof(struct blink_base_type, name))
+    BLINK_ASSERT(offsetof(struct blink_namespace, nameLen) == offsetof(struct blink_base_type, nameLen))
+
+    BLINK_ASSERT(offsetof(struct blink_group, name) == offsetof(struct blink_base_type, name))
+    BLINK_ASSERT(offsetof(struct blink_group, nameLen) == offsetof(struct blink_base_type, nameLen))
+
+    BLINK_ASSERT(offsetof(struct blink_field, name) == offsetof(struct blink_base_type, name))
+    BLINK_ASSERT(offsetof(struct blink_field, nameLen) == offsetof(struct blink_base_type, nameLen))
+
+    BLINK_ASSERT(offsetof(struct blink_type_def, name) == offsetof(struct blink_base_type, name))
+    BLINK_ASSERT(offsetof(struct blink_type_def, nameLen) == offsetof(struct blink_base_type, nameLen))
+
+    BLINK_ASSERT(offsetof(struct blink_enum, name) == offsetof(struct blink_base_type, name))
+    BLINK_ASSERT(offsetof(struct blink_enum, nameLen) == offsetof(struct blink_base_type, nameLen))
+
+    BLINK_ASSERT(offsetof(struct blink_symbol, name) == offsetof(struct blink_base_type, name))
+    BLINK_ASSERT(offsetof(struct blink_symbol, nameLen) == offsetof(struct blink_base_type, nameLen))
+
     while(ptr != NULL){
 
         const struct blink_base_type *deref = (const struct blink_base_type *)ptr->ptr;
