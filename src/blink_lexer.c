@@ -22,7 +22,6 @@
 /* includes ***********************************************************/
 
 #include <string.h>
-#include <ctype.h>
 #include <stdbool.h>
 
 #include "blink_debug.h"
@@ -81,6 +80,7 @@ static const struct token_table tokenTable[] = {
 
 /* static prototypes **************************************************/
 
+static bool isSeparator(char c);
 static bool isInteger(char c, uint8_t *out);
 static bool isHexInteger(char c, uint8_t *out);
 static bool isNameChar(char c);
@@ -124,7 +124,7 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
     /* skip whitespace */
     while(pos < inLen){
 
-        if(!isspace((int)in[pos])){
+        if(!isSeparator(in[pos])){
             break;
         }
         
@@ -186,6 +186,24 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
 }
 
 /* static functions ***************************************************/
+
+static bool isSeparator(char c)
+{
+    bool retval = false;
+    
+    switch(c){
+    case ' ':
+    case '\n':
+    case '\t':
+    case '\r':
+        retval = true;
+        break;
+    default:
+        break;
+    }
+
+    return retval;
+}
 
 static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token)
 {

@@ -36,12 +36,6 @@
 
 /* enums **************************************************************/
 
-enum definition_type {
-    GROUP,
-    ENUMERATION,
-    TYPE
-};
-
 /* structs ************************************************************/
 
 /** type */
@@ -50,8 +44,8 @@ struct blink_type {
     uint32_t size;              /**< size attribute (applicable to #TYPE_BINARY, #TYPE_FIXED, and #TYPE_STRING) */
     const char *ref;            /**< name of reference (applicable to #TYPE_DYNAMIC_REF, #TYPE_REF, #TYPE_ENUM) */
     size_t refLen;              /**< byte length of `ref` */
-    enum blink_type_tag tag;    /**< what type is this? */
-    const void *resolvedRef;    /**< `ref` resolves to this structure (cast according to `tag`) */
+    enum blink_type_tag tag;                        /**< what type is this? */
+    const struct blink_list_element *resolvedRef;   /**< `ref` resolves to this structure */
 };
 
 /** field */
@@ -142,35 +136,39 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type);
 static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen, size_t *read, const char **key, size_t *keyLen, const char **value, size_t *valueLen);
 
-static void *resolve(const struct blink_schema *self, const char *cname, size_t cnameLen, bool recursive, enum definition_type *type);
-static bool resolveType(const struct blink_schema *self, struct blink_type *type);
-static bool resolveGroup(const struct blink_schema *self, struct blink_group *group);
-
 static struct blink_list_element *newListElement(struct blink_schema *self, struct blink_list_element **head, enum blink_list_type type);
 static struct blink_list_element *searchListByName(struct blink_list_element *head, const char *name, size_t nameLen);
 
 static void splitCName(const char *in, size_t inLen, const char **nsName, size_t *nsNameLen, const char **name, size_t *nameLen);
 
+static bool resolveTypes(struct blink_schema *self);
+static bool resolveType(struct blink_schema *self, struct blink_type_def *type);
+
+static bool resolveGroups(struct blink_schema *self);
+
 static struct blink_enum *castEnum(struct blink_list_element *self);
 static struct blink_symbol *castSymbol(struct blink_list_element *self);
+static const struct blink_symbol *castConstSymbol(const struct blink_list_element *self);
 static struct blink_field *castField(struct blink_list_element *self);
+static const struct blink_field *castConstField(const struct blink_list_element *self);
 static struct blink_group *castGroup(struct blink_list_element *self);
+static const struct blink_group *castConstGroup(const struct blink_list_element *self);
 static struct blink_namespace *castNamespace(struct blink_list_element *self);
 static struct blink_type_def *castTypeDef(struct blink_list_element *self);
 
 /* functions **********************************************************/
 
-struct blink_schema *BLINK_NewSchema(struct blink_schema *self, fn_blink_calloc_t calloc, fn_blink_free_t free)
+struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_calloc_t calloc, fn_blink_free_t free)
 {
-    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(schema != NULL)
     BLINK_ASSERT(calloc != NULL)
 
-    memset(self, 0x0, sizeof(*self));
+    memset(schema, 0x0, sizeof(*schema));
 
-    self->calloc = calloc;
-    self->free = free;
+    schema->calloc = calloc;
+    schema->free = free;
     
-    return self;
+    return schema;
 }
 
 //todo: yes, memory leak
@@ -209,12 +207,11 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
 
         ptr = castNamespace(ns)->defs;
 
-        while(ptr != NULL){
+        while((retval != NULL) && (ptr != NULL)){
 
-            if((ptr->type == BLINK_ELEM_GROUP) && castGroup(ptr)->hasID && (castGroup(ptr)->id == id)){
+            if((ptr->type == BLINK_ELEM_GROUP) && castGroup(ptr)->hasID && (castConstGroup(ptr)->id == id)){
 
-                retval = (const struct blink_group *)castGroup(ptr);
-                break;                
+                retval = castConstGroup(ptr);
             }
             else{
                 
@@ -228,11 +225,11 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
     return retval;
 }
 
-const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_group *group, struct blink_field_iterator *iter)
+const struct blink_field_iterator *BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group)
 {
-    BLINK_ASSERT(group != NULL)
     BLINK_ASSERT(iter != NULL)
-
+    BLINK_ASSERT(group != NULL)
+    
     const struct blink_group *ptr = group;
     const struct blink_field_iterator *retval = NULL;
     
@@ -260,22 +257,22 @@ const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_gro
     return retval;
 }
 
-const struct blink_field *BLINK_NextField(struct blink_field_iterator *iter)
+const struct blink_field *BLINK_NextField(struct blink_field_iterator *self)
 {
-    BLINK_ASSERT(iter != NULL)
+    BLINK_ASSERT(self != NULL)
     
     const struct blink_field *retval = NULL;
 
     while(retval == NULL){
 
-        if(iter->field[iter->depth] != NULL){
+        if(self->field[self->depth] != NULL){
 
-            retval = (const struct blink_field *)castField(iter->field[iter->depth]);
-            iter->field[iter->depth] = iter->field[iter->depth]->next;
+            retval = castConstField(self->field[self->depth]);
+            self->field[self->depth] = self->field[self->depth]->next;
         }
-        else if(iter->depth > 0U){
+        else if(self->depth > 0U){
 
-            iter->depth--;
+            self->depth--;
         }
         else{
 
@@ -290,35 +287,20 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(in != NULL)
-    
-    bool errors = false;
-    
-    /* parse the syntax */
-    struct blink_schema *retval = parse(self, in, inLen);
-    
-    if(retval != NULL){
 
-        /* resolve all type definitions */
+    struct blink_schema *retval;
+    
+    if((parse(self, in, inLen) == self) && resolveTypes(self) && resolveGroups(self)){
 
-        /* resolve all references within groups */
-        
+        retval = self;
     }
     else{
-
-        errors = true;
-    }
-
-    if(errors){
 
         BLINK_DestroySchema(self);
-        retval = NULL;        
+        retval = NULL;
     }
-    else{
 
-        self->finalised = true;
-    }
-    
-    return retval;
+    return retval;    
 }
 
 const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen)
@@ -387,7 +369,7 @@ const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, c
 
     if(element != NULL){
 
-        retval = (const struct blink_symbol *)element->ptr;
+        retval = castConstSymbol(element);
         *value = retval->value;
     }
 
@@ -401,13 +383,13 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
     BLINK_ASSERT(nameLen != NULL)
     
     const struct blink_list_element *ptr = self->s;
-    struct blink_symbol *retval = NULL;
+    const struct blink_symbol *retval = NULL;
 
     while(ptr != NULL){
 
-        if(((const struct blink_symbol *)ptr->ptr)->value == value){
+        if(castConstSymbol(ptr)->value == value){
 
-            retval = (const struct blink_symbol *)ptr->ptr;
+            retval = castConstSymbol(ptr);
             *name = retval->name;
             *nameLen = retval->nameLen;
             break;
@@ -1006,6 +988,95 @@ static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen,
     return retval;
 }
 
+static bool resolveTypes(struct blink_schema *self)
+{
+    BLINK_ASSERT(self != NULL)
+    
+    bool errors = false;
+    struct blink_namespace *ns;
+    struct blink_list_element *nsPtr = self->ns;
+
+    while(nsPtr != NULL){
+
+        ns = castNamespace(nsPtr);
+
+        struct blink_list_element *defPtr = ns->defs;
+
+        while(defPtr != NULL){
+
+            if(defPtr->type == BLINK_ELEM_TYPE){
+
+                if(!resolveType(self, castTypeDef(defPtr))){
+
+                    errors = true;
+                }                
+            }
+
+            defPtr = defPtr->next;
+        }
+
+        nsPtr = nsPtr->next;
+    }
+
+    return (errors) ? false : true;
+}
+
+static bool resolveType(struct blink_schema *self, struct blink_type_def *type)
+{
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(type != NULL)
+
+    bool errors = false;
+    const char *nsName;
+    size_t nsNameLen;
+    const char *name;
+    size_t nameLen;
+    struct blink_list_element *nsPtr;
+    struct blink_list_element *defPtr;
+
+    if(type->type.tag == TYPE_REF){
+
+        splitCName(type->type.ref, type->type.refLen, &nsName, &nsNameLen, &name, &nameLen);
+
+        nsPtr = searchListByName(self->ns, nsName, nsNameLen);
+
+        if(nsPtr != NULL){
+
+            defPtr = searchListByName(castNamespace(nsPtr)->defs, name, nameLen);
+
+            if(defPtr != NULL){
+
+                if((defPtr->type == BLINK_ELEM_TYPE) && (castTypeDef(defPtr) == type)){
+
+                    BLINK_ERROR("type reference refers to itself")
+                    errors = true;
+                }
+                else{
+
+                    type->type.resolvedRef = defPtr;
+                }
+            }
+            else{
+
+                BLINK_ERROR("cannot resolve reference")
+                errors = true;
+            }
+        }
+        else{
+
+            BLINK_ERROR("cannot resolve namespace")
+            errors = true;
+        }
+    }
+
+    return (errors) ? false : true;
+}
+
+static bool resolveGroups(struct blink_schema *self)
+{
+    return false;
+}
+
 static struct blink_list_element *newListElement(struct blink_schema *self, struct blink_list_element **head, enum blink_list_type type)
 {
     BLINK_ASSERT(self != NULL)
@@ -1186,6 +1257,16 @@ static struct blink_symbol *castSymbol(struct blink_list_element *self)
     return retval;
 }
 
+static const struct blink_symbol *castConstSymbol(const struct blink_list_element *self)
+{
+    const struct blink_symbol *retval = NULL;
+    if(self != NULL){
+        BLINK_ASSERT(self->type == BLINK_ELEM_SYMBOL)
+        retval = (const struct blink_symbol *)self->ptr;
+    }
+    return retval;
+}
+
 static struct blink_field *castField(struct blink_list_element *self)
 {
     struct blink_field *retval = NULL;
@@ -1196,12 +1277,32 @@ static struct blink_field *castField(struct blink_list_element *self)
     return retval;
 }
 
+static const struct blink_field *castConstField(const struct blink_list_element *self)
+{
+    const struct blink_field *retval = NULL;
+    if(self != NULL){
+        BLINK_ASSERT(self->type == BLINK_ELEM_FIELD)
+        retval = (const struct blink_field *)self->ptr;
+    }
+    return retval;
+}
+
 static struct blink_group *castGroup(struct blink_list_element *self)
 {
     struct blink_group *retval = NULL;
     if(self != NULL){
         BLINK_ASSERT(self->type == BLINK_ELEM_GROUP)
         retval = (struct blink_group *)self->ptr;
+    }
+    return retval;
+}
+
+static const struct blink_group *castConstGroup(const struct blink_list_element *self)
+{
+    const struct blink_group *retval = NULL;
+    if(self != NULL){
+        BLINK_ASSERT(self->type == BLINK_ELEM_GROUP)
+        retval = (const struct blink_group *)self->ptr;
     }
     return retval;
 }

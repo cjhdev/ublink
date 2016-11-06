@@ -24,14 +24,13 @@
 #define BLINK_EVENT_DECODER_H
 
 /**
- * @defgroup blink_decoder Event Driven Decoder
+ * @defgroup blink_event_decoder
  *
  * Event driven decoder
  * 
  * @{
  * */
 
- 
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,7 +52,7 @@ typedef void (* begin_static_group_fn_t)(void *, const struct blink_group *);
 typedef void (* end_static_group_fn_t)(void *, const struct blink_group *);
 typedef void (* begin_dynamic_group_fn_t)(void *, const struct blink_group *);
 typedef void (* end_dynamic_group_fn_t)(void *, const struct blink_group *);
-typedef void (* begin_sequence_fn_t)(void *);
+typedef void (* begin_sequence_fn_t)(void *, uint32_t);
 typedef void (* end_sequence_fn_t)(void *);
 typedef void (* string_fn_t)(void *, const uint8_t *, uint32_t);    /**< handle a `string` */
 typedef void (* binary_fn_t)(void *, const uint8_t *, uint32_t);    /**< handle a `binary` */
@@ -114,7 +113,9 @@ struct blink_decoder_events {
     end_sequence_fn_t endSequence;              /**< handler for end of a sequence */    
 };
 
-/** decoder state */
+/** decoder state
+ *
+ * @private */
 struct blink_decoder {
         
     const struct blink_schema *schema;      /**< schema to decode against */
@@ -125,30 +126,28 @@ struct blink_decoder {
 /* functions **********************************************************/
 
 /**
- * Create a new event driven decoder
+ * Initialise an event driven decoder
  *
- * @param[in] self decoder instance
+ * @param[in] decoder
  * @param[in] user optional user state passed to event handlers
  * @param[in] schema schema to decode against
  * @param[in] events event handlers to be copied into `self`
  *
- * @return struct blink_decoder *
- *
- * @retval NULL (decoder could not be initialised)
+ * @return pointer to initialised decoder
+ * @retval NULL decoder could not be initialised
  * 
  * */
-struct blink_decoder *BLINK_NewEventDecoder(struct blink_decoder *self, void *user, const struct blink_schema *schema, const struct blink_decoder_events *events);
+struct blink_decoder *BLINK_InitEventDecoder(struct blink_decoder *decoder, void *user, const struct blink_schema *schema, const struct blink_decoder_events *events);
 
 /**
- * Decode a top-level compact form group
+ * Decode a compact form group
  *
- *@param[in] self decoder instance
+ * @param[in] self receiver
  * @param[in] in compact form string
  * @param[in] inLen byte length of `in`
  *
- * @return uint32_t
- * 
- * @retval 0..0xffffffff (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_EventDecoderDecode(struct blink_decoder *self, const uint8_t *in, uint32_t inLen);

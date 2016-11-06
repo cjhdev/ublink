@@ -24,7 +24,7 @@
 #define BLINK_COMPACT_FORM_H
 
 /**
- * @defgroup blink_compact_form Compact Form
+ * @defgroup blink_compact_form
  *
  * Compact form primitives.
  * 
@@ -48,8 +48,8 @@ extern "C" {
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- * @retval 0..1 (bytes successfully written to `out`)
+ * @return bytes written to `out`
+ * @retval 0..1
  * 
  * */
 uint8_t BLINK_EncodeVLCNull(uint8_t *out, uint32_t outMax);
@@ -60,8 +60,8 @@ uint8_t BLINK_EncodeVLCNull(uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- * @retval 0..1 (bytes successfully written to `out`)
+ * @return bytes written to `out`
+ * @retval 0..1
  * 
  * */
 uint8_t BLINK_EncodePresent(uint8_t *out, uint32_t outMax);
@@ -71,8 +71,8 @@ uint8_t BLINK_EncodePresent(uint8_t *out, uint32_t outMax);
  *
  * @param[in] value value to encode as VLC
  *
- * @return uint8_t
- * @retval 1..9 (minimum number of bytes to VLC encode unsigned `value`)
+ * @return minimum number of bytes to VLC encode unsigned `value`
+ * @retval 1..9
  * 
  * */
 uint8_t BLINK_GetVLCSizeUnsigned(uint64_t value);
@@ -82,8 +82,8 @@ uint8_t BLINK_GetVLCSizeUnsigned(uint64_t value);
  *
  * @param[in] value value to encode as VLC
  *
- * @return uint8_t
- * @retval 1..9 (minimum number of bytes to VLC encode signed `value`)
+ * @return minimum number of bytes to VLC encode signed `value`
+ * @retval 1..9
  * 
  * */
 uint8_t BLINK_GetVLCSizeSigned(int64_t value);
@@ -96,9 +96,8 @@ uint8_t BLINK_GetVLCSizeSigned(int64_t value);
  * @param[out] out output buffer
  * @param[in] outMax byte length of `out`
  *
- * @return uint8_t
- * 
- * @retval 0..9 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_EncodeVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMax);
@@ -112,8 +111,8 @@ uint8_t BLINK_EncodeVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMa
  * @param[out] out output integer buffer
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * @retval 0..9 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64_t *out, bool *isNull);
@@ -126,9 +125,8 @@ uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..1 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..1
  *
  * */
 uint8_t BLINK_DecodeBool(const uint8_t *in, uint32_t inLen, bool *out, bool *isNull);
@@ -141,9 +139,8 @@ uint8_t BLINK_DecodeBool(const uint8_t *in, uint32_t inLen, bool *out, bool *isN
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..1 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..1
  *
  * */
 uint8_t BLINK_DecodeU8(const uint8_t *in, uint32_t inLen, uint8_t *out, bool *isNull);
@@ -156,9 +153,8 @@ uint8_t BLINK_DecodeU8(const uint8_t *in, uint32_t inLen, uint8_t *out, bool *is
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..3 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..3
  *
  * */
 uint8_t BLINK_DecodeU16(const uint8_t *in, uint32_t inLen, uint16_t *out, bool *isNull);
@@ -171,9 +167,8 @@ uint8_t BLINK_DecodeU16(const uint8_t *in, uint32_t inLen, uint16_t *out, bool *
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..5 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..5
  *
  * */
 uint8_t BLINK_DecodeU32(const uint8_t *in, uint32_t inLen, uint32_t *out, bool *isNull);
@@ -186,9 +181,8 @@ uint8_t BLINK_DecodeU32(const uint8_t *in, uint32_t inLen, uint32_t *out, bool *
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..9 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_DecodeU64(const uint8_t *in, uint32_t inLen, uint64_t *out, bool *isNull);
@@ -201,9 +195,8 @@ uint8_t BLINK_DecodeU64(const uint8_t *in, uint32_t inLen, uint64_t *out, bool *
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..1 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..1
  *
  * */
 uint8_t BLINK_DecodeI8(const uint8_t *in, uint32_t inLen, int8_t *out, bool *isNull);
@@ -216,9 +209,8 @@ uint8_t BLINK_DecodeI8(const uint8_t *in, uint32_t inLen, int8_t *out, bool *isN
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..3 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..3
  *
  * */
 uint8_t BLINK_DecodeI16(const uint8_t *in, uint32_t inLen, int16_t *out, bool *isNull);
@@ -231,9 +223,8 @@ uint8_t BLINK_DecodeI16(const uint8_t *in, uint32_t inLen, int16_t *out, bool *i
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..5 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..5
  *
  * */
 uint8_t BLINK_DecodeI32(const uint8_t *in, uint32_t inLen, int32_t *out, bool *isNull);
@@ -246,9 +237,8 @@ uint8_t BLINK_DecodeI32(const uint8_t *in, uint32_t inLen, int32_t *out, bool *i
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..9 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_DecodeI64(const uint8_t *in, uint32_t inLen, int64_t *out, bool *isNull);
@@ -262,9 +252,8 @@ uint8_t BLINK_DecodeI64(const uint8_t *in, uint32_t inLen, int64_t *out, bool *i
  * @param[out] outLen byte length of `out`
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..0xffffffff (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_DecodeBinary(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t *outLen, bool *isNull);
@@ -278,9 +267,8 @@ uint32_t BLINK_DecodeBinary(const uint8_t *in, uint32_t inLen, const uint8_t **o
  * @param[out] outLen byte length of `out`
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..0xffffffff (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_DecodeString(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t *outLen, bool *isNull);
@@ -293,9 +281,8 @@ uint32_t BLINK_DecodeString(const uint8_t *in, uint32_t inLen, const uint8_t **o
  * @param[out] out decoded value
  * @param[in] size byte size of `fixed` field
  *
- * @return uint8_t
- * 
- * @retval 0..0xffffffff (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_DecodeFixed(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t size);
@@ -309,9 +296,8 @@ uint32_t BLINK_DecodeFixed(const uint8_t *in, uint32_t inLen, const uint8_t **ou
  * @param[out] size byte size of `fixed` field
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..0xffffffff (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_DecodeOptionalFixed(const uint8_t *in, uint32_t inLen, const uint8_t **out, uint32_t size, bool *isNull);
@@ -325,9 +311,8 @@ uint32_t BLINK_DecodeOptionalFixed(const uint8_t *in, uint32_t inLen, const uint
  * @param[out] exponent decoded exponent
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..11 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..11
  *
  * */
 uint8_t BLINK_DecodeDecimal(const uint8_t *in, uint32_t inLen, int64_t *mantissa, int8_t *exponent, bool *isNull);
@@ -340,9 +325,8 @@ uint8_t BLINK_DecodeDecimal(const uint8_t *in, uint32_t inLen, int64_t *mantissa
  * @param[out] out value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return uint8_t
- * 
- * @retval 0..9 (bytes successfully read from `in`)
+ * @return number of bytes successfully read from `in`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *isNull);
@@ -354,9 +338,8 @@ uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *is
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..1 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..1
  *
  * */
 uint8_t BLINK_EncodeBool(bool in, uint8_t *out, uint32_t outMax);
@@ -368,9 +351,8 @@ uint8_t BLINK_EncodeBool(bool in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..2 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..2
  *
  * */
 uint8_t BLINK_EncodeU8(uint8_t in, uint8_t *out, uint32_t outMax);
@@ -382,9 +364,8 @@ uint8_t BLINK_EncodeU8(uint8_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..3 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..3
  *
  * */
 uint8_t BLINK_EncodeU16(uint16_t in, uint8_t *out, uint32_t outMax);
@@ -396,9 +377,8 @@ uint8_t BLINK_EncodeU16(uint16_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..5 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..5
  *
  * */
 uint8_t BLINK_EncodeU32(uint32_t in, uint8_t *out, uint32_t outMax);
@@ -410,9 +390,8 @@ uint8_t BLINK_EncodeU32(uint32_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..9 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_EncodeU64(uint64_t in, uint8_t *out, uint32_t outMax);
@@ -424,9 +403,8 @@ uint8_t BLINK_EncodeU64(uint64_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..2 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..2
  *
  * */
 uint8_t BLINK_EncodeI8(int8_t in, uint8_t *out, uint32_t outMax);
@@ -438,9 +416,8 @@ uint8_t BLINK_EncodeI8(int8_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..3 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..3
  *
  * */
 uint8_t BLINK_EncodeI16(int16_t in, uint8_t *out, uint32_t outMax);
@@ -452,9 +429,8 @@ uint8_t BLINK_EncodeI16(int16_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..5 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..5
  *
  * */
 uint8_t BLINK_EncodeI32(int32_t in, uint8_t *out, uint32_t outMax);
@@ -466,9 +442,8 @@ uint8_t BLINK_EncodeI32(int32_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..9 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_EncodeI64(int64_t in, uint8_t *out, uint32_t outMax);
@@ -481,9 +456,8 @@ uint8_t BLINK_EncodeI64(int64_t in, uint8_t *out, uint32_t outMax);
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint32_t
- *
- * @retval 0..0xffffffff (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_EncodeBinary(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax);
@@ -496,9 +470,8 @@ uint32_t BLINK_EncodeBinary(const uint8_t *in, uint32_t inLen, uint8_t *out, uin
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint32_t
- *
- * @retval 0..0xffffffff (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_EncodeString(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax);
@@ -511,9 +484,8 @@ uint32_t BLINK_EncodeString(const uint8_t *in, uint32_t inLen, uint8_t *out, uin
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint32_t
- *
- * @retval 0..0xffffffff (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_EncodeFixed(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax);
@@ -526,9 +498,8 @@ uint32_t BLINK_EncodeFixed(const uint8_t *in, uint32_t inLen, uint8_t *out, uint
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint32_t
- *
- * @retval 0..0xffffffff (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..0xffffffff
  *
  * */
 uint32_t BLINK_EncodeOptionalFixed(const uint8_t *in, uint32_t inLen, uint8_t *out, uint32_t outMax);
@@ -540,9 +511,8 @@ uint32_t BLINK_EncodeOptionalFixed(const uint8_t *in, uint32_t inLen, uint8_t *o
  * @param[out] out output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..9 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..9
  *
  * */
 uint8_t BLINK_EncodeF64(double in, uint8_t *out, uint32_t outMax);
@@ -555,9 +525,8 @@ uint8_t BLINK_EncodeF64(double in, uint8_t *out, uint32_t outMax);
  * @param[out] output buffer
  * @param[in] outMax maximum byte length of `out`
  *
- * @return uint8_t
- *
- * @retval 0..11 (bytes successfully written to `out`)
+ * @return number of bytes successfully written to `out`
+ * @retval 0..11
  *
  * */
 uint8_t BLINK_EncodeDecimal(int64_t mantissa, int8_t exponent, uint8_t *out, uint32_t outMax);

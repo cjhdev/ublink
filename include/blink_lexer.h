@@ -24,7 +24,7 @@
 #define BLINK_LEXER_H
 
 /**
- * @defgroup blink_lexer Lexer
+ * @defgroup blink_lexer
  *
  * Convert syntax to a token.
  * 
@@ -132,9 +132,9 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
  * @param[in] token token to convert to string
  * @param[out] len byte length of string
  *
- * @return const char *
+ * @return pointer to token string
  *
- * @retval NULL (no string exists for this token)
+ * @retval NULL no string exists for this token
  *
  * */
 const char *BLINK_TokenToString(enum blink_token token, size_t *len);

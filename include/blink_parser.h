@@ -24,7 +24,7 @@
 #define BLINK_PARSER_H
 
 /**
- * @defgroup blink_parser Parser
+ * @defgroup blink_parser
  *
  * Convert tokens to a schema.
  * 
@@ -46,7 +46,6 @@ extern "C" {
     /** maximum inheritence depth */
     #define BLINK_INHERIT_DEPTH   10U
 #endif
-
 
 /* typdefs ************************************************************/
 
@@ -82,26 +81,18 @@ enum blink_type_tag {
     TYPE_OBJECT,            /**< any group encoded as dynamic group */
     TYPE_ENUM,              /**< 32 bit signed integer */
     TYPE_REF,               /**< reference */
+
     TYPE_STATIC_GROUP,      /**< static reference to a group */
     TYPE_DYNAMIC_REF        /**< dynamic reference to a group */
 };
 
 /* structs ************************************************************/
 
-/** forward declaration */
-struct blink_namespace;
-
-/** forward declaration */
-struct blink_list_element;
-
-/** forward declaration */
-struct blink_group;
-
-/** forward declaration */
-struct blink_field;
-
-/** forward declaration */
-struct blink_enum;
+struct blink_namespace;     /**< forward declaration */
+struct blink_list_element;  /**< forward declaration */
+struct blink_group;         /**< forward declaration */
+struct blink_field;         /**< forward declaration */
+struct blink_enum;          /**< forward declaration */
 
 /** schema */
 struct blink_schema {
@@ -114,29 +105,30 @@ struct blink_schema {
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
 struct blink_field_iterator {
     const struct blink_list_element *field[BLINK_INHERIT_DEPTH];    /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
-    uint16_t depth;                                                 /**< current depth in `group` */
+    uint16_t depth;                                                 /**< current depth in `field` */
 };
 
 /* function prototypes ************************************************/
 
-/** Create a new schema object
+/** Initialise a schema object
  *
- * @note Applications must provide a calloc-like function and may provide a free-like function
+ * @note Applications must provide a calloc-like function
+ * @note Applications may provide a free-like function
  *
- * @param[in] self schema object
+ * @param[in] schema
  * @param[in] calloc a function like calloc() (MANDATORY)
  * @param[in] free a function like free free() (OPTIONAL)
  *
- * @return struct blink_schema *
+ * @return pointer to initialised schema
  *
  * */
-struct blink_schema *BLINK_NewSchema(struct blink_schema *self, fn_blink_calloc_t calloc, fn_blink_free_t free);
+struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_calloc_t calloc, fn_blink_free_t free);
 
 /** Destroy a schema object
- * 
+ *
  * @note this function has no effect if `free` was not provided in the call to BLINK_NewSchema
  *
- * @param[in] self schema object
+ * @param[in] self receiver
  *
  * */
 void BLINK_DestroySchema(struct blink_schema *self);
@@ -144,169 +136,179 @@ void BLINK_DestroySchema(struct blink_schema *self);
 /** Parse a single Blink Protocol schema definition
  *
  * @note finalises the schema representation
- * 
- * @param[in] self schema object
+ *
+ * @param[in] self receiver
  * @param[in] in Blink Protocol schema definition
  * @param[in] inLen byte length of `in`
  *
- * @return struct blink_schema *
- * @retval NULL (`in` could not be parsed)
+ * @return pointer to receiver
+ * 
+ * @retval NULL parse failed
  *
  * */
 struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size_t inLen);
 
 
 /** Find a group by name
- * 
- * @param[in] self schema object
+ *
+ * @param[in] self receiver
  * @param[in] qName qualified group name
  * @param[in] qNameLen byte length of `qName`
  *
- * @return const struct blink_group *
- * @retval NULL (no group found)
+ * @return pointer to receiver
+ * 
+ * @retval NULL group not found
  *
  * */
 const struct blink_group *BLINK_GetGroupByName(struct blink_schema *self, const char *qName, size_t qNameLen);
 
 /** Find a group by ID
  * 
- * @param[in] self schema object
+ * @param[in] self receiver
  * @param[in] id group ID
  *
- * @return const struct blink_group *
- * @retval NULL (no group found)
+ * @return pointer to receiver
+ * 
+ * @retval NULL group not found
  *
  * */
 const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t id);
 
-/** Create a new field iterator for a given group
+/** Initialise a field iterator
  *
+ * @param[in] iter iterator
  * @param[in] group group to iterate
- * @param[in] iter iterator state
  *
- * @return const struct blink_field_iterator *
- * @retval NULL (could not initialise iterator)
+ * @return pointer to initialised field iterator
+ * 
+ * @retval NULL could not initialise field iterator
  * 
  * */
-const struct blink_field_iterator *BLINK_NewFieldIterator(const struct blink_group *group, struct blink_field_iterator *iter);
+const struct blink_field_iterator *BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group);
 
-/** Get next field from iterator
+/** Get next field from an iterator
  *
- * @param[in] iter field iterator
+ * @param[in] self receiver
  * 
- * @return const struct blink_field *
- * @retval NULL (no next field)
+ * @return pointer to receiver
+ * 
+ * @retval NULL no next field
  *
  * */
-const struct blink_field *BLINK_NextField(struct blink_field_iterator *iter);
+const struct blink_field *BLINK_NextField(struct blink_field_iterator *self);
 
-/** Get the name of this group
+/** Get the name of a group
  *
- * @param[in] group group definition
+ * @param[in] self receiver
  * @param[out] nameLen byte length of group name
  * 
- * @return const char *
+ * @return pointer to name string
  *
  * */
-const char *BLINK_GetGroupName(const struct blink_group *group, size_t *nameLen);
+const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen);
 
 /** Get the super group definition for this group
  *
- * @param[in] group group definition
+ * @param[in] self receiver
  *
- * @return const struct blink_group *
- * @retval NULL (this group does not have a super group)
+ * @return pointer to super group
+ * 
+ * @retval NULL super group does not exist
  *
  * */
-const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *group);
+const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *self);
 
 /** Get the name of this field
  *
- * @param[in] field field definition
+ * @param[in] self receiver
  * @param[out] nameLen byte length of field name
  *
- * @return const char *
+ * @return pointer to name string
  *
  * */
-const char *BLINK_GetFieldName(const struct blink_field *field, size_t *nameLen);
+const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen);
 
 /** Is this field optional?
  *
- * @param[in] field field definition
+ * @param[in] self receiver
  *
- * @return bool
- * @retval true (field is optional)
- * @retval false (field is not optional)
+ * @return optional?
+ * 
+ * @retval true
+ * @retval false
  *
  * */
-bool BLINK_FieldIsOptional(const struct blink_field *field);
+bool BLINK_FieldIsOptional(const struct blink_field *self);
 
 /** Get the type of this field
  *
- * @param[in] field field definition
+ * @param[in] self receiver
  * 
- * @return enum #blink_type_tag
+ * @return field type
  * 
  * */
-enum blink_type_tag BLINK_GetFieldType(const struct blink_field *field);
+enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self);
 
 /** Get the size of this field (if applicable)
  *
  * @note applicable if #TYPE_FIXED, #TYPE_BINARY, or #TYPE_STRING
  * @note for #TYPE_STRING and #TYPE_BINARY size means maximum size
  *
- * @param[in] field field definition
+ * @param[in] self receiver
  * 
- * @return uint32_t
+ * @return size of field
  * 
  * */
-uint32_t BLINK_GetFieldSize(const struct blink_field *field);
+uint32_t BLINK_GetFieldSize(const struct blink_field *self);
 
 /** Get the type referencestring of this field (if applicable)
  *
  * @note applicable if #TYPE_REF or #TYPE_DYNAMIC_REF
  *
- * @param[in] field field definition
+ * @param[in] self receiver
  * @param[out] refLen byte length of reference string
  *
- * @return const char *
- * @retval NULL (this field is not a #TYPE_REF or #TYPE_DYNAMIC_REF)
+ * @return pointer to reference string
+ * 
+ * @retval NULL this field is not a #TYPE_REF or #TYPE_DYNAMIC_REF
  *
  * */
-const char *BLINK_GetFieldRef(const struct blink_field *field, size_t *refLen);
+const char *BLINK_GetFieldRef(const struct blink_field *self, size_t *refLen);
 
 /**
- * @param[in] e enum definition
+ * @param[in] self receiver
  * @param[in] name symbol name
  * @param[in] nameLen byte length of `name`
  * @param[out] value symbol value
  *
- * @return const struct blink_symbol *
- * @retval NULL (symbol not found)
+ * @return pointer to symbol
+ * 
+ * @retval NULL symbol not found
  * 
  * */
-const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *e, const char *name, size_t nameLen, int32_t *value);
+const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, const char *name, size_t nameLen, int32_t *value);
 
 /**
- * @param[in] e enum definition
+ * @param[in] self receiver
  * @param[in] value symbol value
  * @param[out] name symbol name
  * @param[out] nameLen byte length of `name`
  *
- * @return const struct blink_symbol *
- * @retval NULL (symbol not found)
+ * @return pointer to symbol
+ * 
+ * @retval NULL symbol not found
  * 
  * */
-const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *e, int32_t value, const char **name, size_t *nameLen);
+const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, int32_t value, const char **name, size_t *nameLen);
 
 /** returns field type
  *
- * @param[in] field field definition
+ * @param[in] self receiver
  *
- * @return const struct blink_type *
+ * @return type of field
  *
  * */
-const struct blink_type *BLINK_GetType(const struct blink_field *field);
+const struct blink_type *BLINK_GetType(const struct blink_field *self);
 
 #ifdef __cplusplus
 }

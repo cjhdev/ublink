@@ -12,7 +12,7 @@ static struct blink_schema ctxt;
 
 void setUp(void)
 {
-    BLINK_NewSchema(&ctxt, calloc, free); 
+    BLINK_InitSchema(&ctxt, calloc, free); 
 }
 
 void tearDown(void)
@@ -54,7 +54,7 @@ void test_BLINK_Parse_greeting(void)
     TEST_ASSERT_EQUAL(BLINK_GetGroupByID(&ctxt, 0), BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")));
 
     struct blink_field_iterator iter;
-    TEST_ASSERT_EQUAL_PTR(&iter, BLINK_NewFieldIterator(BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")), &iter));
+    TEST_ASSERT_EQUAL_PTR(&iter, BLINK_InitFieldIterator(&iter, BLINK_GetGroupByName(&ctxt, "Message", strlen("Message"))));
 
     const struct blink_field *f = BLINK_NextField(&iter);
     TEST_ASSERT_TRUE(f != NULL);
@@ -126,6 +126,18 @@ void test_BLINK_Parse_duplicate_enum_definition(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
 }
 
+void test_BLINK_Parse_duplicate_enum_field(void)
+{
+    const char input[] = "test = bla | bla";
 
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_duplicate_group_field(void)
+{
+    const char input[] = "test -> u8 bla, u8 bla";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
 
 
