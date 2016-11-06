@@ -498,7 +498,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 
                 if(searchListByName(ns->defs, name, nameLen) != NULL){
 
-                    BLINK_ERROR("duplicate definition");
+                    BLINK_ERROR("duplicate definition name");
                     return retval;
                 }
 
@@ -528,11 +528,15 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 
                     bool single = (tok == TOK_BAR) ? true : false;
 
+                    read = 0U;
+
                     do{
+
+                        pos += read;
 
                         if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
 
-                            BLINK_ERROR("error: expecting name")
+                            BLINK_ERROR("expecting enum symbol name")
                             return retval;
                         }
 
@@ -549,7 +553,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 
                             if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
                                 
-                                BLINK_ERROR("expecting number")
+                                BLINK_ERROR("expecting enum symbol value")
                                 return retval;
                             }
 
@@ -565,7 +569,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 
                         if(searchListByName(e->s, s.name, s.nameLen) != NULL){
                             
-                            BLINK_ERROR("error: duplicate")
+                            BLINK_ERROR("duplicate enum symbol name")
                             return retval;
                         }
 
@@ -616,7 +620,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                 /* definition name must be unique */
                 if(searchListByName(ns->defs, name, nameLen) != NULL){
                 
-                    BLINK_ERROR("duplicate name")
+                    BLINK_ERROR("duplicate definition name")
                     return retval;
                 }
 
@@ -640,7 +644,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                     
                     if((BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_CNAME) && (BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME)){
 
-                        BLINK_ERROR("error: expecting super class name (qname)")
+                        BLINK_ERROR("expecting super class name (qname)")
                         return retval;
                     }
 
@@ -652,9 +656,9 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
 
                 if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_RARROW){
 
-                    pos += read;
-
                     do{
+
+                        pos += read;
 
                         const char *fieldName;
                         size_t fieldNameLen;
@@ -692,6 +696,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                         if(searchListByName(g->f, fieldName, fieldNameLen) != NULL){
 
                             BLINK_ERROR("duplicate field name");
+                            return retval;
                         }
 
                         element = newListElement(self, &g->f, BLINK_ELEM_FIELD);
@@ -1074,7 +1079,7 @@ static bool resolveType(struct blink_schema *self, struct blink_type_def *type)
 
 static bool resolveGroups(struct blink_schema *self)
 {
-    return false;
+    return true;
 }
 
 static struct blink_list_element *newListElement(struct blink_schema *self, struct blink_list_element **head, enum blink_list_type type)
