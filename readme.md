@@ -17,7 +17,7 @@ This project is currently under development and not very useful.
 const char syntax[] = "Hello/0 -> string greeting";
 
 struct blink_schema s;
-BLINK_NewSchema(&s);
+BLINK_InitSchema(&s);
 BLINK_Parse(&s, syntax, sizeof(syntax));
 BLINK_DestroySchema(&s);
 ~~~
