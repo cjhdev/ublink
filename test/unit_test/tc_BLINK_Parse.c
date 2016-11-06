@@ -44,6 +44,34 @@ void test_BLINK_Parse_undefinedSuperGroup(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
 }
 
+void test_BLINK_Parse_groupIsSuperGroup(void)
+{
+    const char input[] = "empty : empty";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+}
+
+void test_BLINK_Parse_groupIsSuperGroupByIntermediate(void)
+{
+    const char input[] = "intermediate = empty empty : intermediate";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+}
+
+void test_BLINK_Parse_superGroupIsDynamic(void)
+{
+    const char input[] = "super intermediate = super* empty : intermediate";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+}
+
+void test_BLINK_Parse_superGroupIsSequence(void)
+{
+    const char input[] = "super intermediate = super [] empty : intermediate";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+}
+
 void test_BLINK_Parse_greeting(void)
 {
     const char input[] = "Message/0 -> string Greeting";

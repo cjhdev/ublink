@@ -145,6 +145,7 @@ static bool resolveTypes(struct blink_schema *self);
 static bool resolveType(struct blink_schema *self, struct blink_type_def *type);
 
 static bool resolveGroups(struct blink_schema *self);
+static bool resolveSuperGroup(struct blink_schema *self, struct blink_group *group);
 
 static struct blink_enum *castEnum(struct blink_list_element *self);
 static struct blink_symbol *castSymbol(struct blink_list_element *self);
@@ -1079,7 +1080,159 @@ static bool resolveType(struct blink_schema *self, struct blink_type_def *type)
 
 static bool resolveGroups(struct blink_schema *self)
 {
-    return true;
+    BLINK_ASSERT(self != NULL)
+    
+    bool errors = false;
+    struct blink_namespace *ns;
+    struct blink_list_element *nsPtr = self->ns;
+
+    while(nsPtr != NULL){
+
+        ns = castNamespace(nsPtr);
+
+        struct blink_list_element *defPtr = ns->defs;
+
+        while(defPtr != NULL){
+
+            if(defPtr->type == BLINK_ELEM_GROUP){
+
+                struct blink_group *g = castGroup(defPtr);
+
+                if(!resolveSuperGroup(self, g)){
+
+                    errors = true;
+                }
+            }
+
+            defPtr = defPtr->next;
+        }
+
+        nsPtr = nsPtr->next;
+    }
+
+    return (errors) ? false : true;
+}
+
+static bool resolveSuperGroup(struct blink_schema *self, struct blink_group *group)
+{
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(group != NULL)
+
+    bool retval = true;
+    struct blink_list_element *nsPtr;
+    struct blink_list_element *defPtr;
+
+    bool loopAgain;
+    const char *sName = group->superGroup;
+    size_t sNameLen = group->superGroupLen;
+    const char *nsName;
+    size_t nsNameLen;
+    const char *name;
+    size_t nameLen;
+
+    struct blink_list_element *stack[10];
+    size_t depth = 0U;
+    size_t i;
+
+    if(group->superGroup != NULL){
+
+        retval = false;
+
+        do{
+
+            loopAgain = false;
+        
+            splitCName(sName, sNameLen, &nsName, &nsNameLen, &name, &nameLen);
+        
+            nsPtr = searchListByName(self->ns, nsName, nsNameLen);
+
+            if(nsPtr != NULL){
+
+                defPtr = searchListByName(castNamespace(nsPtr)->defs, name, nameLen);
+
+                if(defPtr != NULL){
+
+                    if(defPtr->type == BLINK_ELEM_GROUP){
+
+                        /* group is own supergroup? */
+                        if(castGroup(defPtr) == group){
+
+                            BLINK_ERROR("group cannot be own supergroup")                        
+                        }
+                        else{
+
+                            group = castGroup(defPtr);
+                            retval = true;
+                        }
+                    }
+                    else if(defPtr->type == BLINK_ELEM_TYPE){
+
+                        struct blink_type *type = &castTypeDef(defPtr)->type;
+
+                        if(type->tag == TYPE_REF){
+                
+                            if(type->isSequence){
+
+                                BLINK_ERROR("super group cannot be a sequence")
+                            }
+                            else{
+
+                                /* detect circular reference */
+                                if(depth > 0){
+
+                                    for(i=0; i < depth; i++){
+
+                                        if(stack[i] == defPtr){
+
+                                            BLINK_ERROR("circular reference");
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if(depth < (sizeof(stack)/sizeof(*stack))){
+
+                                    stack[depth] = defPtr;
+                                    depth++;
+
+                                    sName = type->ref;
+                                    sNameLen = type->refLen;
+                                    loopAgain = true;
+                                }
+                                else{
+
+                                    BLINK_ERROR("too many references to references")
+                                }
+                            }
+                        }
+                        else if(type->tag == TYPE_DYNAMIC_REF){
+
+                            BLINK_ERROR("super group cannot be a dynamic reference")
+                        }
+                        else{
+                        
+                            BLINK_ERROR("expecting group or a reference to a group")
+                        }                            
+                    }
+                    else{
+
+                        BLINK_ERROR("supergroup must point to a group")
+                    }
+                }
+                else{
+
+                    BLINK_ERROR("supergroup undefined")
+                }
+            }
+            else{
+
+                BLINK_ERROR("supergroup undefined")
+            }
+
+        }while(loopAgain);
+    }
+
+    return retval;
 }
 
 static struct blink_list_element *newListElement(struct blink_schema *self, struct blink_list_element **head, enum blink_list_type type)
