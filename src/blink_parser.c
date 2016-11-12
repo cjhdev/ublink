@@ -36,15 +36,41 @@
 
 /* enums **************************************************************/
 
+/** A field shall represent one of the following types */
+enum blink_itype_tag {
+    BLINK_ITYPE_STRING = 0,        /**< UTF8 encoded string */
+    BLINK_ITYPE_BINARY,            /**< octet string */
+    BLINK_ITYPE_FIXED,             /**< fixed size string */
+    BLINK_ITYPE_BOOL,              /**< boolean */
+    BLINK_ITYPE_U8,                /**< 8 bit unsigned integer */
+    BLINK_ITYPE_U16,               /**< 16 bit unsigned integer */
+    BLINK_ITYPE_U32,               /**< 32 bit unsigned integer */
+    BLINK_ITYPE_U64,               /**< 64 bit unsigned integer */
+    BLINK_ITYPE_I8,                /**< 8 bit signed integer */
+    BLINK_ITYPE_I16,               /**< 16 bit signed integer */
+    BLINK_ITYPE_I32,               /**< 32 bit signed integer */
+    BLINK_ITYPE_I64,               /**< 64 bit signed integer */
+    BLINK_ITYPE_F64,               /**< IEEE 754 double */
+    BLINK_ITYPE_DATE,              
+    BLINK_ITYPE_TIME_OF_DAY_MILLI,
+    BLINK_ITYPE_TIME_OF_DAY_NANO,
+    BLINK_ITYPE_NANO_TIME,
+    BLINK_ITYPE_MILLI_TIME,        
+    BLINK_ITYPE_DECIMAL,           /**< 8 bit signed integer exponent, 64 bit signed integer mantissa */
+    BLINK_ITYPE_OBJECT,            /**< any group encoded as dynamic group */
+    BLINK_ITYPE_REF                /**< reference */
+};
+
 /* structs ************************************************************/
 
 /** type */
 struct blink_type {
+    bool isDynamic;             /**< reference is dynamic (applicable to #BLINK_ITYPE_REF) */
     bool isSequence;            /**< this is a SEQUENCE of type */                
-    uint32_t size;              /**< size attribute (applicable to #TYPE_BINARY, #TYPE_FIXED, and #TYPE_STRING) */
-    const char *ref;            /**< name of reference (applicable to #TYPE_DYNAMIC_REF, #TYPE_REF, #TYPE_ENUM) */
-    size_t refLen;              /**< byte length of `ref` */
-    enum blink_type_tag tag;                        /**< what type is this? */
+    uint32_t size;              /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */
+    const char *ref;            /**< name of reference (applicable to #BLINK_ITYPE_REF) */
+    size_t refLen;                                  /**< byte length of `ref` */
+    enum blink_itype_tag tag;                       /**< what type is this? */
     const struct blink_list_element *resolvedRef;   /**< `ref` resolves to this structure */
 };
 
@@ -63,9 +89,9 @@ struct blink_group {
     bool hasID;                     /**< group has an ID */
     uint64_t id;                    /**< group ID */
     const char *superGroup;         /**< name of super group */
-    size_t superGroupLen;           /**< byte length of supergroup name */
-    const struct blink_group *s;    /**< pointer to supergroup definition */
-    struct blink_list_element *f;          /**< fields belonging to group */
+    size_t superGroupLen;           /**< byte length of supergroup name */    
+    const struct blink_list_element *s;     /**< optional supergroup */
+    struct blink_list_element *f;   /**< fields belonging to group */
 };
 
 /** enumeration symbol */
@@ -101,10 +127,9 @@ struct blink_annote {
 };
 
 struct blink_inline_annote {
-    struct blink_inline_annote *next;
-    const char *name;
-    size_t nameLen;
-    struct blink_annote *a;         /** list of annotes to apply */
+    const char *name;               /**< name to apply annote to */
+    size_t nameLen;                 /**< byte length of `name` */
+    struct blink_list_element *a;   /**< list of annotes to apply to `name` */
 };
 
 /** namespace */
@@ -115,19 +140,28 @@ struct blink_namespace {
     struct blink_list_element *defs;      
 };
 
+/** generic single linked list element */
 struct blink_list_element {
-    struct blink_list_element *next;
+    struct blink_list_element *next;    /**< next element */
     enum blink_list_type {
-        BLINK_ELEM_NULL,
-        BLINK_ELEM_NS,
-        BLINK_ELEM_GROUP,
-        BLINK_ELEM_FIELD,
-        BLINK_ELEM_ENUM,
-        BLINK_ELEM_SYMBOL,
-        BLINK_ELEM_TYPE,
-        BLINK_ELEM_ANNOTE,
-    } type;
-    void *ptr;    
+        BLINK_ELEM_NULL,                /**< no type allocated */
+        BLINK_ELEM_NS,                  /**< blink_namespace */
+        BLINK_ELEM_GROUP,               /**< blink_group */
+        BLINK_ELEM_FIELD,               /**< blink_field */
+        BLINK_ELEM_ENUM,                /**< blink_enum */
+        BLINK_ELEM_SYMBOL,              /**< blink_symbol */
+        BLINK_ELEM_TYPE,                /**< blink_type */
+        BLINK_ELEM_ANNOTE,              /**< blink_annote */        
+        BLINK_ELEM_INLINE_ANNOTE        /**< blink_inline_annote */        
+    } type;                             /**< type allocated at `ptr` */
+    
+    void *ptr;                          /**< points to instance of `type` */
+};
+
+struct blink_def_iterator {
+
+    struct blink_list_element *ns;
+    struct blink_list_element *def;
 };
 
 /* static prototypes **************************************************/
@@ -141,11 +175,13 @@ static struct blink_list_element *searchListByName(struct blink_list_element *he
 
 static void splitCName(const char *in, size_t inLen, const char **nsName, size_t *nsNameLen, const char **name, size_t *nameLen);
 
-static bool resolveTypes(struct blink_schema *self);
-static bool resolveType(struct blink_schema *self, struct blink_type_def *type);
+static bool resolveDefinitions(struct blink_schema *self);
+static struct blink_list_element *resolve(struct blink_schema *self, const char *cName, size_t cNameLen);
 
-static bool resolveGroups(struct blink_schema *self);
-static bool resolveSuperGroup(struct blink_schema *self, struct blink_group *group);
+static bool testConstraints(struct blink_schema *self);
+static bool testReferenceConstraint(const struct blink_schema *self, const struct blink_list_element *reference);
+static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, const struct blink_group *group);
+static bool testSuperGroupShadowConstraint(const struct blink_schema *self, const struct blink_group *group);
 
 static struct blink_enum *castEnum(struct blink_list_element *self);
 static struct blink_symbol *castSymbol(struct blink_list_element *self);
@@ -156,6 +192,12 @@ static struct blink_group *castGroup(struct blink_list_element *self);
 static const struct blink_group *castConstGroup(const struct blink_list_element *self);
 static struct blink_namespace *castNamespace(struct blink_list_element *self);
 static struct blink_type_def *castTypeDef(struct blink_list_element *self);
+static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self);
+
+static struct blink_list_element *getTerminal(struct blink_list_element *element, bool *dynamic);
+
+static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, struct blink_schema *schema);
+static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter);
 
 /* functions **********************************************************/
 
@@ -200,39 +242,32 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
 {
     BLINK_ASSERT(self != NULL)
 
-    const struct blink_group *retval = NULL;    
-    struct blink_list_element *ptr;
-    struct blink_list_element *ns = self->ns;
-    
-    while((retval == NULL) && (ns != NULL)){
+    const struct blink_group *retval = NULL;
+    struct blink_def_iterator iter;
+    struct blink_list_element *defPtr = initDefinitionIterator(&iter, self);
 
-        ptr = castNamespace(ns)->defs;
+    while((retval == NULL) && (defPtr != NULL)){
 
-        while((retval != NULL) && (ptr != NULL)){
+        if((defPtr->type == BLINK_ELEM_GROUP) && castConstGroup(defPtr)->hasID && (castConstGroup(defPtr)->id == id)){
 
-            if((ptr->type == BLINK_ELEM_GROUP) && castGroup(ptr)->hasID && (castConstGroup(ptr)->id == id)){
-
-                retval = castConstGroup(ptr);
-            }
-            else{
-                
-                ptr = ptr->next;            
-            }
+            retval = castConstGroup(defPtr);
         }
-
-        ns = ns->next;        
+        else{
+            
+            defPtr = nextDefinition(&iter);
+        }
     }
 
     return retval;
 }
 
-const struct blink_field_iterator *BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group)
+void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group)
 {
     BLINK_ASSERT(iter != NULL)
     BLINK_ASSERT(group != NULL)
     
     const struct blink_group *ptr = group;
-    const struct blink_field_iterator *retval = NULL;
+    bool dynamic;
     
     memset(iter, 0, sizeof(*iter));
 
@@ -246,16 +281,12 @@ const struct blink_field_iterator *BLINK_InitFieldIterator(struct blink_field_it
         }
         else{
 
-            ptr = ptr->s;
+            ptr = castGroup(getTerminal(ptr->s, &dynamic));
         }
     }
 
-    if(iter->depth < BLINK_INHERIT_DEPTH){
-
-        retval = iter;
-    }
-
-    return retval;
+    /* it is not possible to initialise a blink_schema that trips this */
+    BLINK_ASSERT(iter->depth < BLINK_INHERIT_DEPTH)
 }
 
 const struct blink_field *BLINK_NextField(struct blink_field_iterator *self)
@@ -291,7 +322,7 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
 
     struct blink_schema *retval;
     
-    if((parse(self, in, inLen) == self) && resolveTypes(self) && resolveGroups(self)){
+    if((parse(self, in, inLen) == self) && resolveDefinitions(self) && testConstraints(self)){
 
         retval = self;
     }
@@ -311,13 +342,6 @@ const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen)
 
     *nameLen = self->nameLen;
     return self->name;
-}
-
-const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *self)
-{
-    BLINK_ASSERT(self != NULL)
-    
-    return self->s;
 }
 
 const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen)
@@ -340,7 +364,55 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
-    return self->type.tag;
+    static const enum blink_type_tag translate[] = {
+        BLINK_TYPE_STRING,
+        BLINK_TYPE_BINARY,
+        BLINK_TYPE_FIXED,
+        BLINK_TYPE_BOOL,
+        BLINK_TYPE_U8,
+        BLINK_TYPE_U16,
+        BLINK_TYPE_U32,
+        BLINK_TYPE_U64,
+        BLINK_TYPE_I8,
+        BLINK_TYPE_I16,
+        BLINK_TYPE_I32,
+        BLINK_TYPE_I64,
+        BLINK_TYPE_F64,
+        BLINK_TYPE_DATE,              
+        BLINK_TYPE_TIME_OF_DAY_MILLI,
+        BLINK_TYPE_TIME_OF_DAY_NANO,
+        BLINK_TYPE_NANO_TIME,
+        BLINK_TYPE_MILLI_TIME,        
+        BLINK_TYPE_DECIMAL,
+        BLINK_TYPE_OBJECT            
+    };
+
+    enum blink_type_tag retval;
+    bool dynamic;
+
+    if(self->type.tag == BLINK_ITYPE_REF){ 
+
+        struct blink_list_element *ptr = getTerminal(self->type.resolvedRef, &dynamic);
+
+        switch(ptr->type){
+        case BLINK_ELEM_ENUM:
+            retval = BLINK_TYPE_ENUM;
+            break;
+        case BLINK_ELEM_GROUP:
+            retval = (dynamic) ? BLINK_TYPE_DYNAMIC_GROUP : BLINK_TYPE_STATIC_GROUP;
+            break;
+        default:
+            BLINK_ASSERT((size_t)castTypeDef(ptr)->type.tag < (sizeof(translate)/sizeof(*translate)))
+            retval = translate[castTypeDef(ptr)->type.tag];
+        }        
+    }    
+    else{
+
+        BLINK_ASSERT((size_t)self->type.tag < (sizeof(translate)/sizeof(*translate)))
+        retval = translate[self->type.tag];
+    }
+
+    return retval;
 }
 
 uint32_t BLINK_GetFieldSize(const struct blink_field *self)
@@ -848,39 +920,15 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
 
         type->ref = value.literal.ptr;
         type->refLen = value.literal.len;
+        type->tag = BLINK_ITYPE_REF;
 
         if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_STAR){
 
             pos += r;
-            type->tag = TYPE_DYNAMIC_REF;
-        }
-        else{
-
-            type->tag = TYPE_REF;
+            type->isDynamic = true;            
         }
         break;
 
-    case TOK_EQUAL:
-    case TOK_COMMA:
-    case TOK_PERIOD:
-    case TOK_QUESTION:
-    case TOK_LBRACKET:
-    case TOK_RBRACKET:
-    case TOK_LPAREN:
-    case TOK_RPAREN:
-    case TOK_STAR:
-    case TOK_BAR:
-    case TOK_SLASH:
-    case TOK_AT:
-    case TOK_COLON:
-    case TOK_RARROW:
-    case TOK_LARROW:
-    case TOK_NAMESPACE:
-    case TOK_SCHEMA:
-    case TOK_TYPE:
-    case TOK_NUMBER:
-    case TOK_UNKNOWN:
-    case TOK_EOF:
     default:
 
         BLINK_ERROR("expecting a type");
@@ -994,245 +1042,359 @@ static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen,
     return retval;
 }
 
-static bool resolveTypes(struct blink_schema *self)
+static bool resolveDefinitions(struct blink_schema *self)
 {
     BLINK_ASSERT(self != NULL)
     
-    bool errors = false;
-    struct blink_namespace *ns;
-    struct blink_list_element *nsPtr = self->ns;
+    struct blink_group *g;
+    struct blink_field *f;
+    struct blink_type_def *t;
+    struct blink_list_element *fieldPtr;
+    struct blink_def_iterator iter;
+    struct blink_list_element *defPtr = initDefinitionIterator(&iter, self);
 
-    while(nsPtr != NULL){
+    while(defPtr != NULL){
+        
+        switch(defPtr->type){
+        case BLINK_ELEM_TYPE:
 
-        ns = castNamespace(nsPtr);
+            t = castTypeDef(defPtr);
+        
+            if(t->type.tag == BLINK_ITYPE_REF){
 
-        struct blink_list_element *defPtr = ns->defs;
+                t->type.resolvedRef = resolve(self, t->type.ref, t->type.refLen);
 
-        while(defPtr != NULL){
+                if(castTypeDef(defPtr)->type.resolvedRef == NULL){
 
-            if(defPtr->type == BLINK_ELEM_TYPE){
+                    BLINK_ERROR("unresolved")
+                    return false;
+                }
+            }
+            break;
+            
+        case BLINK_ELEM_GROUP:
 
-                if(!resolveType(self, castTypeDef(defPtr))){
+            g = castGroup(defPtr);
 
-                    errors = true;
-                }                
+            if(g->superGroup != NULL){
+
+                g->s = resolve(self, g->superGroup, g->superGroupLen);
+
+                if(g->s == NULL){
+
+                    BLINK_ERROR("unresolved")    
+                    return false;
+                }
             }
 
-            defPtr = defPtr->next;
+            fieldPtr = g->f;
+
+            while(fieldPtr != NULL){
+
+                f = castField(fieldPtr);
+
+                if(f->type.tag == BLINK_ITYPE_REF){
+
+                    f->type.resolvedRef = resolve(self, f->type.ref, f->type.refLen);
+
+                    if(f->type.resolvedRef == NULL){
+
+                        BLINK_ERROR("unresolved");
+                        return false;
+                    }
+                }
+
+                fieldPtr = fieldPtr->next;
+            }
+            break;
+
+        default:
+            break;
         }
 
-        nsPtr = nsPtr->next;
+        defPtr = nextDefinition(&iter);
     }
 
-    return (errors) ? false : true;
+    return true;
 }
 
-static bool resolveType(struct blink_schema *self, struct blink_type_def *type)
+static struct blink_list_element *resolve(struct blink_schema *self, const char *cName, size_t cNameLen)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(type != NULL)
+    BLINK_ASSERT(cName != NULL)
 
-    bool errors = false;
     const char *nsName;
     size_t nsNameLen;
     const char *name;
     size_t nameLen;
     struct blink_list_element *nsPtr;
-    struct blink_list_element *defPtr;
 
-    if(type->type.tag == TYPE_REF){
+    splitCName(cName, cNameLen, &nsName, &nsNameLen, &name, &nameLen);
 
-        splitCName(type->type.ref, type->type.refLen, &nsName, &nsNameLen, &name, &nameLen);
-
-        nsPtr = searchListByName(self->ns, nsName, nsNameLen);
-
-        if(nsPtr != NULL){
-
-            defPtr = searchListByName(castNamespace(nsPtr)->defs, name, nameLen);
-
-            if(defPtr != NULL){
-
-                if((defPtr->type == BLINK_ELEM_TYPE) && (castTypeDef(defPtr) == type)){
-
-                    BLINK_ERROR("type reference refers to itself")
-                    errors = true;
-                }
-                else{
-
-                    type->type.resolvedRef = defPtr;
-                }
-            }
-            else{
-
-                BLINK_ERROR("cannot resolve reference")
-                errors = true;
-            }
-        }
-        else{
-
-            BLINK_ERROR("cannot resolve namespace")
-            errors = true;
-        }
-    }
-
-    return (errors) ? false : true;
-}
-
-static bool resolveGroups(struct blink_schema *self)
-{
-    BLINK_ASSERT(self != NULL)
+    nsPtr = searchListByName(self->ns, nsName, nsNameLen);
     
-    bool errors = false;
-    struct blink_namespace *ns;
-    struct blink_list_element *nsPtr = self->ns;
-
-    while(nsPtr != NULL){
-
-        ns = castNamespace(nsPtr);
-
-        struct blink_list_element *defPtr = ns->defs;
-
-        while(defPtr != NULL){
-
-            if(defPtr->type == BLINK_ELEM_GROUP){
-
-                struct blink_group *g = castGroup(defPtr);
-
-                if(!resolveSuperGroup(self, g)){
-
-                    errors = true;
-                }
-            }
-
-            defPtr = defPtr->next;
-        }
-
-        nsPtr = nsPtr->next;
-    }
-
-    return (errors) ? false : true;
+    return (nsPtr != NULL) ? searchListByName(castNamespace(nsPtr)->defs, name, nameLen) : NULL;
 }
 
-static bool resolveSuperGroup(struct blink_schema *self, struct blink_group *group)
-{
+static bool testConstraints(struct blink_schema *self)
+{   
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(group != NULL)
 
+    /* test reference constraints */
+
+    struct blink_def_iterator iter;
+    struct blink_list_element *defPtr = initDefinitionIterator(&iter, self);
+
+    while(defPtr != NULL){
+
+        if(!testReferenceConstraint(self, defPtr)){
+
+            return false;
+        }
+        
+        defPtr = nextDefinition(&iter);
+    }
+
+    /* test super group constraints */
+
+    defPtr = initDefinitionIterator(&iter, self);
+
+    while(defPtr != NULL){
+
+        if(defPtr->type == BLINK_ELEM_GROUP){
+
+            struct blink_group *group = castGroup(defPtr);
+
+            if(group->s != NULL){
+
+                /* supergroup reference */
+                if(!testSuperGroupReferenceConstraint(self, group)){
+
+                    return false;
+                }
+
+                /* supergroup shadow field names */
+                if(!testSuperGroupShadowConstraint(self, group)){
+
+                    return false;
+                }
+            }            
+        }
+
+        defPtr = nextDefinition(&iter);
+    }
+
+    /* test supergroups */
+
+    defPtr = initDefinitionIterator(&iter, self);
+
+    while(defPtr != NULL){
+
+        if(defPtr->type == BLINK_ELEM_GROUP){
+
+            struct blink_group *group = castGroup(defPtr);
+
+            if(group->s != NULL){
+
+                /* supergroup reference */
+                if(!testSuperGroupReferenceConstraint(self, group)){
+
+                    return false;
+                }
+
+                /* supergroup shadow field names */
+                if(!testSuperGroupShadowConstraint(self, group)){
+
+                    return false;
+                }
+            }            
+        }
+
+        defPtr = nextDefinition(&iter);
+    }
+
+    return true;
+}
+
+static bool testReferenceConstraint(const struct blink_schema *self, const struct blink_list_element *reference)
+{
     bool retval = true;
-    struct blink_list_element *nsPtr;
-    struct blink_list_element *defPtr;
-
-    bool loopAgain;
-    const char *sName = group->superGroup;
-    size_t sNameLen = group->superGroupLen;
-    const char *nsName;
-    size_t nsNameLen;
-    const char *name;
-    size_t nameLen;
-
-    struct blink_list_element *stack[10];
+    const struct blink_list_element *ptr = reference;
+    const struct blink_list_element *stack[BLINK_LINK_DEPTH];
+    bool dynamic = false;
+    bool sequence = false;
     size_t depth = 0U;
     size_t i;
 
-    if(group->superGroup != NULL){
+    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castConstTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
 
-        retval = false;
+        for(i=0U; i < depth; i++){
 
-        do{
+            if(stack[i] == ptr){
 
-            loopAgain = false;
+                BLINK_ERROR("reference cycle detected")
+                retval = false;
+                break;
+            }
+        }
+
+        if(i == depth){
         
-            splitCName(sName, sNameLen, &nsName, &nsNameLen, &name, &nameLen);
-        
-            nsPtr = searchListByName(self->ns, nsName, nsNameLen);
+            if(castConstTypeDef(ptr)->type.isDynamic){
 
-            if(nsPtr != NULL){
+                /* dynamic reference to dynamic reference */
+                if(dynamic){
 
-                defPtr = searchListByName(castNamespace(nsPtr)->defs, name, nameLen);
-
-                if(defPtr != NULL){
-
-                    if(defPtr->type == BLINK_ELEM_GROUP){
-
-                        /* group is own supergroup? */
-                        if(castGroup(defPtr) == group){
-
-                            BLINK_ERROR("group cannot be own supergroup")                        
-                        }
-                        else{
-
-                            group = castGroup(defPtr);
-                            retval = true;
-                        }
-                    }
-                    else if(defPtr->type == BLINK_ELEM_TYPE){
-
-                        struct blink_type *type = &castTypeDef(defPtr)->type;
-
-                        if(type->tag == TYPE_REF){
-                
-                            if(type->isSequence){
-
-                                BLINK_ERROR("super group cannot be a sequence")
-                            }
-                            else{
-
-                                /* detect circular reference */
-                                if(depth > 0){
-
-                                    for(i=0; i < depth; i++){
-
-                                        if(stack[i] == defPtr){
-
-                                            BLINK_ERROR("circular reference");
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if(depth < (sizeof(stack)/sizeof(*stack))){
-
-                                    stack[depth] = defPtr;
-                                    depth++;
-
-                                    sName = type->ref;
-                                    sNameLen = type->refLen;
-                                    loopAgain = true;
-                                }
-                                else{
-
-                                    BLINK_ERROR("too many references to references")
-                                }
-                            }
-                        }
-                        else if(type->tag == TYPE_DYNAMIC_REF){
-
-                            BLINK_ERROR("super group cannot be a dynamic reference")
-                        }
-                        else{
-                        
-                            BLINK_ERROR("expecting group or a reference to a group")
-                        }                            
-                    }
-                    else{
-
-                        BLINK_ERROR("supergroup must point to a group")
-                    }
+                    BLINK_ERROR("dynamic reference must resolve to a group")
+                    retval = false;
                 }
                 else{
 
-                    BLINK_ERROR("supergroup undefined")
+                    dynamic = true;
                 }
             }
-            else{
 
-                BLINK_ERROR("supergroup undefined")
+            if(retval && castConstTypeDef(ptr)->type.isSequence){
+
+                /* sequence of a sequence */
+                if(sequence){
+
+                    BLINK_ERROR("cannot have a sequence of a sequence")
+                    retval = false;
+                }
+                else{
+
+                    sequence = true;
+                }
             }
 
-        }while(loopAgain);
+            if(retval){
+
+                depth++;
+                if(depth == (sizeof(stack)/sizeof(*stack))){
+
+                    BLINK_ERROR("depth")
+                    retval = false;
+                }
+                else{
+
+                    stack[depth] = ptr;
+                    ptr = castConstTypeDef(ptr)->type.resolvedRef;
+                }
+            }
+        }
+    }
+
+    if(dynamic && (ptr->type != BLINK_ELEM_GROUP)){
+
+        BLINK_ERROR("dynamic reference must resolve to a group")
+        retval = false;
     }
 
     return retval;
+}
+
+static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, const struct blink_group *group)
+{
+    bool retval = true;
+    const struct blink_list_element *ptr = group->s;
+    const struct blink_list_element *stack[BLINK_LINK_DEPTH];
+    size_t depth = 0U;
+    size_t i;
+
+    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castConstTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
+    
+        for(i=0U; i < depth; i++){
+
+            if(stack[i] == ptr){
+
+                BLINK_ERROR("reference cycle detected")
+                retval = false;
+                break;
+            }
+        }
+
+        if(i == depth){
+
+            if(castConstTypeDef(ptr)->type.isSequence){
+
+                BLINK_ERROR("supergroup cannot be sequence");
+                retval = false;
+            }
+
+            if(retval && castConstTypeDef(ptr)->type.isDynamic){
+
+                BLINK_ERROR("supergroup cannot be dynamic");
+                retval = false;
+            }    
+
+            if(retval){
+
+                depth++;
+                if(depth == (sizeof(stack)/sizeof(*stack))){
+
+                    BLINK_ERROR("depth")
+                    retval = false;
+                }
+                else{
+
+                    stack[depth] = ptr;
+                    ptr = castConstTypeDef(ptr)->type.resolvedRef;
+                }
+            }
+        }
+    }
+
+    if(retval){
+
+        if(ptr->type != BLINK_ELEM_GROUP){
+
+            BLINK_ERROR("supergroup must be a group")
+            retval = false;
+        }
+        else{
+
+            if(castGroup(ptr) == group){
+
+                BLINK_ERROR("group cannot be own supergroup")
+                retval = false;
+            }
+        }
+    }
+    
+    return retval;
+}
+
+static bool testSuperGroupShadowConstraint(const struct blink_schema *self, const struct blink_group *group)
+{
+    struct blink_field_iterator fi;
+    BLINK_InitFieldIterator(&fi, group);
+    const struct blink_field *field = BLINK_NextField(&fi);
+
+    while(field != NULL){
+
+        struct blink_field_iterator fii;
+        BLINK_InitFieldIterator(&fii, group);
+        const struct blink_field *f = BLINK_NextField(&fii);
+
+        while(f != NULL){
+            
+            if(f != field){
+
+                if((f->nameLen == field->nameLen) && (memcmp(f->name, field->name, f->nameLen) == 0)){
+
+                    BLINK_ERROR("field name shadowed in subgroup")
+                    return false;
+                }
+            }
+
+            f = BLINK_NextField(&fii);
+        }
+    
+        field = BLINK_NextField(&fi);
+    }
+
+    return true;
 }
 
 static struct blink_list_element *newListElement(struct blink_schema *self, struct blink_list_element **head, enum blink_list_type type)
@@ -1483,4 +1645,89 @@ static struct blink_type_def *castTypeDef(struct blink_list_element *self)
         retval = (struct blink_type_def *)self->ptr;
     }
     return retval;
+}
+
+static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self)
+{
+    const struct blink_type_def *retval = NULL;
+    if(self != NULL){
+        BLINK_ASSERT(self->type == BLINK_ELEM_TYPE)
+        retval = (const struct blink_type_def *)self->ptr;
+    }
+    return retval;
+}
+
+static struct blink_list_element *getTerminal(struct blink_list_element *element, bool *dynamic)
+{
+    BLINK_ASSERT(element != NULL)
+    BLINK_ASSERT(dynamic != NULL)
+
+    struct blink_list_element *ptr = element;
+    *dynamic = false;
+
+    while((ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
+
+        if(castTypeDef(ptr)->type.isDynamic){
+
+            *dynamic = true;
+        }
+        
+        ptr = castTypeDef(ptr)->type.resolvedRef;
+    }
+
+    return ptr;
+}
+
+static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, struct blink_schema *schema)
+{
+    BLINK_ASSERT(iter != NULL)
+    BLINK_ASSERT(schema != NULL)
+
+    memset(iter, 0x0, sizeof(*iter));
+    iter->ns = schema->ns;
+
+    while(iter->ns != NULL){
+        iter->def = castNamespace(iter->ns)->defs;
+        if(iter->def != NULL){
+
+            break;
+        }
+        else{
+
+            iter->ns = iter->ns->next;
+        }
+    }
+
+    return iter->def;
+}
+
+static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter)
+{
+    BLINK_ASSERT(iter != NULL)
+    
+    struct blink_list_element *retval = iter->def;
+
+    if(retval != NULL){
+
+        iter->def = iter->def->next;
+
+        if(iter->def == NULL){
+
+            while(iter->ns != NULL){
+
+                iter->ns = iter->ns->next;
+
+                if(iter->ns != NULL){
+
+                    iter->def = castNamespace(iter->ns)->defs;
+
+                    if(iter->def != NULL){
+                        break;
+                    }    
+                }    
+            }
+        }
+    }
+
+    return retval;            
 }

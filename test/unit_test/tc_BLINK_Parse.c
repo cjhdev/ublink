@@ -72,6 +72,7 @@ void test_BLINK_Parse_superGroupIsSequence(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
 }
 
+
 void test_BLINK_Parse_greeting(void)
 {
     const char input[] = "Message/0 -> string Greeting";
@@ -82,7 +83,7 @@ void test_BLINK_Parse_greeting(void)
     TEST_ASSERT_EQUAL(BLINK_GetGroupByID(&ctxt, 0), BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")));
 
     struct blink_field_iterator iter;
-    TEST_ASSERT_EQUAL_PTR(&iter, BLINK_InitFieldIterator(&iter, BLINK_GetGroupByName(&ctxt, "Message", strlen("Message"))));
+    BLINK_InitFieldIterator(&iter, BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")));
 
     const struct blink_field *f = BLINK_NextField(&iter);
     TEST_ASSERT_TRUE(f != NULL);
@@ -92,7 +93,7 @@ void test_BLINK_Parse_greeting(void)
     enum blink_type_tag tag = BLINK_GetFieldType(f);
     uint32_t size = BLINK_GetFieldSize(f);
     
-    TEST_ASSERT_EQUAL(TYPE_STRING, tag);
+    TEST_ASSERT_EQUAL(BLINK_TYPE_STRING, tag);
     TEST_ASSERT_EQUAL(0xffffffff, size);
 
     TEST_ASSERT_EQUAL(strlen("Greeting"), len);
@@ -161,11 +162,32 @@ void test_BLINK_Parse_duplicate_enum_field(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
 }
 
+void test_BLINK_Parse_ambiguous_enum_value(void)
+{
+    const char input[] = "Month = Jan/1 | Feb | Mar/2";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
 void test_BLINK_Parse_duplicate_group_field(void)
 {
     const char input[] = "test -> u8 bla, u8 bla";
 
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_superGroupShadowField(void)
+{
+    const char input[] = "super -> u8 field test : super -> u16 field";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+}
+
+void test_BLINK_Parse_superSuperGroupShadowField(void)
+{
+    const char input[] = "superSuper -> u8 field super : superSuper -> u8 different test : super -> u16 field";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
 }
 
 

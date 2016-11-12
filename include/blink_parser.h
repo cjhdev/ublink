@@ -59,31 +59,29 @@ typedef void (* fn_blink_free_t)(void *);
 
 /** A field shall represent one of the following types */
 enum blink_type_tag {
-    TYPE_STRING = 0,        /**< UTF8 encoded string */
-    TYPE_BINARY,            /**< octet string */
-    TYPE_FIXED,             /**< fixed size string */
-    TYPE_BOOL,              /**< boolean */
-    TYPE_U8,                /**< 8 bit unsigned integer */
-    TYPE_U16,               /**< 16 bit unsigned integer */
-    TYPE_U32,               /**< 32 bit unsigned integer */
-    TYPE_U64,               /**< 64 bit unsigned integer */
-    TYPE_I8,                /**< 8 bit signed integer */
-    TYPE_I16,               /**< 16 bit signed integer */
-    TYPE_I32,               /**< 32 bit signed integer */
-    TYPE_I64,               /**< 64 bit signed integer */
-    TYPE_F64,               /**< IEEE 754 double */
-    TYPE_DATE,              
-    TYPE_TIME_OF_DAY_MILLI,
-    TYPE_TIME_OF_DAY_NANO,
-    TYPE_NANO_TIME,
-    TYPE_MILLI_TIME,        
-    TYPE_DECIMAL,           /**< 8 bit signed integer exponent, 64 bit signed integer mantissa */
-    TYPE_OBJECT,            /**< any group encoded as dynamic group */
-    TYPE_ENUM,              /**< 32 bit signed integer */
-    TYPE_REF,               /**< reference */
-
-    TYPE_STATIC_GROUP,      /**< static reference to a group */
-    TYPE_DYNAMIC_REF        /**< dynamic reference to a group */
+    BLINK_TYPE_STRING = 0,        /**< UTF8 encoded string */
+    BLINK_TYPE_BINARY,            /**< octet string */
+    BLINK_TYPE_FIXED,             /**< fixed size string */
+    BLINK_TYPE_BOOL,              /**< boolean */
+    BLINK_TYPE_U8,                /**< 8 bit unsigned integer */
+    BLINK_TYPE_U16,               /**< 16 bit unsigned integer */
+    BLINK_TYPE_U32,               /**< 32 bit unsigned integer */
+    BLINK_TYPE_U64,               /**< 64 bit unsigned integer */
+    BLINK_TYPE_I8,                /**< 8 bit signed integer */
+    BLINK_TYPE_I16,               /**< 16 bit signed integer */
+    BLINK_TYPE_I32,               /**< 32 bit signed integer */
+    BLINK_TYPE_I64,               /**< 64 bit signed integer */
+    BLINK_TYPE_F64,               /**< IEEE 754 double */
+    BLINK_TYPE_DATE,              
+    BLINK_TYPE_TIME_OF_DAY_MILLI,
+    BLINK_TYPE_TIME_OF_DAY_NANO,
+    BLINK_TYPE_NANO_TIME,
+    BLINK_TYPE_MILLI_TIME,        
+    BLINK_TYPE_DECIMAL,           /**< 8 bit signed integer exponent, 64 bit signed integer mantissa */
+    BLINK_TYPE_OBJECT,            /**< any group encoded as dynamic group */
+    BLINK_TYPE_ENUM,              /**< 32 bit signed integer */
+    BLINK_TYPE_STATIC_GROUP,      /**< static group */
+    BLINK_TYPE_DYNAMIC_GROUP      /**< dynamic group */
 };
 
 /* structs ************************************************************/
@@ -178,13 +176,9 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
  *
  * @param[in] iter iterator
  * @param[in] group group to iterate
- *
- * @return pointer to initialised field iterator
- * 
- * @retval NULL could not initialise field iterator
  * 
  * */
-const struct blink_field_iterator *BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group);
+void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group);
 
 /** Get next field from an iterator
  *
@@ -206,17 +200,6 @@ const struct blink_field *BLINK_NextField(struct blink_field_iterator *self);
  *
  * */
 const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen);
-
-/** Get the super group definition for this group
- *
- * @param[in] self receiver
- *
- * @return pointer to super group
- * 
- * @retval NULL super group does not exist
- *
- * */
-const struct blink_group *BLINK_GetSuperGroup(const struct blink_group *self);
 
 /** Get the name of this field
  *
@@ -301,14 +284,6 @@ const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, c
  * */
 const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, int32_t value, const char **name, size_t *nameLen);
 
-/** returns field type
- *
- * @param[in] self receiver
- *
- * @return type of field
- *
- * */
-const struct blink_type *BLINK_GetType(const struct blink_field *self);
 
 #ifdef __cplusplus
 }

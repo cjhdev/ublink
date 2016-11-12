@@ -138,6 +138,7 @@
   <!-- Layout definition for a group page -->
   <group>
     <briefdescription visible="no"/>
+    <detaileddescription title="Description"/>
     <groupgraph visible="$GROUP_GRAPHS"/>
     <memberdecl>
       <functions title=""/>
@@ -159,8 +160,7 @@
       <properties title=""/>
       <friends title=""/>
       <membergroups visible="yes"/>
-    </memberdecl>
-    <detaileddescription title=""/>
+    </memberdecl>    
     <memberdef>
       <pagedocs/>
       <inlineclasses title=""/>
