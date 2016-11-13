@@ -183,6 +183,9 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
 static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, const struct blink_group *group);
 static bool testSuperGroupShadowConstraint(const struct blink_schema *self, const struct blink_group *group);
 
+static bool testNextEnumValue(const struct blink_list_element *s, int32_t value);
+static bool nextEnumValue(const struct blink_list_element *s, int32_t *value);
+
 static struct blink_enum *castEnum(struct blink_list_element *self);
 static struct blink_symbol *castSymbol(struct blink_list_element *self);
 static const struct blink_symbol *castConstSymbol(const struct blink_list_element *self);
@@ -616,6 +619,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                         pos += read;
 
                         struct blink_symbol s;
+                        memset(&s, 0, sizeof(s));
 
                         s.name = value.literal.ptr;
                         s.nameLen = value.literal.len;
@@ -644,6 +648,23 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                             
                             BLINK_ERROR("duplicate enum symbol name")
                             return retval;
+                        }
+
+                        if(s.implicitID){
+                    
+                            if(!nextEnumValue(e->s, &s.value)){
+
+                                BLINK_ERROR("no next implicit enum value possible")
+                                return retval;
+                            }
+                        }
+                        else{
+
+                            if(!testNextEnumValue(e->s, s.value)){
+
+                                BLINK_ERROR("enum value is ambiguous")
+                                return retval;
+                            }
                         }
 
                         element = newListElement(self, &e->s, BLINK_ELEM_SYMBOL);
@@ -1214,6 +1235,55 @@ static bool testConstraints(struct blink_schema *self)
     }
 
     return true;
+}
+
+static bool testNextEnumValue(const struct blink_list_element *s, int32_t value)
+{
+    bool retval = true;
+    const struct blink_list_element *ptr = s;
+
+    while(ptr != NULL){
+
+        if(ptr->next == NULL){
+
+            if(value <= castSymbol(ptr)->value){
+
+                retval = false;
+            }
+        }
+
+        ptr = ptr->next;
+    }
+
+    return retval;
+}
+
+static bool nextEnumValue(const struct blink_list_element *s, int32_t *value)
+{
+    *value = 0;
+    bool retval = true;
+    const struct blink_list_element *ptr = s;
+
+    while(ptr != NULL){
+
+        if(ptr->next == NULL){
+
+            *value = castSymbol(ptr)->value;
+
+            if(*value == INT32_MAX){
+
+                retval = false;
+            }
+            else{
+
+                (*value)++;
+            }
+        }
+
+        ptr = ptr->next;
+    }
+
+    return retval;
 }
 
 static bool testReferenceConstraint(const struct blink_schema *self, const struct blink_list_element *reference)
