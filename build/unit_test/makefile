@@ -12,7 +12,7 @@ VPATH := $(DIR_ROOT)/src:$(DIR_ROOT)/test/unit_test:$(DIR_UNITY)/src:$(DIR_RUNNE
 
 INCLUDES := -I$(DIR_ROOT)/include -I$(DIR_UNITY)/src
 
-CFLAGS := -Wall -std=c99 -g -fprofile-arcs -ftest-coverage $(INCLUDES)
+CFLAGS := -Wall -Werror -std=c99 -g -fprofile-arcs -ftest-coverage $(INCLUDES)
 LDFLAGS := -fprofile-arcs
 
 TEST_FILES := $(notdir $(wildcard $(DIR_ROOT)/test/unit_test/tc_*.c))

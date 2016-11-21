@@ -58,7 +58,7 @@ enum blink_itype_tag {
     BLINK_ITYPE_MILLI_TIME,        
     BLINK_ITYPE_DECIMAL,           /**< 8 bit signed integer exponent, 64 bit signed integer mantissa */
     BLINK_ITYPE_OBJECT,            /**< any group encoded as dynamic group */
-    BLINK_ITYPE_REF                /**< reference */
+    BLINK_ITYPE_REF                /**< reference to a typedef, enum, or group */
 };
 
 /* structs ************************************************************/
@@ -71,7 +71,8 @@ struct blink_type {
     const char *ref;            /**< name of reference (applicable to #BLINK_ITYPE_REF) */
     size_t refLen;                                  /**< byte length of `ref` */
     enum blink_itype_tag tag;                       /**< what type is this? */
-    const struct blink_list_element *resolvedRef;   /**< `ref` resolves to this structure */
+    struct blink_list_element *resolvedRef;   /**< `ref` resolves to this structure */
+    struct blink_list_element *a;
 };
 
 /** field */
@@ -79,7 +80,10 @@ struct blink_field {
     const char *name;           /**< name of this field */
     size_t nameLen;             /**< byte length of `name` */
     bool isOptional;            /**< field is optional */
+    uint64_t id;
+    bool hasID;
     struct blink_type type;     /**< field type information */
+    struct blink_list_element *a;
 };
 
 /** group */
@@ -90,8 +94,9 @@ struct blink_group {
     uint64_t id;                    /**< group ID */
     const char *superGroup;         /**< name of super group */
     size_t superGroupLen;           /**< byte length of supergroup name */    
-    const struct blink_list_element *s;     /**< optional supergroup */
+    struct blink_list_element *s;   /**< optional supergroup */
     struct blink_list_element *f;   /**< fields belonging to group */
+    struct blink_list_element *a;
 };
 
 /** enumeration symbol */
@@ -99,14 +104,16 @@ struct blink_symbol {
     const char *name;               /**< name of symbol */
     size_t nameLen;                 /**< byte length of `name` */
     int32_t value;                  /**< integer value */
-    bool implicitID;                /**< true if `value` is not explicitly defined */
+    bool implicitValue;             /**< true if `value` is not explicitly defined */
+    struct blink_list_element *a;
 };
 
 /** enumeration */
 struct blink_enum {
     const char *name;           /**< name of this field */
     size_t nameLen;             /**< byte length of `name` */
-    struct blink_list_element *s;     /**< symbols belonging to enumeration */    
+    struct blink_list_element *s;     /**< symbols belonging to enumeration */
+    struct blink_list_element *a;
 };
 
 /** type definition */
@@ -114,22 +121,24 @@ struct blink_type_def {
     const char *name;               /**< name of type definition */
     size_t nameLen;                 /**< byte length of `name` */
     struct blink_type type;         /**< type information */
+    struct blink_list_element *a;
 };
 
-/** annotation - key-value meta data */
 struct blink_annote {
-    const char *key;                /**< key */
-    size_t keyLen;                  /**< byte length of `key` */
-    const char *value;              /**< value */            
-    size_t valueLen;                /**< byte length of `value` */
-    uint64_t number;                /**< sometimes value is a numeric value */
-    bool isNumeric;                 /**< true if this annotation is a numeric value */  
+    const char *name;               /**< name of annotation */
+    size_t nameLen;                 /**< byte length of `name */
+    const char *value;              /**< annotation value */
+    size_t valueLen;                /**< byte length of `value` */                
+    uint64_t number;
 };
 
-struct blink_inline_annote {
-    const char *name;               /**< name to apply annote to */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *a;   /**< list of annotes to apply to `name` */
+struct blink_incr_annote {
+    const char *name;               /**< key */
+    size_t nameLen;                 /**< byte length of `key` */
+    const char *fieldName;
+    size_t fieldNameLen;
+    bool type;
+    struct blink_list_element *a;   /**< annotations */
 };
 
 /** namespace */
@@ -137,7 +146,8 @@ struct blink_namespace {
     const char *name;   /**< name of this namespace */
     size_t nameLen;     /**< byte length of `name` */  
     /** list of groups, enums, and types in this namespace */
-    struct blink_list_element *defs;      
+    struct blink_list_element *defs;
+    struct blink_list_element *a;   /** schema <- <annotes> */
 };
 
 /** generic single linked list element */
@@ -152,10 +162,15 @@ struct blink_list_element {
         BLINK_ELEM_SYMBOL,              /**< blink_symbol */
         BLINK_ELEM_TYPE,                /**< blink_type */
         BLINK_ELEM_ANNOTE,              /**< blink_annote */        
-        BLINK_ELEM_INLINE_ANNOTE        /**< blink_inline_annote */        
-    } type;                             /**< type allocated at `ptr` */
-    
+        BLINK_ELEM_INCR_ANNOTE        /**< blink_inline_annote */        
+    } type;                             /**< type allocated at `ptr` */    
     void *ptr;                          /**< points to instance of `type` */
+};
+
+struct blink_element {
+
+    struct blink_list_element *ptr;
+    struct blink_element *next;
 };
 
 struct blink_def_iterator {
@@ -166,9 +181,10 @@ struct blink_def_iterator {
 
 /* static prototypes **************************************************/
 
-static struct blink_schema *parse(struct blink_schema *self, const char *in, size_t inLen);
-static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type);
-static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen, size_t *read, const char **key, size_t *keyLen, const char **value, size_t *valueLen);
+static struct blink_schema *parseSchema(struct blink_schema *self, const char *in, size_t inLen);
+static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type);
+static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen, size_t *read, struct blink_annote *annote);
+static bool parseAnnotes(struct blink_schema *self, const char *in, size_t inLen, size_t *read, struct blink_list_element **annotes);
 
 static struct blink_list_element *newListElement(struct blink_schema *self, struct blink_list_element **head, enum blink_list_type type);
 static struct blink_list_element *searchListByName(struct blink_list_element *head, const char *name, size_t nameLen);
@@ -183,24 +199,20 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
 static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, const struct blink_group *group);
 static bool testSuperGroupShadowConstraint(const struct blink_schema *self, const struct blink_group *group);
 
-static bool testNextEnumValue(const struct blink_list_element *s, int32_t value);
-static bool nextEnumValue(const struct blink_list_element *s, int32_t *value);
-
-static struct blink_enum *castEnum(struct blink_list_element *self);
-static struct blink_symbol *castSymbol(struct blink_list_element *self);
-static const struct blink_symbol *castConstSymbol(const struct blink_list_element *self);
-static struct blink_field *castField(struct blink_list_element *self);
-static const struct blink_field *castConstField(const struct blink_list_element *self);
-static struct blink_group *castGroup(struct blink_list_element *self);
-static const struct blink_group *castConstGroup(const struct blink_list_element *self);
-static struct blink_namespace *castNamespace(struct blink_list_element *self);
-static struct blink_type_def *castTypeDef(struct blink_list_element *self);
-static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self);
-
 static struct blink_list_element *getTerminal(struct blink_list_element *element, bool *dynamic);
 
 static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, struct blink_schema *schema);
 static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter);
+
+static struct blink_enum *castEnum(struct blink_list_element *self);
+static struct blink_symbol *castSymbol(struct blink_list_element *self);
+static struct blink_field *castField(struct blink_list_element *self);
+static struct blink_group *castGroup(struct blink_list_element *self);
+static struct blink_namespace *castNamespace(struct blink_list_element *self);
+static struct blink_type_def *castTypeDef(struct blink_list_element *self);
+static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self);
+static struct blink_annote *castAnnote(struct blink_list_element *self);
+static struct blink_incr_annote *castIncrAnnote(struct blink_list_element *self);
 
 /* functions **********************************************************/
 
@@ -217,10 +229,28 @@ struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_call
     return schema;
 }
 
-//todo: yes, memory leak
 void BLINK_DestroySchema(struct blink_schema *self)
 {
-    BLINK_ASSERT(self != NULL)    
+    BLINK_ASSERT(self != NULL)
+
+    if(self->free != NULL){
+
+        struct blink_element *nextElement = self->elements;
+
+        /* see newListElement */
+        while(nextElement != NULL){
+
+            struct blink_element *element = nextElement;
+            nextElement = nextElement->next;
+
+            if(element->ptr != NULL){
+                self->free(element->ptr->ptr);    /* this pointer may be null */
+                self->free(element->ptr);
+            }            
+            self->free(element);
+        }
+    }
+      
     memset(self, 0x0, sizeof(*self));
 }
 
@@ -251,9 +281,9 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
 
     while((retval == NULL) && (defPtr != NULL)){
 
-        if((defPtr->type == BLINK_ELEM_GROUP) && castConstGroup(defPtr)->hasID && (castConstGroup(defPtr)->id == id)){
+        if((defPtr->type == BLINK_ELEM_GROUP) && castGroup(defPtr)->hasID && (castGroup(defPtr)->id == id)){
 
-            retval = castConstGroup(defPtr);
+            retval = castGroup(defPtr);
         }
         else{
             
@@ -302,7 +332,7 @@ const struct blink_field *BLINK_NextField(struct blink_field_iterator *self)
 
         if(self->field[self->depth] != NULL){
 
-            retval = castConstField(self->field[self->depth]);
+            retval = castField(self->field[self->depth]);
             self->field[self->depth] = self->field[self->depth]->next;
         }
         else if(self->depth > 0U){
@@ -323,16 +353,15 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(in != NULL)
 
-    struct blink_schema *retval;
+    struct blink_schema *retval = NULL;
     
-    if((parse(self, in, inLen) == self) && resolveDefinitions(self) && testConstraints(self)){
+    if((parseSchema(self, in, inLen) == self) && resolveDefinitions(self) && testConstraints(self)){
 
         retval = self;
     }
     else{
 
         BLINK_DestroySchema(self);
-        retval = NULL;
     }
 
     return retval;    
@@ -356,7 +385,7 @@ const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen)
     return self->name;
 }
 
-bool BLINK_FieldIsOptional(const struct blink_field *self)
+bool BLINK_GetFieldIsOptional(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -441,11 +470,11 @@ const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, c
     BLINK_ASSERT(value != NULL)
 
     const struct blink_symbol *retval = NULL;
-    const struct blink_list_element *element = searchListByName(self->s, name, nameLen);
+    struct blink_list_element *element = searchListByName(self->s, name, nameLen);
 
     if(element != NULL){
 
-        retval = castConstSymbol(element);
+        retval = castSymbol(element);
         *value = retval->value;
     }
 
@@ -458,14 +487,14 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
     BLINK_ASSERT(name != NULL)
     BLINK_ASSERT(nameLen != NULL)
     
-    const struct blink_list_element *ptr = self->s;
+    struct blink_list_element *ptr = self->s;
     const struct blink_symbol *retval = NULL;
 
     while(ptr != NULL){
 
-        if(castConstSymbol(ptr)->value == value){
+        if(castSymbol(ptr)->value == value){
 
-            retval = castConstSymbol(ptr);
+            retval = castSymbol(ptr);
             *name = retval->name;
             *nameLen = retval->nameLen;
             break;
@@ -479,24 +508,22 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
 
 /* static functions ***************************************************/
 
-static struct blink_schema *parse(struct blink_schema *self, const char *in, size_t inLen)
+static struct blink_schema *parseSchema(struct blink_schema *self, const char *in, size_t inLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(in != NULL)
     
     size_t pos = 0U;
-    struct blink_schema *retval = NULL;
-    size_t read;
-    size_t nextRead;
-
-    struct blink_namespace *ns;
-    
-    union blink_token_value value;
+    struct blink_namespace *ns;    
+    struct blink_list_element *element;
+    struct blink_list_element *defAnnotes;
 
     enum blink_token tok;
+    union blink_token_value value;
+    size_t read;
     enum blink_token nextTok;
-    
-    struct blink_list_element *element;
+    union blink_token_value nextValue;
+    size_t nextRead;
 
     /* specific namespace */
     if(BLINK_GetToken(in, inLen, &read, &value, NULL) == TOK_NAMESPACE){
@@ -506,7 +533,7 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
         if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
 
             BLINK_ERROR("expecting a namespace name")
-            return retval;          
+            return NULL;
         }
         
         pos += read;
@@ -521,14 +548,11 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
     /* namespace not yet defined */
     if(element == NULL){
 
-        element = newListElement(self, &self->ns, BLINK_ELEM_NS);
+        ns = castNamespace(newListElement(self, &self->ns, BLINK_ELEM_NS));
 
-        if(element == NULL){
-
-            return retval;
+        if(ns == NULL){
+            return NULL;
         }
-
-        ns = castNamespace(element);
 
         ns->name = value.literal.ptr;
         ns->nameLen = value.literal.len;
@@ -541,205 +565,208 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
     /* parse all definitions */
     while(BLINK_GetToken(&in[pos], inLen-pos, &read, &value, NULL) != TOK_EOF){
 
-        if(BLINK_GetToken(&in[pos], inLen-pos, &read, &value, NULL) == TOK_NAME){
+        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &defAnnotes)){
+            return NULL;
+        }        
+
+        tok = BLINK_GetToken(&in[pos], inLen-pos, &read, &value, NULL);
+        nextTok = BLINK_GetToken(&in[pos+read], inLen-pos-read, &nextRead, &nextValue, NULL);
+
+        /* incremental annote */
+        if((tok == TOK_SCHEMA) || (tok == TOK_CNAME) || ((tok == TOK_NAME) && ((nextTok == TOK_PERIOD) || (nextTok == TOK_RARROW)))){
 
             pos += read;
-
-            const char *name = value.literal.ptr;
-            size_t nameLen = value.literal.len;
             
-            uint64_t id = 0U;
-            bool hasID = false;
+            if(defAnnotes != NULL){
 
-            /* group definitions may have an identifier */
-            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
-
-                pos += read;
-
-                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
-
-                    BLINK_ERROR("error: expecting integer or hexnum")
-                    return retval;
-                }
-
-                pos += read;
-                id = value.number;
-                hasID = true;                
+                BLINK_ERROR("expecting a group, type, or enum definition")
+                return NULL;
             }
 
-            /* type or enum */
-            if(!hasID && BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_EQUAL){
+            struct blink_incr_annote *ia = castIncrAnnote(newListElement(self, &ns->defs, BLINK_ELEM_INCR_ANNOTE));
 
-                pos += read;
-
-                if(searchListByName(ns->defs, name, nameLen) != NULL){
-
-                    BLINK_ERROR("duplicate definition name");
-                    return retval;
-                }
-
-                tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
-
-                nextTok = BLINK_GetToken(&in[pos+read], inLen - (pos + read), &nextRead, &value, NULL);
-
-                /* enum */
-                if((tok == TOK_BAR) || ((tok == TOK_NAME) && ((nextTok == TOK_SLASH) || (nextTok == TOK_BAR)))){
-
-                    if(tok == TOK_BAR){
-
-                        pos += read;
-                    }
-
-                    element = newListElement(self, &ns->defs, BLINK_ELEM_ENUM);
-
-                    if(element == NULL){
-
-                        return retval;
-                    }
-
-                    struct blink_enum *e = castEnum(element);
-
-                    e->name = name;
-                    e->nameLen = nameLen;
-
-                    bool single = (tok == TOK_BAR) ? true : false;
-
-                    read = 0U;
-
-                    do{
-
-                        pos += read;
-
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
-
-                            BLINK_ERROR("expecting enum symbol name")
-                            return retval;
-                        }
-
-                        pos += read;
-
-                        struct blink_symbol s;
-                        memset(&s, 0, sizeof(s));
-
-                        s.name = value.literal.ptr;
-                        s.nameLen = value.literal.len;
-                            
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
-
-                            pos += read;
-
-                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
-                                
-                                BLINK_ERROR("expecting enum symbol value")
-                                return retval;
-                            }
-
-                            pos += read;
-                                
-                            s.value = value.number;
-                            s.implicitID = false;                                
-                        }
-                        else{
-
-                            s.implicitID = true;
-                        }
-
-                        if(searchListByName(e->s, s.name, s.nameLen) != NULL){
-                            
-                            BLINK_ERROR("duplicate enum symbol name")
-                            return retval;
-                        }
-
-                        if(s.implicitID){
-                    
-                            if(!nextEnumValue(e->s, &s.value)){
-
-                                BLINK_ERROR("no next implicit enum value possible")
-                                return retval;
-                            }
-                        }
-                        else{
-
-                            if(!testNextEnumValue(e->s, s.value)){
-
-                                BLINK_ERROR("enum value is ambiguous")
-                                return retval;
-                            }
-                        }
-
-                        element = newListElement(self, &e->s, BLINK_ELEM_SYMBOL);
-
-                        if(element == NULL){
-
-                            return retval;
-                        }
-
-                        *castSymbol(element) = s; /* copy */
-                    }
-                    while(!single && (BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR));
-                }
-                /* type */
-                else{
-
-                    struct blink_type type;
-
-                    if(parseType(&in[pos], inLen - pos, &read, &type) == NULL){
-                        
-                        return retval;
-                    }
-                
-                    pos += read;
-
-                    element = newListElement(self, &ns->defs, BLINK_ELEM_TYPE);
-
-                    if(element == NULL){
-
-                        return retval;
-                    }
-
-                    struct blink_type_def *t = castTypeDef(element);
-
-                    t->name = name;
-                    t->nameLen = nameLen;
-                    t->type = type; /* copy */                                                    
-                }
+            if(ia == NULL){
+                return NULL;
             }
-            else if(!hasID && BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_LARROW){
 
-                BLINK_ERROR("todo: inline annote")
-                return retval;
+            if(tok == TOK_SCHEMA){
+
+                if(nextTok != TOK_RARROW){
+    
+                    BLINK_ERROR("expecting '<-'")
+                    return NULL;
+                }
             }
             else{
 
-                /* definition name must be unique */
-                if(searchListByName(ns->defs, name, nameLen) != NULL){
-                
-                    BLINK_ERROR("duplicate definition name")
-                    return retval;
+                ia->name = value.literal.ptr;
+                ia->nameLen = value.literal.len;
+            }
+
+            if(nextTok == TOK_PERIOD){
+
+                pos += nextRead;
+
+                tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+
+                pos += read;
+
+                switch(tok){
+                case TOK_NAME:
+
+                    ia->fieldName = value.literal.ptr;
+                    ia->fieldNameLen = value.literal.len;
+
+                    tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+
+                    if(tok == TOK_PERIOD){
+
+                        pos += read;
+
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_TYPE){
+                            BLINK_ERROR("expecting 'type'");
+                            return NULL;
+                        }
+
+                        pos += read;
+
+                        ia->type = true;
+                    }
+                    break;            
+                case TOK_TYPE:
+                    ia->type = true;
+                    break;
+                default:
+                    BLINK_ERROR("expecting <name> or 'type'")
+                    return NULL;
                 }
+            }
 
-                element = newListElement(self, &ns->defs, BLINK_ELEM_GROUP);
+            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_LARROW){
+                BLINK_ERROR("expecting '<-'");
+                return NULL;                 
+            }
 
-                if(element == NULL){
+            read = 0U;
 
-                    return retval;
-                }
-                
-                struct blink_group *g = castGroup(element);
+            do{
 
-                g->name = name;
-                g->nameLen = nameLen;
-                g->id = id;
-                g->hasID = hasID;
+                pos += read;
 
-                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COLON){
+                tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+
+                pos += read;
+
+                struct blink_annote *annote;
+
+                if(tok == TOK_AT){
+
+                    struct blink_annote a;
+
+                    if(!parseAnnote(self, &in[pos], inLen - pos, &read, &a)){
+                        return false;
+                    }
 
                     pos += read;
                     
-                    if((BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_CNAME) && (BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME)){
+                    annote = castAnnote(searchListByName(ia->a, a.name, a.nameLen));
 
+                    if(annote == NULL){
+
+                        annote = castAnnote(newListElement(self, &ia->a, BLINK_ELEM_ANNOTE));
+
+                        if(annote == NULL){
+                            return false;
+                        }
+                    }
+
+                    *annote = a;    /*copy*/
+                }
+                else if(tok == TOK_NUMBER){
+
+                    struct blink_list_element *ptr = ia->a;
+
+                    /* overwrite existing number */
+                    while(ptr != NULL){
+
+                        annote = castAnnote(ptr);
+                        if(annote->name == NULL){
+                            break;
+                        }
+                        ptr = ptr->next;
+                    }
+
+                    if(ptr == NULL){
+                                  
+                        annote = castAnnote(newListElement(self, &ia->a, BLINK_ELEM_ANNOTE));
+                        if(annote == NULL){
+                            return NULL;
+                        }                                
+                    }
+                    
+                    annote->number = value.number;
+                }
+                else{
+
+                    BLINK_ERROR("expecting <number> or '@'")
+                    return NULL;
+                }                
+            }
+            while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_LARROW);                
+        }
+        /* definition */
+        else if(tok == TOK_NAME){
+                    
+            pos += read;
+
+            const char *name = value.literal.ptr;
+            size_t nameLen = value.literal.len;                
+            
+            if(searchListByName(ns->defs, name, nameLen) != NULL){
+
+                BLINK_ERROR("duplicate definition name");
+                return NULL;
+            }
+
+            /* group */
+            if((nextTok == TOK_SLASH) || (nextTok == TOK_COLON) || (nextTok == TOK_LARROW)){
+
+                struct blink_group *g = castGroup(newListElement(self, &ns->defs, BLINK_ELEM_GROUP));
+
+                if(g == NULL){
+                    return NULL;
+                }
+
+                g->name = name;
+                g->nameLen = nameLen;
+                g->a = defAnnotes;
+
+                /* id field */
+                if(nextTok == TOK_SLASH){
+
+                    pos += nextRead;
+
+                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                        BLINK_ERROR("error: expecting integer or hexnum")
+                        return NULL;
+                    }
+
+                    pos += read;
+
+                    g->hasID = true;
+                    g->id = value.number;                        
+                }
+
+                /* supergroup */
+                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COLON){
+
+                    pos += read;
+
+                    tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+
+                    if((tok == TOK_CNAME) || (tok == TOK_NAME)){
                         BLINK_ERROR("expecting super class name (qname)")
-                        return retval;
+                        return NULL;
                     }
 
                     pos += read;
@@ -748,86 +775,267 @@ static struct blink_schema *parse(struct blink_schema *self, const char *in, siz
                     g->superGroupLen = value.literal.len;
                 }
 
+                /* fields */
                 if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_RARROW){
 
                     do{
 
                         pos += read;
 
-                        const char *fieldName;
-                        size_t fieldNameLen;
-                        struct blink_type t;
-                        bool isOptional;
-                        
-                        if(parseType(&in[pos], inLen - pos, &read, &t) != &t){
+                        struct blink_field *f = castField(newListElement(self, &g->f, BLINK_ELEM_FIELD));
 
-                            return retval;
+                        if(f == NULL){
+                            return NULL;
+                        }
+                        
+                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->type.a)){
+                            return NULL;
+                        }
+
+                        pos += read;
+                        
+                        if(!parseType(&in[pos], inLen - pos, &read, &f->type)){
+                            return NULL;
                         }
                         
                         pos += read;
+
+                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->a)){
+                            return NULL;
+                        }
+
+                        pos += read;                        
 
                         if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
-
                             BLINK_ERROR("expecting name")
-                            return retval;
+                            return NULL;
                         }
 
                         pos += read;
 
-                        fieldName = value.literal.ptr;
-                        fieldNameLen = value.literal.len;
+                        if(searchListByName(g->f, value.literal.ptr, value.literal.len) != NULL){
+                            BLINK_ERROR("duplicate field name");
+                            return NULL;
+                        }
 
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_QUESTION){
+                        f->name = value.literal.ptr;
+                        f->nameLen = value.literal.len;
+
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
 
                             pos += read;
-                            isOptional = true;
+
+                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                                
+                                BLINK_ERROR("expecting a number")
+                                return NULL;
+                            }
+
+                            f->id = value.number;
+                            f->hasID = true;
+
+                            pos += read;
                         }
-                        else{
 
-                            isOptional = false;
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_QUESTION){
+                            pos += read;
+                            f->isOptional = true;
                         }
-
-                        if(searchListByName(g->f, fieldName, fieldNameLen) != NULL){
-
-                            BLINK_ERROR("duplicate field name");
-                            return retval;
-                        }
-
-                        element = newListElement(self, &g->f, BLINK_ELEM_FIELD);
-
-                        struct blink_field *f = castField(element);
-
-                        f->type = t;    /* copy */
-                        f->name = fieldName;
-                        f->nameLen = fieldNameLen;
-                        f->isOptional = isOptional;                        
                     }
                     while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COMMA);                   
                 }                                    
             }
+            /* type or enum */
+            else if(nextTok == TOK_EQUAL){
+
+                pos += nextRead;
+
+                bool singleton;
+                struct blink_list_element *typeAnnotes;
+
+                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR){
+
+                    singleton = true;
+                    pos += read;
+                }
+                else{
+
+                    singleton = false;
+                }
+
+                if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &typeAnnotes)){
+                    return NULL;
+                }
+
+                pos += read;
+
+                tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+                nextTok = BLINK_GetToken(&in[pos+read], inLen-pos-read, &nextRead, &nextValue, NULL);
+                
+                /* enum */
+                if(singleton || ((tok == TOK_NAME) && ((nextTok == TOK_SLASH) || nextTok == TOK_BAR))){
+
+                    struct blink_enum *e = castEnum(newListElement(self, &ns->defs, BLINK_ELEM_ENUM));
+
+                    if(e == NULL){
+                        return NULL;
+                    }
+
+                    e->name = name;
+                    e->nameLen = nameLen;
+                    e->a = defAnnotes;
+
+                    read = 0U;
+                    bool first = true;
+
+                    do{
+
+                        pos += read;
+
+                        struct blink_symbol *s = castSymbol(newListElement(self, &e->s, BLINK_ELEM_SYMBOL));
+
+                        if(s == NULL){
+                            return NULL;
+                        }
+
+                        /* a kludge because we already parse the annotes for the first
+                         * symbol in sequence */
+                        if(first){
+
+                            s->a = typeAnnotes;
+                            first = false;
+                        }
+                        else{
+
+                            if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &s->a)){
+                                return NULL;
+                            }
+                            pos += read;     
+                        }
+                        
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
+
+                            BLINK_ERROR("expecting enum symbol name")
+                            return NULL;
+                        }
+
+                        pos += read;
+
+                        if(searchListByName(e->s, value.literal.ptr, value.literal.len) != NULL){
+                            
+                            BLINK_ERROR("duplicate enum symbol name")
+                            return NULL;
+                        }
+
+                        s->name = value.literal.ptr;
+                        s->nameLen = value.literal.len;
+                            
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
+
+                            pos += read;
+
+                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                                
+                                BLINK_ERROR("expecting enum symbol value")
+                                return NULL;
+                            }
+
+                            pos += read;
+
+                            if((value.number > INT32_MAX) || (value.number < INT32_MIN)){
+
+                                BLINK_ERROR("enum symbol value out of range")
+                                return NULL;
+                            }
+                                
+                            s->value = value.number;
+                            s->implicitValue = false;                                
+                        }
+                        else{
+
+                            s->implicitValue = true;
+                        }
+
+                        if(castSymbol(e->s) == s){
+
+                            if(s->implicitValue){
+                                s->value = 0;
+                            }
+                        }
+                        else{
+
+                            struct blink_list_element *ptr = e->s;
+                            while(castSymbol(ptr->next) != s){
+                                ptr = ptr->next;
+                            }
+                            
+                            if(s->implicitValue){
+
+                                if(castSymbol(ptr)->value == INT32_MAX){
+
+                                    BLINK_ERROR("no next implicit enum value possible")
+                                    return NULL;
+                                }
+                                s->value = castSymbol(ptr)->value + 1;
+                            }
+                            else{
+                                
+                                if(s->value <= castSymbol(ptr)->value){
+
+                                    BLINK_ERROR("enum value is ambiguous")
+                                    return NULL;
+                                }
+                            }                            
+                        }                                
+                    }
+                    while(!singleton && (BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR));                                    
+                }
+                /* type */
+                else{
+
+                    struct blink_type_def *t = castTypeDef(newListElement(self, &ns->defs, BLINK_ELEM_TYPE));
+
+                    if(t == NULL){
+                        return NULL;
+                    }
+
+                    t->name = name;
+                    t->nameLen = nameLen;
+                    t->a = defAnnotes;
+                    t->type.a = typeAnnotes;
+
+                    if(!parseType(&in[pos], inLen - pos, &read, &t->type)){                                                
+                        return NULL;
+                    }
+                
+                    pos += read;
+                }
+            }
+            else{
+                
+                BLINK_ERROR("expecting '/', ':', or '='")
+                return NULL;
+            }
+        }
+        else if(tok == TOK_EOF){
+
+            if(defAnnotes != NULL){
+
+                BLINK_ERROR("expecting group, enum, or type definition")
+                return NULL;
+            }
         }
         else{
 
-            /* null terminated input */
-            if(in[pos + read] == '\0'){
-
-                retval = self;
-            }
-            else{
-
-                BLINK_ERROR("unknown character %u", in[pos + read])
-                return retval;
-            }
-            break;
-        }            
+            BLINK_ERROR("unexpected token");
+            return NULL;
+        }
     }
 
-    retval = self;    
-    
-    return retval; 
+    return self; 
 }
 
-static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type)
+static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_type *type)
 {
     BLINK_ASSERT(in != NULL)
     BLINK_ASSERT(read != NULL)
@@ -837,7 +1045,6 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
     size_t r;
     union blink_token_value value;
     enum blink_token tok = BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL);
-    struct blink_type *retval = NULL;
 
     static const enum blink_token tokenToType[] = {
         TOK_STRING,
@@ -901,13 +1108,13 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
                 else{
 
                     BLINK_ERROR("expecting a size");
-                    return retval;
+                    return false;
                 }
 
                 if(value.number > 0xffffffffU){
 
                     BLINK_ERROR("size decode but is out of range")
-                    return retval;
+                    return false;
                 }
 
                 type->size = (uint32_t)value.number;
@@ -919,13 +1126,13 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
                 else{
 
                     BLINK_ERROR("expecting a ')'")
-                    return retval;
+                    return false;
                 }
             }
             else if(tok == TOK_FIXED){
 
                 BLINK_ERROR("expecting a '('")
-                return retval;
+                return false;
             }
             else{
 
@@ -953,7 +1160,7 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
     default:
 
         BLINK_ERROR("expecting a type");
-        return retval;                                    
+        return false;                                    
     }
 
     /* sequence of type */
@@ -969,7 +1176,7 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
         else{
 
             BLINK_ERROR("expecting ']' character")
-            return retval;
+            return false;
         }                        
     }
     else{
@@ -979,88 +1186,114 @@ static struct blink_type *parseType(const char *in, size_t inLen, size_t *read, 
 
     *read = pos;
 
-    return type;
+    return true;
 }
 
-/* try to parse an annotation and return true if either no annotation is found, or annotation is found with correct encoding */
-static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen, size_t *read, const char **key, size_t *keyLen, const char **value, size_t *valueLen)
+static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen, size_t *read, struct blink_annote *annote)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(key != NULL)
-    BLINK_ASSERT(keyLen != NULL)
-    BLINK_ASSERT(value != NULL)
-    BLINK_ASSERT(valueLen != NULL)
-
+    BLINK_ASSERT(annote != NULL)
+    
     size_t pos = 0U;
     size_t r;
-    union blink_token_value v;
-    enum blink_token type;
-    bool retval = true;
+    union blink_token_value value;
+    enum blink_token tok;
     
-    if(BLINK_GetToken(&in[pos], inLen - pos, &r, &v, NULL) == TOK_AT){
+    pos += r;
 
-        pos += r;
+    tok = BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL);
 
-        retval = false;
+    pos += r;
 
-        type = BLINK_GetToken(&in[pos], inLen - pos, &r, &v, NULL);
+    switch(tok){
+    case TOK_CNAME:
+    case TOK_NAME:
+        annote->name = value.literal.ptr;
+        annote->nameLen = value.literal.len;        
+        break;
+    case TOK_U8:
+    case TOK_U16:
+    case TOK_U32:
+    case TOK_U64:
+    case TOK_I8:
+    case TOK_I16:
+    case TOK_I32:
+    case TOK_I64:
+    case TOK_BOOL:
+    case TOK_BINARY:
+    case TOK_STRING:
+    case TOK_DATE:
+    case TOK_DECIMAL:
 
-        pos += r;
+        annote->name = BLINK_TokenToString(tok, &annote->nameLen);
+        BLINK_ASSERT(annote->name != NULL)        
+        break;
+        
+    default:
+        BLINK_ERROR("unexpected token")
+        return false;
+    }    
 
-        switch(type){
-        case TOK_CNAME:
-        case TOK_NAME:
-            *key = v.literal.ptr;
-            *keyLen = v.literal.len;        
-            break;
-        case TOK_U8:
-        case TOK_U16:
-        case TOK_U32:
-        case TOK_U64:
-        case TOK_I8:
-        case TOK_I16:
-        case TOK_I32:
-        case TOK_I64:
-        case TOK_BOOL:
-        case TOK_BINARY:
-        case TOK_STRING:
-        case TOK_DATE:
-        case TOK_DECIMAL:
+    if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) != TOK_EQUAL){
 
-            *key = BLINK_TokenToString(type, keyLen);
-
-            BLINK_ASSERT(key != NULL)
-            
-            break;
-            
-        default:
-            BLINK_ERROR("unexpected token")
-            break;
-        }
-
-        if(BLINK_GetToken(&in[pos], inLen - pos, &r, &v, NULL) == TOK_EQUAL){
-
-            pos += r;
-
-            if(BLINK_GetToken(&in[pos], inLen - pos, &r, &v, NULL) == TOK_LITERAL){
-
-                pos += r;
-                *read = r;
-                retval = true;
-            }
-            else{
-
-                BLINK_ERROR("expecting literal")
-            }            
-        }
-        else{
-
-            BLINK_ERROR("expecting '='")            
-        }
+        BLINK_ERROR("expecting '='")
+        return false;
     }
 
-    return retval;
+    pos += r;
+
+    if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) != TOK_LITERAL){
+
+        BLINK_ERROR("expecting <literal>")
+        return false;
+    }
+
+    annote->value = value.literal.ptr;
+    annote->valueLen = value.literal.len;
+
+    *read = pos + r;
+
+    return true;
+}
+
+static bool parseAnnotes(struct blink_schema *self, const char *in, size_t inLen, size_t *read, struct blink_list_element **annotes)
+{
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(annotes != NULL)
+
+    size_t r;
+    size_t pos = 0U;
+    union blink_token_value value;
+    struct blink_annote *annote;
+    struct blink_annote a;
+
+    while(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_AT){
+
+        pos += r;
+
+        if(!parseAnnote(self, &in[pos], inLen - pos, &r, &a)){
+            return false;
+        }
+        
+        annote = castAnnote(searchListByName(*annotes, a.name, a.nameLen));
+
+        if(annote == NULL){
+
+            annote = castAnnote(newListElement(self, annotes, BLINK_ELEM_ANNOTE));
+
+            if(annote == NULL){
+                return false;
+            }
+        }
+
+        *annote = a;    /*copy*/
+    }
+
+    *read = pos;
+
+    return true;
 }
 
 static bool resolveDefinitions(struct blink_schema *self)
@@ -1205,85 +1438,7 @@ static bool testConstraints(struct blink_schema *self)
         defPtr = nextDefinition(&iter);
     }
 
-    /* test supergroups */
-
-    defPtr = initDefinitionIterator(&iter, self);
-
-    while(defPtr != NULL){
-
-        if(defPtr->type == BLINK_ELEM_GROUP){
-
-            struct blink_group *group = castGroup(defPtr);
-
-            if(group->s != NULL){
-
-                /* supergroup reference */
-                if(!testSuperGroupReferenceConstraint(self, group)){
-
-                    return false;
-                }
-
-                /* supergroup shadow field names */
-                if(!testSuperGroupShadowConstraint(self, group)){
-
-                    return false;
-                }
-            }            
-        }
-
-        defPtr = nextDefinition(&iter);
-    }
-
     return true;
-}
-
-static bool testNextEnumValue(const struct blink_list_element *s, int32_t value)
-{
-    bool retval = true;
-    const struct blink_list_element *ptr = s;
-
-    while(ptr != NULL){
-
-        if(ptr->next == NULL){
-
-            if(value <= castSymbol(ptr)->value){
-
-                retval = false;
-            }
-        }
-
-        ptr = ptr->next;
-    }
-
-    return retval;
-}
-
-static bool nextEnumValue(const struct blink_list_element *s, int32_t *value)
-{
-    *value = 0;
-    bool retval = true;
-    const struct blink_list_element *ptr = s;
-
-    while(ptr != NULL){
-
-        if(ptr->next == NULL){
-
-            *value = castSymbol(ptr)->value;
-
-            if(*value == INT32_MAX){
-
-                retval = false;
-            }
-            else{
-
-                (*value)++;
-            }
-        }
-
-        ptr = ptr->next;
-    }
-
-    return retval;
 }
 
 static bool testReferenceConstraint(const struct blink_schema *self, const struct blink_list_element *reference)
@@ -1367,12 +1522,12 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
 static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, const struct blink_group *group)
 {
     bool retval = true;
-    const struct blink_list_element *ptr = group->s;
-    const struct blink_list_element *stack[BLINK_LINK_DEPTH];
+    struct blink_list_element *ptr = group->s;
+    struct blink_list_element *stack[BLINK_LINK_DEPTH];
     size_t depth = 0U;
     size_t i;
 
-    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castConstTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
+    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
     
         for(i=0U; i < depth; i++){
 
@@ -1386,13 +1541,13 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
 
         if(i == depth){
 
-            if(castConstTypeDef(ptr)->type.isSequence){
+            if(castTypeDef(ptr)->type.isSequence){
 
                 BLINK_ERROR("supergroup cannot be sequence");
                 retval = false;
             }
 
-            if(retval && castConstTypeDef(ptr)->type.isDynamic){
+            if(retval && castTypeDef(ptr)->type.isDynamic){
 
                 BLINK_ERROR("supergroup cannot be dynamic");
                 retval = false;
@@ -1409,7 +1564,7 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
                 else{
 
                     stack[depth] = ptr;
-                    ptr = castConstTypeDef(ptr)->type.resolvedRef;
+                    ptr = castTypeDef(ptr)->type.resolvedRef;
                 }
             }
         }
@@ -1473,67 +1628,92 @@ static struct blink_list_element *newListElement(struct blink_schema *self, stru
     BLINK_ASSERT(head != NULL)
 
     struct blink_list_element *retval;
+    struct blink_element *element;
 
     if(type != BLINK_ELEM_NULL){
-    
-        retval = self->calloc(1, sizeof(struct blink_list_element));
 
-        if(retval != NULL){
+        element = (struct blink_element *)self->calloc(1, sizeof(struct blink_element));
 
-            if(*head == NULL){
+        if(element != NULL){
 
-                *head = retval;
+            if(self->elements == NULL){
+
+                self->elements = element;
             }
             else{
 
-                struct blink_list_element *ptr = *head;
-
-                while(ptr->next != NULL){
-
-                    ptr = ptr->next;
-                }
-
-                ptr->next = retval;                
+                element->next = self->elements;
+                self->elements = element;
             }
+    
+            element->ptr = self->calloc(1, sizeof(struct blink_list_element));
 
-            switch(type){
-            case BLINK_ELEM_NS:
-                retval->ptr = self->calloc(1, sizeof(struct blink_namespace));
-                break;                    
-            case BLINK_ELEM_GROUP:
-                retval->ptr = self->calloc(1, sizeof(struct blink_group));
-                break;            
-            case BLINK_ELEM_FIELD:
-                retval->ptr = self->calloc(1, sizeof(struct blink_field));
-                break;            
-            case BLINK_ELEM_ENUM:
-                retval->ptr = self->calloc(1, sizeof(struct blink_enum));
-                break;            
-            case BLINK_ELEM_SYMBOL:
-                retval->ptr = self->calloc(1, sizeof(struct blink_symbol));
-                break;            
-            case BLINK_ELEM_TYPE:
-                retval->ptr = self->calloc(1, sizeof(struct blink_type_def));
-                break;            
-            case BLINK_ELEM_ANNOTE:
-                retval->ptr = self->calloc(1, sizeof(struct blink_annote));
-                break;            
-            case BLINK_ELEM_NULL:
-            default:
-                break;
-            }
+            retval = element->ptr;
+    
+            if(retval != NULL){
 
-            if(type != BLINK_ELEM_NULL){
+                if(*head == NULL){
 
-                if(retval->ptr == NULL){
-
-                    BLINK_ERROR("calloc()")
-                    retval = NULL;
+                    *head = retval;
                 }
                 else{
 
-                    retval->type = type;
+                    struct blink_list_element *ptr = *head;
+
+                    while(ptr->next != NULL){
+
+                        ptr = ptr->next;
+                    }
+
+                    ptr->next = retval;                
                 }
+
+                switch(type){
+                case BLINK_ELEM_NS:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_namespace));
+                    break;                    
+                case BLINK_ELEM_GROUP:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_group));
+                    break;            
+                case BLINK_ELEM_FIELD:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_field));
+                    break;            
+                case BLINK_ELEM_ENUM:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_enum));
+                    break;            
+                case BLINK_ELEM_SYMBOL:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_symbol));
+                    break;            
+                case BLINK_ELEM_TYPE:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_type_def));
+                    break;            
+                case BLINK_ELEM_ANNOTE:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_annote));
+                    break;            
+                case BLINK_ELEM_INCR_ANNOTE:
+                    retval->ptr = self->calloc(1, sizeof(struct blink_incr_annote));
+                    break;            
+                case BLINK_ELEM_NULL:
+                default:
+                    break;
+                }
+
+                if(type != BLINK_ELEM_NULL){
+
+                    if(retval->ptr == NULL){
+
+                        BLINK_ERROR("calloc()")
+                        retval = NULL;
+                    }
+                    else{
+
+                        retval->type = type;
+                    }
+                }
+            }
+            else{
+
+                BLINK_ERROR("calloc()")
             }
         }
         else{
@@ -1568,7 +1748,7 @@ static struct blink_list_element *searchListByName(struct blink_list_element *he
 
     BLINK_ASSERT(offsetof(struct blink_field, name) == offsetof(struct blink_base_type, name))
     BLINK_ASSERT(offsetof(struct blink_field, nameLen) == offsetof(struct blink_base_type, nameLen))
-
+    
     BLINK_ASSERT(offsetof(struct blink_type_def, name) == offsetof(struct blink_base_type, name))
     BLINK_ASSERT(offsetof(struct blink_type_def, nameLen) == offsetof(struct blink_base_type, nameLen))
 
@@ -1627,106 +1807,6 @@ static void splitCName(const char *in, size_t inLen, const char **nsName, size_t
     }
 }
 
-static struct blink_enum *castEnum(struct blink_list_element *self)
-{
-    struct blink_enum *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_ENUM)
-        retval = (struct blink_enum *)self->ptr;
-    }
-    return retval;
-}
-
-static struct blink_symbol *castSymbol(struct blink_list_element *self)
-{
-    struct blink_symbol *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_SYMBOL)
-        retval = (struct blink_symbol *)self->ptr;
-    }
-    return retval;
-}
-
-static const struct blink_symbol *castConstSymbol(const struct blink_list_element *self)
-{
-    const struct blink_symbol *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_SYMBOL)
-        retval = (const struct blink_symbol *)self->ptr;
-    }
-    return retval;
-}
-
-static struct blink_field *castField(struct blink_list_element *self)
-{
-    struct blink_field *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_FIELD)
-        retval = (struct blink_field *)self->ptr;
-    }
-    return retval;
-}
-
-static const struct blink_field *castConstField(const struct blink_list_element *self)
-{
-    const struct blink_field *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_FIELD)
-        retval = (const struct blink_field *)self->ptr;
-    }
-    return retval;
-}
-
-static struct blink_group *castGroup(struct blink_list_element *self)
-{
-    struct blink_group *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_GROUP)
-        retval = (struct blink_group *)self->ptr;
-    }
-    return retval;
-}
-
-static const struct blink_group *castConstGroup(const struct blink_list_element *self)
-{
-    const struct blink_group *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_GROUP)
-        retval = (const struct blink_group *)self->ptr;
-    }
-    return retval;
-}
-
-static struct blink_namespace *castNamespace(struct blink_list_element *self)
-{
-    struct blink_namespace *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_NS)
-        retval = (struct blink_namespace *)self->ptr;
-    }
-    return retval;
-}
-
-static struct blink_type_def *castTypeDef(struct blink_list_element *self)
-{
-    struct blink_type_def *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_TYPE)
-        retval = (struct blink_type_def *)self->ptr;
-    }
-    return retval;
-}
-
-static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self)
-{
-    const struct blink_type_def *retval = NULL;
-    if(self != NULL){
-        BLINK_ASSERT(self->type == BLINK_ELEM_TYPE)
-        retval = (const struct blink_type_def *)self->ptr;
-    }
-    return retval;
-}
-
 static struct blink_list_element *getTerminal(struct blink_list_element *element, bool *dynamic)
 {
     BLINK_ASSERT(element != NULL)
@@ -1735,14 +1815,14 @@ static struct blink_list_element *getTerminal(struct blink_list_element *element
     struct blink_list_element *ptr = element;
     *dynamic = false;
 
-    while((ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
+    while((ptr->type == BLINK_ELEM_TYPE) && (((struct blink_type_def *)ptr->ptr)->type.tag == BLINK_ITYPE_REF)){
 
-        if(castTypeDef(ptr)->type.isDynamic){
+        if(((struct blink_type_def *)ptr->ptr)->type.isDynamic){
 
             *dynamic = true;
         }
         
-        ptr = castTypeDef(ptr)->type.resolvedRef;
+        ptr = ((struct blink_type_def *)ptr->ptr)->type.resolvedRef;
     }
 
     return ptr;
@@ -1792,6 +1872,7 @@ static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter
                     iter->def = castNamespace(iter->ns)->defs;
 
                     if(iter->def != NULL){
+
                         break;
                     }    
                 }    
@@ -1800,4 +1881,49 @@ static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter
     }
 
     return retval;            
+}
+
+static struct blink_enum *castEnum(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_enum *)self->ptr;
+}
+
+static struct blink_symbol *castSymbol(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_symbol *)self->ptr;
+}
+
+static struct blink_field *castField(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_field *)self->ptr;
+}
+
+static struct blink_group *castGroup(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_group *)self->ptr;
+}
+
+static struct blink_namespace *castNamespace(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_namespace *)self->ptr;
+}
+
+static struct blink_type_def *castTypeDef(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_type_def *)self->ptr;
+}
+
+static struct blink_annote *castAnnote(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_annote *)self->ptr;
+}
+
+static struct blink_incr_annote *castIncrAnnote(struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (struct blink_incr_annote *)self->ptr;
+}
+
+static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self)
+{
+    return (self == NULL) ? NULL : (const struct blink_type_def *)self->ptr;
 }

@@ -26,7 +26,7 @@
 /**
  * @defgroup blink_parser
  *
- * Convert tokens to a schema.
+ * Use this interface to convert a string into a blink_schema instance.
  * 
  * @{
  * */
@@ -94,16 +94,17 @@ struct blink_enum;          /**< forward declaration */
 
 /** schema */
 struct blink_schema {
-    struct blink_list_element *ns; /**< a schema has zero or more namespace definitions */
-    bool finalised;             /**< when true no more schema definitions can be appended */
-    fn_blink_calloc_t calloc;   /**< pointer to a calloc-like function */
-    fn_blink_free_t free;       /**< pointer to a free-like function */
+    struct blink_list_element *ns;  /**< a schema has zero or more namespace definitions */
+    bool finalised;                 /**< when true no more schema definitions can be appended */
+    fn_blink_calloc_t calloc;       /**< pointer to a calloc-like function */
+    fn_blink_free_t free;           /**< pointer to a free-like function */
+    struct blink_element *elements; /**< used to keep track of everything allocated */
 };
 
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
 struct blink_field_iterator {
-    const struct blink_list_element *field[BLINK_INHERIT_DEPTH];    /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
-    uint16_t depth;                                                 /**< current depth in `field` */
+    struct blink_list_element *field[BLINK_INHERIT_DEPTH];  /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
+    uint16_t depth;                                         /**< current depth in `field` */
 };
 
 /* function prototypes ************************************************/
@@ -211,17 +212,14 @@ const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen);
  * */
 const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen);
 
-/** Is this field optional?
- *
+/** 
  * @param[in] self receiver
- *
- * @return optional?
- * 
+ * @return Is this field optional?
  * @retval true
  * @retval false
  *
  * */
-bool BLINK_FieldIsOptional(const struct blink_field *self);
+bool BLINK_GetFieldIsOptional(const struct blink_field *self);
 
 /** Get the type of this field
  *

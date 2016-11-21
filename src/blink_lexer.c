@@ -100,15 +100,40 @@ const char *BLINK_TokenToString(enum blink_token token, size_t *len)
     size_t i;
 
     *len = 0U;
+
+    switch(token){
+    case TOK_NAME:
+        retval = "<name>";
+        *len = sizeof("<name>")-1U;
+        break;    
+    case TOK_CNAME:
+        retval = "<cname>";
+        *len = sizeof("<cname>")-1U;
+        break;    
+    case TOK_EOF:
+        retval = "<eof>";
+        *len = sizeof("<eof>")-1U;
+        break;    
+    case TOK_NUMBER:
+        retval = "<number>";
+        *len = sizeof("<number>")-1U;
+        break;    
+    case TOK_LITERAL:
+        retval = "<literal>";
+        *len = sizeof("<literal>")-1U;
+        break;    
+    default:
     
-    for(i = 0U; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
+        for(i = 0U; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
 
-        if(tokenTable[i].token == token){
+            if(tokenTable[i].token == token){
 
-            retval = tokenTable[i].s;
-            *len = tokenTable[i].size;
-            break;
+                retval = tokenTable[i].s;
+                *len = tokenTable[i].size;
+                break;
+            }
         }
+        break;
     }
 
     return retval;
@@ -149,7 +174,11 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
 
     if(pos < inLen){
 
-        if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
+        if(in[pos] == '\0'){
+
+            retval = TOK_EOF;
+        }
+        else if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
 
             *read += r;
             retval = TOK_CNAME;
