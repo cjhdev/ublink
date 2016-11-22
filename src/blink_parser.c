@@ -567,13 +567,13 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
         if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &defAnnotes)){
             return NULL;
-        }        
+        }
 
         tok = BLINK_GetToken(&in[pos], inLen-pos, &read, &value, NULL);
         nextTok = BLINK_GetToken(&in[pos+read], inLen-pos-read, &nextRead, &nextValue, NULL);
 
         /* incremental annote */
-        if((tok == TOK_SCHEMA) || (tok == TOK_CNAME) || ((tok == TOK_NAME) && ((nextTok == TOK_PERIOD) || (nextTok == TOK_RARROW)))){
+        if((tok == TOK_SCHEMA) || (tok == TOK_CNAME) || ((tok == TOK_NAME) && ((nextTok == TOK_PERIOD) || (nextTok == TOK_LARROW)))){
 
             pos += read;
             
@@ -591,7 +591,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
             if(tok == TOK_SCHEMA){
 
-                if(nextTok != TOK_RARROW){
+                if(nextTok != TOK_LARROW){
     
                     BLINK_ERROR("expecting '<-'")
                     return NULL;
@@ -727,126 +727,9 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                 BLINK_ERROR("duplicate definition name");
                 return NULL;
             }
-
-            /* group */
-            if((nextTok == TOK_SLASH) || (nextTok == TOK_COLON) || (nextTok == TOK_LARROW)){
-
-                struct blink_group *g = castGroup(newListElement(self, &ns->defs, BLINK_ELEM_GROUP));
-
-                if(g == NULL){
-                    return NULL;
-                }
-
-                g->name = name;
-                g->nameLen = nameLen;
-                g->a = defAnnotes;
-
-                /* id field */
-                if(nextTok == TOK_SLASH){
-
-                    pos += nextRead;
-
-                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
-                        BLINK_ERROR("error: expecting integer or hexnum")
-                        return NULL;
-                    }
-
-                    pos += read;
-
-                    g->hasID = true;
-                    g->id = value.number;                        
-                }
-
-                /* supergroup */
-                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COLON){
-
-                    pos += read;
-
-                    tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
-
-                    if((tok == TOK_CNAME) || (tok == TOK_NAME)){
-                        BLINK_ERROR("expecting super class name (qname)")
-                        return NULL;
-                    }
-
-                    pos += read;
-
-                    g->superGroup = value.literal.ptr;
-                    g->superGroupLen = value.literal.len;
-                }
-
-                /* fields */
-                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_RARROW){
-
-                    do{
-
-                        pos += read;
-
-                        struct blink_field *f = castField(newListElement(self, &g->f, BLINK_ELEM_FIELD));
-
-                        if(f == NULL){
-                            return NULL;
-                        }
-                        
-                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->type.a)){
-                            return NULL;
-                        }
-
-                        pos += read;
-                        
-                        if(!parseType(&in[pos], inLen - pos, &read, &f->type)){
-                            return NULL;
-                        }
-                        
-                        pos += read;
-
-                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->a)){
-                            return NULL;
-                        }
-
-                        pos += read;                        
-
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
-                            BLINK_ERROR("expecting name")
-                            return NULL;
-                        }
-
-                        pos += read;
-
-                        if(searchListByName(g->f, value.literal.ptr, value.literal.len) != NULL){
-                            BLINK_ERROR("duplicate field name");
-                            return NULL;
-                        }
-
-                        f->name = value.literal.ptr;
-                        f->nameLen = value.literal.len;
-
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
-
-                            pos += read;
-
-                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
-                                
-                                BLINK_ERROR("expecting a number")
-                                return NULL;
-                            }
-
-                            f->id = value.number;
-                            f->hasID = true;
-
-                            pos += read;
-                        }
-
-                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_QUESTION){
-                            pos += read;
-                            f->isOptional = true;
-                        }
-                    }
-                    while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COMMA);                   
-                }                                    
-            }
+            
             /* type or enum */
-            else if(nextTok == TOK_EQUAL){
+            if(nextTok == TOK_EQUAL){
 
                 pos += nextRead;
 
@@ -941,14 +824,16 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                             }
 
                             pos += read;
-
+#if 0
+                            //todo: need an int token
                             if((value.number > INT32_MAX) || (value.number < INT32_MIN)){
 
                                 BLINK_ERROR("enum symbol value out of range")
                                 return NULL;
                             }
+#endif
                                 
-                            s->value = value.number;
+                            s->value = (int32_t)value.number;
                             s->implicitValue = false;                                
                         }
                         else{
@@ -1011,10 +896,124 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                     pos += read;
                 }
             }
+            /* group */
             else{
-                
-                BLINK_ERROR("expecting '/', ':', or '='")
-                return NULL;
+
+                struct blink_group *g = castGroup(newListElement(self, &ns->defs, BLINK_ELEM_GROUP));
+
+                if(g == NULL){
+                    return NULL;
+                }
+
+                g->name = name;
+                g->nameLen = nameLen;
+                g->a = defAnnotes;
+
+                /* id field */
+                if(nextTok == TOK_SLASH){
+
+                    pos += nextRead;
+
+                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                        BLINK_ERROR("error: expecting integer or hexnum")
+                        return NULL;
+                    }
+
+                    pos += read;
+
+                    g->hasID = true;
+                    g->id = value.number;                        
+                }
+
+                /* supergroup */
+                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COLON){
+
+                    pos += read;
+
+                    tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+
+                    if((tok != TOK_CNAME) && (tok != TOK_NAME)){
+                        BLINK_ERROR("expecting super class name (qname)")
+                        return NULL;
+                    }
+
+                    pos += read;
+
+                    g->superGroup = value.literal.ptr;
+                    g->superGroupLen = value.literal.len;
+                }
+
+                read = 0U;
+
+                /* fields */
+                if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_RARROW){
+
+                    do{
+
+                        pos += read;
+
+                        struct blink_field *f = castField(newListElement(self, &g->f, BLINK_ELEM_FIELD));
+
+                        if(f == NULL){
+                            return NULL;
+                        }
+                        
+                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->type.a)){
+                            return NULL;
+                        }
+
+                        pos += read;
+                        
+                        if(!parseType(&in[pos], inLen - pos, &read, &f->type)){
+                            return NULL;
+                        }
+                        
+                        pos += read;
+
+                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->a)){
+                            return NULL;
+                        }
+
+                        pos += read;                        
+
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
+                            BLINK_ERROR("expecting name")
+                            return NULL;
+                        }
+
+                        pos += read;
+
+                        if(searchListByName(g->f, value.literal.ptr, value.literal.len) != NULL){
+                            BLINK_ERROR("duplicate field name");
+                            return NULL;
+                        }
+
+                        f->name = value.literal.ptr;
+                        f->nameLen = value.literal.len;
+
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
+
+                            pos += read;
+
+                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                                
+                                BLINK_ERROR("expecting a number")
+                                return NULL;
+                            }
+
+                            f->id = value.number;
+                            f->hasID = true;
+
+                            pos += read;
+                        }
+
+                        if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_QUESTION){
+                            pos += read;
+                            f->isOptional = true;
+                        }
+                    }
+                    while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COMMA);                   
+                }                                    
             }
         }
         else if(tok == TOK_EOF){
@@ -1336,7 +1335,7 @@ static bool resolveDefinitions(struct blink_schema *self)
 
                 if(g->s == NULL){
 
-                    BLINK_ERROR("unresolved")    
+                    BLINK_ERROR("cannot resolve supergroup")    
                     return false;
                 }
             }

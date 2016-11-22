@@ -190,18 +190,5 @@ void test_BLINK_Parse_superSuperGroupShadowField(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
 }
 
-void test_BLINK_Parse_staticGroupTailRecursion(void)
-{
-    const char input[] = "test -> u8 value, test another?";
-
-    BLINK_Parse(&ctxt, input, sizeof(input));
-}
-
-void test_BLINK_Parse_staticGroupTailRecursionNoOptional(void)
-{
-    const char input[] = "test -> u8 value, test another";
-
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
-}
 
 
