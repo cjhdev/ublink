@@ -169,6 +169,20 @@ void test_BLINK_Parse_ambiguous_enum_value(void)
     TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
 }
 
+void test_BLINK_Parse_enum_value_upperLimit(void)
+{
+    const char input[] = "Month = | Jan/2147483648";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
+void test_BLINK_Parse_enum_value_lowerLimit(void)
+{
+    const char input[] = "Month = | Jan/-2147483649";
+
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+}
+
 void test_BLINK_Parse_duplicate_group_field(void)
 {
     const char input[] = "test -> u8 bla, u8 bla";

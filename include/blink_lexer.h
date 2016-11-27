@@ -68,7 +68,7 @@ enum blink_token {
     TOK_CNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                        
     TOK_EQUAL,            /**< `=` */
     TOK_COMMA,            /**< `,` */
-    TOK_PERIOD,           /**< period */
+    TOK_PERIOD,           /**< <period> */
     TOK_QUESTION,         /**< `?` */    
     TOK_LBRACKET,         /**< `[` */
     TOK_RBRACKET,         /**< `]` */
@@ -84,10 +84,11 @@ enum blink_token {
     TOK_NAMESPACE,        /**< `namespace` */
     TOK_SCHEMA,           /**< `schema` */    
     TOK_TYPE,             /**< `type` */    
-    TOK_NUMBER,           /**< `0x[0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */
+    TOK_UINT,             /**< `[0][x][0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */
+    TOK_INT,              /**< `[-][1-9][0-9]*` */
     TOK_LITERAL,          /**< a string within double or single quotation marks */
     TOK_UNKNOWN,          /**< no match */
-    TOK_EOF              /**< end of file */    
+    TOK_EOF               /**< end of file */    
 };
 
 /* unions *************************************************************/
@@ -99,8 +100,10 @@ union blink_token_value {
         const char *ptr;    /**< pointer to printable string */
         size_t len;         /**< byte length of `ptr` */
     } literal;
-    /** Initialised for #TOK_NUMBER */
-    uint64_t number;            
+    /** Initialised for #TOK_UINT */
+    uint64_t number;
+    /** Initialised for #TOK_INT */
+    int64_t signedNumber;            
 };
 
 /* structs ************************************************************/

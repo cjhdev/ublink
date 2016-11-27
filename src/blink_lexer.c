@@ -87,8 +87,9 @@ static bool isNameChar(char c);
 static bool isFirstNameChar(char c);
 static bool isName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
 static bool isCName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
-static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out);
-static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out);
+static bool isUnsignedNumber(const char *in, size_t inLen, size_t *read, uint64_t *out);
+static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *out);
+static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *out);
 static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token);
 static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
 
@@ -98,29 +99,32 @@ const char *BLINK_TokenToString(enum blink_token token, size_t *len)
 {
     const char *retval = NULL;    
     size_t i;
-
-    *len = 0U;
+    size_t l = 0U;
 
     switch(token){
     case TOK_NAME:
         retval = "<name>";
-        *len = sizeof("<name>")-1U;
+        l = sizeof("<name>")-1U;
         break;    
     case TOK_CNAME:
         retval = "<cname>";
-        *len = sizeof("<cname>")-1U;
+        l = sizeof("<cname>")-1U;
         break;    
     case TOK_EOF:
         retval = "<eof>";
-        *len = sizeof("<eof>")-1U;
+        l = sizeof("<eof>")-1U;
         break;    
-    case TOK_NUMBER:
-        retval = "<number>";
-        *len = sizeof("<number>")-1U;
+    case TOK_UINT:
+        retval = "<uint>";
+        l = sizeof("<uint>")-1U;
+        break;    
+    case TOK_INT:
+        retval = "<int>";
+        l = sizeof("<int>")-1U;
         break;    
     case TOK_LITERAL:
         retval = "<literal>";
-        *len = sizeof("<literal>")-1U;
+        l = sizeof("<literal>")-1U;
         break;    
     default:
     
@@ -129,11 +133,16 @@ const char *BLINK_TokenToString(enum blink_token token, size_t *len)
             if(tokenTable[i].token == token){
 
                 retval = tokenTable[i].s;
-                *len = tokenTable[i].size;
+                l = tokenTable[i].size;
                 break;
             }
         }
         break;
+    }
+
+    if(len != NULL){
+
+        *len = l;
     }
 
     return retval;
@@ -187,28 +196,30 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
 
             *read += r;
         }
+        else if(isLiteral(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
+
+            *read += r;
+            retval = TOK_LITERAL;                
+        }
+        else if(isName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
+
+            *read += r;
+            retval = TOK_NAME;
+        }
+        else if(isHexNumber(&in[pos], inLen - pos, &r, &value->number) || isUnsignedNumber(&in[pos], inLen - pos, read, &value->number)){
+
+            *read += r;
+            retval = TOK_UINT;
+        }
+        else if(isSignedNumber(&in[pos], inLen - pos, read, &value->signedNumber)){
+
+            *read += r;
+            retval = TOK_INT;
+        }
         else{
 
-            if(isLiteral(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
-
-                *read += r;
-                retval = TOK_LITERAL;                
-            }
-            else if(isName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
-
-                *read += r;
-                retval = TOK_NAME;
-            }
-            else if(isHexNum(&in[pos], inLen - pos, &r, &value->number) || isNum(&in[pos], inLen - pos, read, &value->number)){
-
-                *read += r;
-                retval = TOK_NUMBER;
-            }
-            else{
-
-                retval = TOK_UNKNOWN;
-            }
-        }            
+            retval = TOK_UNKNOWN;
+        }
     }
 
     return retval;        
@@ -320,77 +331,43 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
     BLINK_ASSERT(outLen != NULL);
 
     bool retval = false;
-    char c;
-    enum {
-        EXIT,
-        START,
-        FIRST_CHAR,
-        NAME
-    } state = START;
-
     *read = 0U;
 
-    while(*read < inLen){
+    if((*read < inLen) && (isFirstNameChar(*in) || (*in == '\\'))){
 
-        c = in[*read];
-        
-        switch(state){
-        case START:
+        bool escape = (*in == '\\') ? true : false;
 
-            if(c == '\\'){
-
-                state = FIRST_CHAR;                
-            }
-            else if(isFirstNameChar(c)){
-
-                *out = &in[*read];
-                *outLen = 1U;
-                state = NAME;
-            }
-            else{
-
-                state = EXIT;
-            }         
-            break;
-
-        case FIRST_CHAR:
-            
-            if(isFirstNameChar(c)){
-                
-                *out = &in[*read];
-                *outLen = 1U;
-                state = NAME;
-            }
-            else{
-
-                state = EXIT;
-            }
-            break;
-
-        case NAME:
-
-            if(!isNameChar(c)){
-
-                retval = true;                
-                state = EXIT;
-            }
-            else{
-
-                (*outLen)++;
-            }
-            break;
-
-        case EXIT:
-        default:
-            break;
-        }
-
-        if(state == EXIT){
-
-            break;
-        }
+        *out = in;
+        *outLen = 1U;
 
         (*read)++;
+
+        if(escape){
+
+            if((*read < inLen) && isFirstNameChar(in[*read])){
+
+                *out = &in[*read];
+                retval = true;
+                (*read)++;
+            }
+        }
+        else{
+
+            retval = true;
+        }
+
+        while(retval && (*read < inLen)){
+
+            if(isNameChar(in[*read])){
+
+                (*read)++;
+                (*outLen)++;
+            }
+            else{
+
+                break;
+            }
+        }
     }
 
     return retval;
@@ -403,254 +380,195 @@ static bool isCName(const char *in, size_t inLen, size_t *read, const char **out
     BLINK_ASSERT(out != NULL);
     BLINK_ASSERT(outLen != NULL);
 
-    char c;
-    enum {
-        START,
-        FIRST,
-        SECOND,
-        EXIT,
-    } state = START;
-
     bool retval = false;
     *read = 0U;
 
-    while(*read < inLen){
-
-        c = in[*read];
+    if((*read < inLen) && isFirstNameChar(*in)){
         
-        switch(state){
-        case START:
+        *out = in;
+        *outLen = 1U;
+        (*read)++;
 
-            if(isFirstNameChar(c)){
+        while(*read < inLen){
 
-                *out = &in[*read];
-                *outLen = 1U;
-                state = FIRST;
-            }   
-            else{
+            if(isNameChar(in[*read])){
 
-                state = EXIT;
-            }
-            break;
-            
-        case FIRST:
-
-            if(isNameChar(c)){
-
+                (*read)++;
                 (*outLen)++;
             }
-            else if(c == ':'){
+            else if(in[*read] == ':'){
 
+                (*read)++;
                 (*outLen)++;
-                state = SECOND;
+
+                if((*read < inLen) && isNameChar(in[*read])){
+
+                    (*read)++;
+                    (*outLen)++;
+
+                    retval = true;
+                    
+                    while((*read < inLen) && isNameChar(in[*read])){
+
+                        (*read)++;
+                        (*outLen)++;
+                    }
+                }
+
+                break;            
             }
             else{
              
-                state = EXIT;
+                break;
             }
-            break;
-
-        case SECOND:
-
-            if(isNameChar(c)){
-
-                (*outLen)++;
-            }
-            else if(*out[*outLen] == ':'){
-
-                state = EXIT;
-            }
-            else{
-                
-                retval = true;                
-                state = EXIT;
-            }
-            break;
-
-        case EXIT:
-        default:
-            break;
         }
-
-        if(state == EXIT){
-
-            break;
-        }
-
-        (*read)++;
     }
-    
 
     return retval;
 }
     
-static bool isNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
+static bool isUnsignedNumber(const char *in, size_t inLen, size_t *read, uint64_t *out)
 {
     BLINK_ASSERT(in != NULL)
     BLINK_ASSERT(read != NULL)
     BLINK_ASSERT(out != NULL)
 
-    char c;
     bool retval = false;
     *read = 0U;
-    uint8_t digits = 0;
     uint8_t digit;
-
-    enum {
-        START,
-        NUMBER,
-        EXIT
-    } state = START;
     
-    while(*read < inLen){
+    if((*read < inLen) && isInteger(*in, &digit)){
 
-        c = in[*read];
+        retval = true;
+        *out = (uint64_t)digit;
+        (*read)++;
 
-        switch(state){
-        case START:
+        while(retval && (*read < inLen)){
             
-            if(isInteger(c, &digit)){
+            if(isInteger(in[*read], &digit)){
+
+                /* todo: overflow protect */
+                *out *= 10;                
+                *out += digit;
+                (*read)++;
+                
+            }
+            else{
+
+                break;
+            } 
+        }
+    }
+    
+    return retval;
+}
+
+static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *out)
+{
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL)
+
+    bool retval = false;
+    *read = 0U;
+    uint8_t digit;
+    
+    if((*read < inLen) && ((*in == '-') || isInteger(*in, &digit))){
+
+        bool negative = (*in == '-') ? true : false;
+
+        (*read)++;
+
+        if(negative){
+
+            if((*read < inLen) && isInteger(in[*read], &digit)){
+
+                *out = (int64_t)digit;
+                (*read)++;
+                retval = true;
+            }                
+        }
+        else{
+
+            *out = (int64_t)digit;
+            retval = true;
+        }            
+
+        while(retval && (*read < inLen)){
+            
+            if(isInteger(in[*read], &digit)){
+                
+                /* todo: overflow protect */
+                *out *= 10;                
+                *out += digit;
+                (*read)++;                               
+            }
+            else{
+
+                break;
+            } 
+        }
+
+        if(retval){
+
+            *out = 0 - *out;
+        }
+    }    
+
+    return retval;
+}
+
+static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *out)
+{
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL)
+
+    bool retval = false;
+    *read = 0U;
+    uint8_t digits = 1;
+    uint8_t digit;
+    
+    if((*read < inLen) && (*in == '0')){
+
+        (*read)++;
+
+        if((*read < inLen) && (in[*read] == 'x')){
+
+            (*read)++;    
+
+            if((*read < inLen) && isHexInteger(in[*read], &digit)){
+
+                (*read)++;
 
                 *out = (uint64_t)digit;
-                state = NUMBER;
+
                 retval = true;
-                digits++;
-            }
-            else{
 
-                state = EXIT;
-            }
-            
-            break;
+                while(retval && (*read < inLen)){
 
-        case NUMBER:
-        
-            if(isInteger(c, &digit)){
+                    if(isHexInteger(in[*read], &digit)){
 
-                if(digits <= 20){
+                        (*read)++;
 
-                    *out *= 10;                
-                    *out += digit;
-                    digits++;                    
-                }
-                else{
+                        if(digits <= 16U){
 
-                    BLINK_ERROR("too many digits for a 64bit number")
-                    retval = false;
-                    state = EXIT;
+                            *out <<= 4;
+                            *out |= digit;
+                            digits++;
+                        }
+                        else{
+                            
+                            retval = false;
+                        }
+                    }
+                    else{
+
+                        break;
+                    }
                 }
             }
-            else if((c == 'x') && (digits == 1) && (in[(*read)-1] == '0')){
-
-                retval = false;
-                state = EXIT;
-            }
-            else{
-                
-                state = EXIT;
-            }
-            break;
-            
-        case EXIT:
-        default:
-            break;
         }
-
-        if(state == EXIT){
-
-            break;
-        }
-
-        (*read)++;
-    }
-
-    return retval;
-}
-
-static bool isHexNum(const char *in, size_t inLen, size_t *read, uint64_t *out)
-{
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL)
-
-    char c;
-    bool retval = false;
-    *read = 0U;
-    uint8_t digits = 0;
-    uint8_t digit;
-    *out = 0U;
-
-    enum {
-        START,
-        PRE,
-        NUMBER,
-        EXIT
-    }state = START;
-    
-    while(*read < inLen){
-
-        c = in[*read];
-
-        switch(state){
-        case START:
-            
-            if(c == '0'){
-
-                state = PRE;
-            }
-            else{
-
-                state = EXIT;
-            }            
-            break;
-            
-        case PRE:
-
-            if(c == 'x'){
-
-                state = NUMBER;
-            }
-            else{
-
-                state = EXIT;
-            }
-            break;
-        
-        case NUMBER:
-
-            if(isHexInteger(c, &digit)){
-
-                if(digits < 16U){
-
-                    *out <<= 4;
-                    *out |= digit;
-                    digits++;
-                    retval = true;                
-                }
-                else{
-
-                    state = EXIT;
-                    retval = false;
-                    BLINK_ERROR("too many digits for 64 bit number")
-                }
-            }
-            else{
-
-                state = EXIT;                
-            }
-            break;
-            
-        case EXIT:
-        default:
-            break;
-        }
-
-        if(state == EXIT){
-
-            break;
-        }
-
-        (*read)++;
     }
 
     return retval;
@@ -664,63 +582,35 @@ static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **o
     BLINK_ASSERT(outLen != NULL);
 
     bool retval = false;
-    char c;
     char mark;
-    enum {
-        EXIT,
-        START,
-        LITERAL
-    } state = START;
-
+    
     *read = 0U;
 
-    while(*read < inLen){
+    if((*read < inLen) && ((*in == '"') || (*in == '\''))){
 
-        c = in[*read];
-        
-        switch(state){
-        case START:
+        mark = *in;
+        (*read)++;
+        *out = &in[*read];
+        *outLen = 0U;
 
-            if((c == '"') || (c == '\'')){
+        while(*read < inLen){
 
-                mark = c;
-                state = LITERAL;
-                *out = &in[1U];
-                *outLen = 0U;
-            }
-            else{
+            char c = in[*read];
+            (*read)++;
 
-                state = EXIT;
-            }
-            break;                
-
-        case LITERAL:
-
-            if(c == '\n'){
-
-                state = EXIT;
-            }
-            else if(c == mark){
-
+            if(c == mark){
+                
                 retval = true;
-                state = EXIT;
+                break;
+            }
+            else if(c == '\n'){
+
+                break;
             }
             else{
-        
+
                 (*outLen)++;
             }
-            break;
-
-        case EXIT:
-        default:
-            break;
-        }
-
-        (*read)++;
-
-        if(state == EXIT){
-
-            break;
         }
     }
 

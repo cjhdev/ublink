@@ -682,7 +682,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                     *annote = a;    /*copy*/
                 }
-                else if(tok == TOK_NUMBER){
+                else if(tok == TOK_UINT){
 
                     struct blink_list_element *ptr = ia->a;
 
@@ -817,23 +817,37 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                             pos += read;
 
-                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                            tok = BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL);
+
+                            pos += read;
+
+                            switch(tok){
+                            case TOK_UINT:
+
+                                if(value.number > INT32_MAX){
+
+                                    BLINK_ERROR("enum symbol value out of range")
+                                    return NULL;
+                                }
+                                s->value = (int32_t)value.number;
+                                break;
+                            
+                            case TOK_INT:
+
+                                if((value.signedNumber > INT32_MAX) || (value.signedNumber < INT32_MIN)){
+
+                                    BLINK_ERROR("enum symbol value out of range")
+                                    return NULL;
+                                }
+
+                                s->value = (int32_t)value.signedNumber;
+                                break;
                                 
+                            default:
                                 BLINK_ERROR("expecting enum symbol value")
                                 return NULL;
                             }
-
-                            pos += read;
-#if 0
-                            //todo: need an int token
-                            if((value.number > INT32_MAX) || (value.number < INT32_MIN)){
-
-                                BLINK_ERROR("enum symbol value out of range")
-                                return NULL;
-                            }
-#endif
-                                
-                            s->value = (int32_t)value.number;
+                            
                             s->implicitValue = false;                                
                         }
                         else{
@@ -914,7 +928,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                     pos += nextRead;
 
-                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                    if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_UINT){
                         BLINK_ERROR("error: expecting integer or hexnum")
                         return NULL;
                     }
@@ -995,7 +1009,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                             pos += read;
 
-                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NUMBER){
+                            if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_UINT){
                                 
                                 BLINK_ERROR("expecting a number")
                                 return NULL;
@@ -1100,7 +1114,7 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
 
                 pos += r;
 
-                if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_NUMBER){
+                if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_UINT){
 
                     pos += r;
                 }

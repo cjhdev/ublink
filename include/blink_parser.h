@@ -283,6 +283,7 @@ const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, c
 const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, int32_t value, const char **name, size_t *nameLen);
 
 
+
 #ifdef __cplusplus
 }
 #endif

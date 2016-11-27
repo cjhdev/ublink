@@ -495,16 +495,28 @@ void test_BLINK_GetToken_bar(void)
     TEST_ASSERT_EQUAL(strlen(input), read);
 }
 
-void test_BLINK_GetToken_number(void)
+void test_BLINK_GetToken_unsigned_number(void)
 {
     size_t read;
     const char input[] = "42";
     union blink_token_value value;
-    enum blink_token expected = TOK_NUMBER;
+    enum blink_token expected = TOK_UINT;
 
     TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value, NULL));
     TEST_ASSERT_EQUAL(strlen(input), read);
     TEST_ASSERT_EQUAL(42, value.number);
+}
+
+void test_BLINK_GetToken_signed_number(void)
+{
+    size_t read;
+    const char input[] = "-42";
+    union blink_token_value value;
+    enum blink_token expected = TOK_INT;
+
+    TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value, NULL));
+    TEST_ASSERT_EQUAL(strlen(input), read);
+    TEST_ASSERT_EQUAL(-42, value.signedNumber);
 }
 
 void test_BLINK_GetToken_hex_number(void)
@@ -512,7 +524,7 @@ void test_BLINK_GetToken_hex_number(void)
     size_t read;
     const char input[] = "0x2A";
     union blink_token_value value;
-    enum blink_token expected = TOK_NUMBER;
+    enum blink_token expected = TOK_UINT;
 
     TEST_ASSERT_EQUAL(expected, BLINK_GetToken(input, sizeof(input), &read, &value, NULL));
     TEST_ASSERT_EQUAL(strlen(input), read);
