@@ -1,5 +1,0 @@
--defined(NDEBUG)
--emacro(uint16, __asm__)
--esym(970, _Bool)   // pclint seems to not understand stdbool.h
--passes(2)          // two passes for cross check
-

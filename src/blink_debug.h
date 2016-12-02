@@ -28,9 +28,6 @@
     #define BLINK_ERROR(...) /* BLINK_ERROR(__VA_ARGS__) */
 
     /*lint -e(9026) Allow functionality to be removed completely */
-    #define TRACE(...)  
-
-    /*lint -e(9026) Allow functionality to be removed completely */
     #define BLINK_ASSERT(X) /* BLINK_ASSERT(X) */
 
 #else
@@ -40,9 +37,6 @@
 
     /*lint -e(9026) Allow functionality to be removed completely */
     #define BLINK_ERROR(...)  do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
-
-    /*lint -e(9026) Allow functionality to be removed completely */
-    #define TRACE(...)  do{fprintf(stderr, "trace: %s(): ", __FUNCTION__);fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
 
     /*lint -e(9026) Allow functionality to be removed completely */
     #define BLINK_ASSERT(X)   /*lint -e(9034) Call to assert */assert((X));

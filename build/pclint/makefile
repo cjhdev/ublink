@@ -3,20 +3,28 @@ DIR_ROOT := ../..
 PCLINT_LIB := /usr/local/lib/pclint
 PCLINT_BIN := /usr/local/bin/pclint
 
-# change compiler bins as required
 CC := gcc
 GXX := g++
 
-# you can also define CFLAGS, CXXFLAGS CPPFLAGS COMMON_FLAGS as required
+SRC := $(filter-out $(DIR_ROOT)/src/blink_event_decoder.c, $(wildcard $(DIR_ROOT)/src/*.c))
 
-# rules to apply (order is significant)
-RULES := au-misra.lnt co-gcc.lnt settings.lnt   
+INCLUDES += -Ipclint
+INCLUDES += -I$(PCLINT_LIB)/lnt
+INCLUDES += -I$(DIR_ROOT)/include
 
-# sources to lint
-SRC := $(addprefix $(DIR_ROOT)/src/, blink_lexer.c)
+RULES += '-zero'
 
-# included from sources to lint
-INCLUDES := -I$(DIR_ROOT)/include
+RULES += au-misra.lnt
+RULES += co-gcc.lnt
+RULES += '-dNDEBUG'
+RULES += '-passes(3)'
+RULES += '-width(0,4)'
+RULES += '-esym(970,_Bool)'
+
+
+.PHONY: settings clean_settings report.txt
+
+all: report.txt
 
 # this will ensure the settings folder is initialised (or re-initialised)
 install: clean_settings settings
@@ -29,10 +37,15 @@ settings:
 clean_settings:
 	rm -f pclint/*.lnt pclint/*.h
 
-# lint a number of source files
-lint:
-	$(PCLINT_BIN) "+rw(__is_pod)" -I$(PCLINT_LIB)/lnt -Ipclint $(INCLUDES) $(RULES) $(SRC)
-
-
+report.txt:
+	$(PCLINT_BIN) '-os($@)' ++b $(INCLUDES) $(RULES) $(SRC)
+	@ echo "mandatory:" 
+	@ cat $@ | grep -s mandatory || true
+	@ echo ""
+	@ echo "required:" 
+	@ cat $@ | grep required || true
+	@ echo ""
+	@ echo "advisory:" 
+	@ cat $@ | grep advisory || true
 
 
