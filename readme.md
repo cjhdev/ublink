@@ -3,22 +3,15 @@ uBlink
 
 [![Build Status](https://travis-ci.org/cjhdev/ublink.svg?branch=master)](https://travis-ci.org/cjhdev/ublink)
 
-uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.org/ "The Blink Protocol") suitable for integrating into larger applications.
+uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.org/ "The Blink Protocol") suitable for embedded applications.
 
-## Examples
+## Highlights
 
-### Create a blink_schema object from a single schema definition
-
-~~~c
-#include "blink_parser.h"
-
-const char syntax[] = "Hello/0 -> string greeting";
-
-struct blink_schema s;
-BLINK_InitSchema(&s);
-BLINK_Parse(&s, syntax, sizeof(syntax));
-BLINK_DestroySchema(&s);
-~~~
+- Compact form encode/decode primitives
+- Hand coded schema parser and lexer
+- Allocate-only malloc minimum requirement (i.e. you can use a simple heap that is reset instead of calling free)
+- Tests and coverage statistics
+- Linted to MISRA 2012
 
 ## Compile Time Options
 
@@ -32,6 +25,12 @@ BLINK_DestroySchema(&s);
 // define the maximum number of references allowed in a chain (default: 10)
 #define BLINK_LINK_DEPTH    10
 ~~~
+
+## Todo
+
+- Overflow protection for parsing signed and unsigned integers in blink_lexer.c
+- Location support in blink_parser.c
+- Event driven decoder
 
 ## See Also
 
