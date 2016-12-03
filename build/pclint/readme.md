@@ -30,7 +30,7 @@ system GCC to MISRA 2012.
 - Re-implemented where convenient, or,
 - Suppressed within code with a justification
 
-#### Advisory
+### Advisory
 
 - Re-implemented, or,
 - Ignored
