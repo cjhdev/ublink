@@ -1,4 +1,7 @@
 DIR_ROOT := ../..
+DIR_ENVIRONMENT := environment
+DIR_SETTINGS := settings
+DIR_REPORT := report
 
 PCLINT_LIB := /usr/local/lib/pclint
 PCLINT_BIN := /usr/local/bin/pclint
@@ -8,44 +11,63 @@ GXX := g++
 
 SRC := $(filter-out $(DIR_ROOT)/src/blink_event_decoder.c, $(wildcard $(DIR_ROOT)/src/*.c))
 
-INCLUDES += -Ipclint
-INCLUDES += -I$(PCLINT_LIB)/lnt
+INCLUDES += -I$(DIR_SETTINGS)
+INCLUDES += -I$(DIR_ENVIRONMENT)
 INCLUDES += -I$(DIR_ROOT)/include
 
+# keep going after errors
 RULES += '-zero'
 
-RULES += au-misra.lnt
+# use latest misra rules
+RULES += au-misra3.lnt
+
+# toolchain config
 RULES += co-gcc.lnt
+
+# remove debug code
 RULES += '-dNDEBUG'
+
+# n pass algorithm
 RULES += '-passes(3)'
+
+# no line breaks, 4 character indent
 RULES += '-width(0,4)'
+
+# suppress noise around use of stdbool
 RULES += '-esym(970,_Bool)'
 
+# errors are contained to files they appear in
+RULES += '-restore_at_end'
 
-.PHONY: settings clean_settings report.txt
+# our headers are not library headers
+RULES += '-libdir($(DIR_ROOT)/include)'
 
-all: report.txt
+# verbose
+RULES += '-vfo'
 
-# this will ensure the settings folder is initialised (or re-initialised)
-install: clean_settings settings
+.PHONY: install mandatory required advisory $(DIR_REPORT)/report.txt 
 
-# run co-gcc.mak to gather toolchain settings in the pclint folder
-settings:
-	cd pclint && make -f $(PCLINT_LIB)/lnt/co-gcc.mak GCC_BIN=$(CC) GXX_BIN=$(GXX) CFLAGS=$(CFLAGS) CXXFLAGS=$(CXXFLAGS) CPPFLAGS=$(CPPFLAGS) COMMON_FLAGS=$(COMMON_FLAGS)
+all: mandatory required advisory
 
-# clear contents of pclint folder
-clean_settings:
-	rm -f pclint/*.lnt pclint/*.h
+# run co-gcc.mak to gather toolchain settings in the environment folder
+install: 
+	cd $(DIR_ENVIRONMENT) && make -f co-gcc.mak clean
+	cd $(DIR_ENVIRONMENT) && make -f co-gcc.mak GCC_BIN=$(CC) GXX_BIN=$(GXX) CFLAGS=$(CFLAGS) CXXFLAGS=$(CXXFLAGS) CPPFLAGS=$(CPPFLAGS) COMMON_FLAGS=$(COMMON_FLAGS)
 
-report.txt:
-	$(PCLINT_BIN) '-os($@)' ++b $(INCLUDES) $(RULES) $(SRC)
-	@ echo "mandatory:" 
-	@ cat $@ | grep -s mandatory || true
-	@ echo ""
-	@ echo "required:" 
-	@ cat $@ | grep required || true
-	@ echo ""
-	@ echo "advisory:" 
-	@ cat $@ | grep advisory || true
+$(DIR_REPORT)/report.txt: $(SRC)
+	$(PCLINT_BIN) '-os($@)' ++b $(INCLUDES) $(RULES) $^
 
+mandatory: $(DIR_REPORT)/report.txt
+	@ echo "$@: `cat $^ | grep -c $@` instances" 
+	@ cat $^ | grep -s $@ || true
 
+required: $(DIR_REPORT)/report.txt
+	@ echo "$@: `cat $^ | grep -c $@` instances" 
+	@ cat $^ | grep $@ || true
+
+advisory: $(DIR_REPORT)/report.txt
+	@ echo "$@: `cat $^ | grep -c $@` instances" 
+	@ cat $^ | grep $@ || true
+
+clean:
+	rm -f $(DIR_REPORT)/report.txt

@@ -148,7 +148,6 @@ const char *BLINK_TokenToString(enum blink_token token, size_t *len)
     return retval;
 }
 
-/*lint -e(9018) argument value is a union where the relevant field is determined by the function return value */
 enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location)
 {
     size_t pos = 0U;
@@ -206,8 +205,13 @@ enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, unio
             *read += r;
             retval = TOK_NAME;
         }
-        else if(isHexNumber(&in[pos], inLen - pos, &r, &value->number) || isUnsignedNumber(&in[pos], inLen - pos, read, &value->number)){
+        else if(isHexNumber(&in[pos], inLen - pos, &r, &value->number)){
 
+            *read += r;
+            retval = TOK_UINT;
+        }
+        else if(isUnsignedNumber(&in[pos], inLen - pos, read, &value->number)){
+            
             *read += r;
             retval = TOK_UINT;
         }
@@ -239,6 +243,7 @@ static bool isSeparator(char c)
         retval = true;
         break;
     default:
+        /* not a separator */
         break;
     }
 
@@ -327,8 +332,8 @@ static bool isName(const char *in, size_t inLen, size_t *read, const char **out,
 {
     BLINK_ASSERT(in != NULL)
     BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL);
-    BLINK_ASSERT(outLen != NULL);
+    BLINK_ASSERT(out != NULL)
+    BLINK_ASSERT(outLen != NULL)
 
     bool retval = false;
     *read = 0U;
@@ -377,8 +382,8 @@ static bool isCName(const char *in, size_t inLen, size_t *read, const char **out
 {
     BLINK_ASSERT(in != NULL)
     BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL);
-    BLINK_ASSERT(outLen != NULL);
+    BLINK_ASSERT(out != NULL)
+    BLINK_ASSERT(outLen != NULL)
 
     bool retval = false;
     *read = 0U;
@@ -418,7 +423,7 @@ static bool isCName(const char *in, size_t inLen, size_t *read, const char **out
                 break;            
             }
             else{
-             
+                
                 break;
             }
         }
@@ -435,8 +440,9 @@ static bool isUnsignedNumber(const char *in, size_t inLen, size_t *read, uint64_
 
     bool retval = false;
     *read = 0U;
-    uint8_t digit;
-    
+    uint8_t digit = 0U;
+
+    /*lint -e9007 side effect: digit may be initialised */
     if((*read < inLen) && isInteger(*in, &digit)){
 
         retval = true;
@@ -471,7 +477,7 @@ static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *
 
     bool retval = false;
     *read = 0U;
-    uint8_t digit;
+    uint8_t digit = 0U;
     
     if((*read < inLen) && ((*in == '-') || isInteger(*in, &digit))){
 
@@ -526,8 +532,8 @@ static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *ou
 
     bool retval = false;
     *read = 0U;
-    uint8_t digits = 1;
-    uint8_t digit;
+    uint8_t digits = 1U;
+    uint8_t digit = 0U;
     
     if((*read < inLen) && (*in == '0')){
 
@@ -537,6 +543,7 @@ static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *ou
 
             (*read)++;    
 
+            /*lint -e9007 side effect: digit may be initialised */
             if((*read < inLen) && isHexInteger(in[*read], &digit)){
 
                 (*read)++;
@@ -578,8 +585,8 @@ static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **o
 {
     BLINK_ASSERT(in != NULL)
     BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL);
-    BLINK_ASSERT(outLen != NULL);
+    BLINK_ASSERT(out != NULL)
+    BLINK_ASSERT(outLen != NULL)
 
     bool retval = false;
     char mark;

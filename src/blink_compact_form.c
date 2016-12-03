@@ -33,7 +33,7 @@ uint8_t BLINK_EncodeVLCNull(uint8_t *out, uint32_t outMax)
 {
     uint8_t retval = 0U;
 
-    if(outMax > 0){
+    if(outMax > 0U){
 
         *out = 0xC0U;
         retval = 1U;
@@ -46,7 +46,7 @@ uint8_t BLINK_EncodePresent(uint8_t *out, uint32_t outMax)
 {
     uint8_t retval = 0U;
 
-    if(outMax > 0){
+    if(outMax > 0U){
 
         *out = 0x01U;
         retval = 1U;
@@ -168,21 +168,21 @@ uint8_t BLINK_EncodeVLC(uint64_t in, bool isSigned, uint8_t *out, uint32_t outMa
 
     if(outMax >= bytes){
 
-        if(bytes == 1){
+        if(bytes == 1U){
 
-            *out = (uint8_t)(in & 0x7f);
+            *out = (uint8_t)(in & 0x7fU);
         }
-        else if(bytes == 2){
+        else if(bytes == 2U){
 
-            out[0] = 0x80 | (uint8_t)(in & 0x3f);
+            out[0] = 0x80U | (uint8_t)(in & 0x3fU);
             out[1] = (uint8_t)(in >> 6);   
         }
         else{
             
-            out[0] = 0xC0U | (bytes-1);
+            out[0] = 0xC0U | (bytes-1U);
             for(i=1; i < bytes; i++){
 
-                out[i] = (uint8_t)(in >> ((i-1)*8));
+                out[i] = (uint8_t)(in >> ((i-1U)*8U));
             }            
         }
         retval = bytes;
@@ -203,43 +203,43 @@ uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64
 
     *isNull = false;
 
-    if(inLen > 0){
+    if(inLen > 0U){
 
-        if(*in < 0xc0){
+        if(*in < 0xc0U){
 
-            if(*in < 0x80){
+            if(*in < 0x80U){
 
-                if(isSigned && ((*in & 0x40) == 0x40)){
+                if(isSigned && ((*in & 0x40U) == 0x40U)){
 
-                    *out = 0xffffffffffffffc0;                           
+                    *out = 0xffffffffffffffc0U;                           
                 }
                 else{
                     
-                    *out = 0x0;
+                    *out = 0x0U;
                 }
-                *out |= (uint64_t)(*in & 0x7f);
+                *out |= (uint64_t)(*in & 0x7fU);
                 retval = 1U;  
             }
             else{
 
-                if(inLen >= 2){
+                if(inLen >= 2U){
                     
-                    if(isSigned && ((in[1] & 0x80) == 0x80)){
+                    if(isSigned && ((in[1] & 0x80U) == 0x80U)){
 
-                        *out = 0xffffffffffffff00;                               
+                        *out = 0xffffffffffffff00U;                               
                     }
                     else{
                         
-                        *out = 0x0;
+                        *out = 0x0U;
                     }
                     *out |= (uint64_t)in[1];
-                    *out <<= 6;
+                    *out <<= 6U;
                     *out |= (uint64_t)(in[0] & 0x3fU);
                     retval = 2U;
                 }
             }
         }
-        else if(*in == 0xc0){
+        else if(*in == 0xc0U){
 
             *isNull = true;
             retval = 1U;
@@ -248,7 +248,7 @@ uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64
 
             bytes = *in & 0x3fU;
 
-            if(inLen >= (1U + bytes)){
+            if(inLen >= (1U + (uint32_t)bytes)){
 
                 if(bytes <= 8U){
 
@@ -261,7 +261,7 @@ uint8_t BLINK_DecodeVLC(const uint8_t *in, uint32_t inLen, bool isSigned, uint64
                         *out = in[bytes];
                     }
 
-                    for(i=bytes-1; i != 0U; i--){
+                    for(i=bytes-1U; i != 0U; i--){
 
                         *out <<= 8;
                         *out |= in[i];                        
@@ -285,11 +285,11 @@ uint8_t BLINK_DecodeBool(const uint8_t *in, uint32_t inLen, bool *out, bool *isN
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
     if((retval > 0U) && (*isNull == false)){
 
-        if(number <= UINT8_MAX){
+        if(number <= (uint64_t)UINT8_MAX){
             
-            if((number == 0x00) || (number == 0x01)){
+            if((number == 0x00U) || (number == 0x01U)){
 
-                *out = (number == 0x00) ? false : true;
+                *out = (number == 0x00U) ? false : true;
             }
             else{
 
@@ -316,7 +316,7 @@ uint8_t BLINK_DecodeU8(const uint8_t *in, uint32_t inLen, uint8_t *out, bool *is
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
     if((retval > 0U) && (*isNull == false)){
 
-        if(number <= UINT8_MAX){
+        if(number <= (uint64_t)UINT8_MAX){
             
             *out = (uint8_t)number;
         }
@@ -339,7 +339,7 @@ uint8_t BLINK_DecodeU16(const uint8_t *in, uint32_t inLen, uint16_t *out, bool *
     retval = BLINK_DecodeVLC(in, inLen, false, &number, isNull);
     if((retval > 0U) && (*isNull == false)){
 
-        if(number <= UINT16_MAX){
+        if(number <= (uint64_t)UINT16_MAX){
 
             *out = (uint16_t)number;
         }
@@ -564,7 +564,7 @@ uint8_t BLINK_DecodeDecimal(const uint8_t *in, uint32_t inLen, int64_t *mantissa
 
         retval = BLINK_DecodeI64(&in[pos], inLen - pos, mantissa, isNull);
 
-        if(retval > 0){
+        if(retval > 0U){
 
             if(*isNull){
 
@@ -701,6 +701,14 @@ uint32_t BLINK_EncodeOptionalFixed(const uint8_t *in, uint32_t inLen, uint8_t *o
 
 uint8_t BLINK_EncodeF64(double in, uint8_t *out, uint32_t outMax)
 {
+    /*lint -e740 -e9087
+     *
+     * A double is cast as a uint64 so that it can be passed as input BLINK_EncodeVLC.
+     *
+     * This will cause problems on targets where double and uint64_t do not have the
+     * same size and alignment.
+     *
+     * */
     uint64_t *value = (uint64_t *)&in;
     
     return BLINK_EncodeVLC(*value, false, out, outMax);

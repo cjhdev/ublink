@@ -22,6 +22,7 @@
 /* includes ***********************************************************/
 
 #include <string.h>
+#include <stddef.h>
 
 #include "blink_debug.h"
 #include "blink_parser.h"
@@ -221,7 +222,7 @@ struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_call
     BLINK_ASSERT(schema != NULL)
     BLINK_ASSERT(calloc != NULL)
 
-    memset(schema, 0x0, sizeof(*schema));
+    (void)memset(schema, 0x0, sizeof(*schema));
 
     schema->calloc = calloc;
     schema->free = free;
@@ -251,7 +252,7 @@ void BLINK_DestroySchema(struct blink_schema *self)
         }
     }
       
-    memset(self, 0x0, sizeof(*self));
+    (void)memset(self, 0x0, sizeof(*self));
 }
 
 const struct blink_group *BLINK_GetGroupByName(struct blink_schema *self, const char *qName, size_t qNameLen)
@@ -302,7 +303,7 @@ void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct bli
     const struct blink_group *ptr = group;
     bool dynamic;
     
-    memset(iter, 0, sizeof(*iter));
+    (void)memset(iter, 0, sizeof(*iter));
 
     for(iter->depth=0U; iter->depth < BLINK_INHERIT_DEPTH; iter->depth++){
 
@@ -357,6 +358,7 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
     
     if((parseSchema(self, in, inLen) == self) && resolveDefinitions(self) && testConstraints(self)){
 
+        self->finalised = true;
         retval = self;
     }
     else{
@@ -436,6 +438,7 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self)
         default:
             BLINK_ASSERT((size_t)castTypeDef(ptr)->type.tag < (sizeof(translate)/sizeof(*translate)))
             retval = translate[castTypeDef(ptr)->type.tag];
+            break;
         }        
     }    
     else{
@@ -540,7 +543,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
     }
     else{
 
-        memset(&value, 0, sizeof(value));
+        (void)memset(&value, 0, sizeof(value));
     }
 
     element = searchListByName(self->ns, value.literal.ptr, value.literal.len);
@@ -624,7 +627,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                         pos += read;
 
                         if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_TYPE){
-                            BLINK_ERROR("expecting 'type'");
+                            BLINK_ERROR("expecting 'type'")
                             return NULL;
                         }
 
@@ -643,7 +646,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
             }
 
             if(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_LARROW){
-                BLINK_ERROR("expecting '<-'");
+                BLINK_ERROR("expecting '<-'")
                 return NULL;                 
             }
 
@@ -657,14 +660,14 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                 pos += read;
 
-                struct blink_annote *annote;
+                struct blink_annote *annote = NULL;
 
                 if(tok == TOK_AT){
 
                     struct blink_annote a;
 
                     if(!parseAnnote(self, &in[pos], inLen - pos, &read, &a)){
-                        return false;
+                        return NULL;
                     }
 
                     pos += read;
@@ -676,7 +679,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                         annote = castAnnote(newListElement(self, &ia->a, BLINK_ELEM_ANNOTE));
 
                         if(annote == NULL){
-                            return false;
+                            return NULL;
                         }
                     }
 
@@ -690,6 +693,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                     while(ptr != NULL){
 
                         annote = castAnnote(ptr);
+                        
                         if(annote->name == NULL){
                             break;
                         }
@@ -703,7 +707,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                             return NULL;
                         }                                
                     }
-                    
+
                     annote->number = value.number;
                 }
                 else{
@@ -724,7 +728,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
             
             if(searchListByName(ns->defs, name, nameLen) != NULL){
 
-                BLINK_ERROR("duplicate definition name");
+                BLINK_ERROR("duplicate definition name")
                 return NULL;
             }
             
@@ -998,7 +1002,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                         pos += read;
 
                         if(searchListByName(g->f, value.literal.ptr, value.literal.len) != NULL){
-                            BLINK_ERROR("duplicate field name");
+                            BLINK_ERROR("duplicate field name")
                             return NULL;
                         }
 
@@ -1059,30 +1063,34 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
     union blink_token_value value;
     enum blink_token tok = BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL);
 
-    static const enum blink_token tokenToType[] = {
-        TOK_STRING,
-        TOK_BINARY,
-        TOK_FIXED,
-        TOK_BOOL,
-        TOK_U8,
-        TOK_U16,
-        TOK_U32,
-        TOK_U64,
-        TOK_I8,
-        TOK_I16,
-        TOK_I32,
-        TOK_I64,
-        TOK_F64,
-        TOK_DATE,
-        TOK_TIME_OF_DAY_MILLI,
-        TOK_TIME_OF_DAY_NANO,
-        TOK_MILLI_TIME,
-        TOK_NANO_TIME,
-        TOK_DECIMAL,
-        TOK_OBJECT,
+    static const enum blink_itype_tag tokenToType[] = {
+        BLINK_ITYPE_STRING,
+        BLINK_ITYPE_BINARY,
+        BLINK_ITYPE_FIXED,
+        BLINK_ITYPE_BOOL,
+        BLINK_ITYPE_U8,
+        BLINK_ITYPE_U16,
+        BLINK_ITYPE_U32,
+        BLINK_ITYPE_U64,
+        BLINK_ITYPE_I8,
+        BLINK_ITYPE_I16,
+        BLINK_ITYPE_I32,
+        BLINK_ITYPE_I64,
+        BLINK_ITYPE_F64,
+        BLINK_ITYPE_DATE,
+        BLINK_ITYPE_TIME_OF_DAY_MILLI,
+        BLINK_ITYPE_TIME_OF_DAY_NANO,
+        BLINK_ITYPE_NANO_TIME,
+        BLINK_ITYPE_MILLI_TIME,        
+        BLINK_ITYPE_DECIMAL,
+        BLINK_ITYPE_OBJECT
     };
     
     switch(tok){
+    case TOK_STRING:
+    case TOK_BINARY:
+    case TOK_FIXED:
+    case TOK_BOOL:
     case TOK_U8:
     case TOK_U16:
     case TOK_U32:
@@ -1092,16 +1100,14 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
     case TOK_I32:
     case TOK_I64:
     case TOK_F64:
-    case TOK_STRING:
-    case TOK_BINARY:
-    case TOK_FIXED:
-    case TOK_DECIMAL:
     case TOK_DATE:
-    case TOK_MILLI_TIME:
-    case TOK_NANO_TIME:
     case TOK_TIME_OF_DAY_MILLI:
     case TOK_TIME_OF_DAY_NANO:
-
+    case TOK_NANO_TIME:
+    case TOK_MILLI_TIME:
+    case TOK_DECIMAL:
+    case TOK_OBJECT:
+    
         BLINK_ASSERT(tok < (sizeof(tokenToType)/sizeof(*tokenToType)))
 
         type->tag = tokenToType[tok];
@@ -1120,7 +1126,7 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
                 }
                 else{
 
-                    BLINK_ERROR("expecting a size");
+                    BLINK_ERROR("expecting a size")
                     return false;
                 }
 
@@ -1172,7 +1178,7 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
 
     default:
 
-        BLINK_ERROR("expecting a type");
+        BLINK_ERROR("expecting a type")
         return false;                                    
     }
 
@@ -1212,8 +1218,6 @@ static bool parseAnnote(struct blink_schema *self, const char *in, size_t inLen,
     union blink_token_value value;
     enum blink_token tok;
     
-    pos += r;
-
     tok = BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL);
 
     pos += r;
@@ -1366,7 +1370,7 @@ static bool resolveDefinitions(struct blink_schema *self)
 
                     if(f->type.resolvedRef == NULL){
 
-                        BLINK_ERROR("unresolved");
+                        BLINK_ERROR("unresolved")
                         return false;
                     }
                 }
@@ -1464,6 +1468,8 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
     size_t depth = 0U;
     size_t i;
 
+    (void)memset(stack, 0, sizeof(stack));
+
     while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castConstTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
 
         for(i=0U; i < depth; i++){
@@ -1540,6 +1546,8 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
     size_t depth = 0U;
     size_t i;
 
+    (void)memset(stack, 0, sizeof(stack));
+
     while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
     
         for(i=0U; i < depth; i++){
@@ -1562,7 +1570,7 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
 
             if(retval && castTypeDef(ptr)->type.isDynamic){
 
-                BLINK_ERROR("supergroup cannot be dynamic");
+                BLINK_ERROR("supergroup cannot be dynamic")
                 retval = false;
             }    
 
@@ -1640,7 +1648,7 @@ static struct blink_list_element *newListElement(struct blink_schema *self, stru
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(head != NULL)
 
-    struct blink_list_element *retval;
+    struct blink_list_element *retval = NULL;
     struct blink_element *element;
 
     if(type != BLINK_ELEM_NULL){
@@ -1846,7 +1854,7 @@ static struct blink_list_element *initDefinitionIterator(struct blink_def_iterat
     BLINK_ASSERT(iter != NULL)
     BLINK_ASSERT(schema != NULL)
 
-    memset(iter, 0x0, sizeof(*iter));
+    (void)memset(iter, 0x0, sizeof(*iter));
     iter->ns = schema->ns;
 
     while(iter->ns != NULL){

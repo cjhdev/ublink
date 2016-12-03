@@ -50,10 +50,10 @@ extern "C" {
 /* typdefs ************************************************************/
 
 /** a calloc-like function */
-typedef void *(* fn_blink_calloc_t)(size_t, size_t);
+typedef void *(* fn_blink_calloc_t)(size_t nelem, size_t elsize);
 
 /** a free-like function */
-typedef void (* fn_blink_free_t)(void *);
+typedef void (* fn_blink_free_t)(void *ptr);
 
 /* enums **************************************************************/
 

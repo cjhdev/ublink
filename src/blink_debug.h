@@ -24,10 +24,8 @@
 
 #ifdef NDEBUG
 
-    /*lint -e(9026) Allow functionality to be removed completely */
     #define BLINK_ERROR(...) /* BLINK_ERROR(__VA_ARGS__) */
 
-    /*lint -e(9026) Allow functionality to be removed completely */
     #define BLINK_ASSERT(X) /* BLINK_ASSERT(X) */
 
 #else
@@ -35,11 +33,9 @@
     #include <assert.h>
     #include <stdio.h>
 
-    /*lint -e(9026) Allow functionality to be removed completely */
     #define BLINK_ERROR(...)  do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
 
-    /*lint -e(9026) Allow functionality to be removed completely */
-    #define BLINK_ASSERT(X)   /*lint -e(9034) Call to assert */assert((X));
+    #define BLINK_ASSERT(X)   assert((X));
     
 #endif
 
