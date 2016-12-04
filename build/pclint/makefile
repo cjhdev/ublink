@@ -28,7 +28,7 @@ RULES += co-gcc.lnt
 RULES += '-dNDEBUG'
 
 # n pass algorithm
-RULES += '-passes(3)'
+RULES += '-passes(2)'
 
 # no line breaks, 4 character indent
 RULES += '-width(0,4)'
@@ -41,6 +41,9 @@ RULES += '-restore_at_end'
 
 # our headers are not library headers
 RULES += '-libdir($(DIR_ROOT)/include)'
+
+# unit checkout since this is a library
+RULES += '-u'
 
 # verbose
 RULES += '-vfo'

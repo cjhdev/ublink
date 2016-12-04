@@ -282,9 +282,11 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
 
     while((retval == NULL) && (defPtr != NULL)){
 
-        if((defPtr->type == BLINK_ELEM_GROUP) && castGroup(defPtr)->hasID && (castGroup(defPtr)->id == id)){
+        struct blink_group *gPtr = (defPtr->type == BLINK_ELEM_GROUP) ? castGroup(defPtr) : NULL;
 
-            retval = castGroup(defPtr);
+        if((gPtr != NULL) && gPtr->hasID && (gPtr->id == id)){    
+
+            retval = gPtr;
         }
         else{
             
@@ -356,12 +358,19 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
 
     struct blink_schema *retval = NULL;
     
-    if((parseSchema(self, in, inLen) == self) && resolveDefinitions(self) && testConstraints(self)){
+    if(parseSchema(self, in, inLen) == self){
 
-        self->finalised = true;
-        retval = self;
+        if(resolveDefinitions(self)){
+
+            if(testConstraints(self)){
+
+                self->finalised = true;
+                retval = self;
+            }
+        }
     }
-    else{
+
+    if(retval != self){
 
         BLINK_DestroySchema(self);
     }
@@ -614,8 +623,7 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                 pos += read;
 
-                switch(tok){
-                case TOK_NAME:
+                if(tok == TOK_NAME){
 
                     ia->fieldName = value.literal.ptr;
                     ia->fieldNameLen = value.literal.len;
@@ -635,11 +643,13 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                         ia->type = true;
                     }
-                    break;            
-                case TOK_TYPE:
+                }
+                else if (tok == TOK_TYPE){
+
                     ia->type = true;
-                    break;
-                default:
+                }
+                else{
+                
                     BLINK_ERROR("expecting <name> or 'type'")
                     return NULL;
                 }
@@ -825,29 +835,27 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
 
                             pos += read;
 
-                            switch(tok){
-                            case TOK_UINT:
+                            if(tok == TOK_UINT){
 
-                                if(value.number > INT32_MAX){
+                                if(value.number > (uint64_t)INT32_MAX){
 
                                     BLINK_ERROR("enum symbol value out of range")
                                     return NULL;
                                 }
                                 s->value = (int32_t)value.number;
-                                break;
+                            }
+                            else if(tok == TOK_INT){
                             
-                            case TOK_INT:
-
-                                if((value.signedNumber > INT32_MAX) || (value.signedNumber < INT32_MIN)){
+                                if((value.signedNumber > (int64_t)INT32_MAX) || (value.signedNumber < (int64_t)INT32_MIN)){
 
                                     BLINK_ERROR("enum symbol value out of range")
                                     return NULL;
                                 }
 
                                 s->value = (int32_t)value.signedNumber;
-                                break;
+                            }
+                            else{
                                 
-                            default:
                                 BLINK_ERROR("expecting enum symbol value")
                                 return NULL;
                             }
@@ -889,9 +897,14 @@ static struct blink_schema *parseSchema(struct blink_schema *self, const char *i
                                     return NULL;
                                 }
                             }                            
-                        }                                
+                        }
+
+                        if(singleton){
+
+                            break;
+                        }           
                     }
-                    while(!singleton && (BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR));                                    
+                    while(BLINK_GetToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR);
                 }
                 /* type */
                 else{
@@ -1085,32 +1098,10 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
         BLINK_ITYPE_DECIMAL,
         BLINK_ITYPE_OBJECT
     };
-    
-    switch(tok){
-    case TOK_STRING:
-    case TOK_BINARY:
-    case TOK_FIXED:
-    case TOK_BOOL:
-    case TOK_U8:
-    case TOK_U16:
-    case TOK_U32:
-    case TOK_U64:
-    case TOK_I8:
-    case TOK_I16:
-    case TOK_I32:
-    case TOK_I64:
-    case TOK_F64:
-    case TOK_DATE:
-    case TOK_TIME_OF_DAY_MILLI:
-    case TOK_TIME_OF_DAY_NANO:
-    case TOK_NANO_TIME:
-    case TOK_MILLI_TIME:
-    case TOK_DECIMAL:
-    case TOK_OBJECT:
-    
-        BLINK_ASSERT(tok < (sizeof(tokenToType)/sizeof(*tokenToType)))
 
-        type->tag = tokenToType[tok];
+    if((size_t)tok < (sizeof(tokenToType)/sizeof(*tokenToType))){
+    
+        type->tag = tokenToType[tok];   /*lint !e661 !e662 no way this is out of bounds */
 
         pos += r;
 
@@ -1158,11 +1149,9 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
                 type->size = 0xffffffffU;
             }
         }
-        break;
-
-    case TOK_NAME:
-    case TOK_CNAME:
-
+    }
+    else if((tok == TOK_NAME) || (tok == TOK_CNAME)){
+        
         pos += r;
 
         type->ref = value.literal.ptr;
@@ -1174,9 +1163,8 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
             pos += r;
             type->isDynamic = true;            
         }
-        break;
-
-    default:
+    }
+    else{
 
         BLINK_ERROR("expecting a type")
         return false;                                    
@@ -1380,6 +1368,7 @@ static bool resolveDefinitions(struct blink_schema *self)
             break;
 
         default:
+            /*do not resolve*/
             break;
         }
 
@@ -1470,7 +1459,7 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
 
     (void)memset(stack, 0, sizeof(stack));
 
-    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castConstTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
+    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castConstTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){    /*lint !e9007 no side effect */
 
         for(i=0U; i < depth; i++){
 
@@ -1498,7 +1487,7 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
                 }
             }
 
-            if(retval && castConstTypeDef(ptr)->type.isSequence){
+            if(retval && castConstTypeDef(ptr)->type.isSequence){   /*lint !e9007 no side effect */
 
                 /* sequence of a sequence */
                 if(sequence){
@@ -1548,8 +1537,8 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
 
     (void)memset(stack, 0, sizeof(stack));
 
-    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){
-    
+    while(retval && (ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){ /*lint !e9007 no side effect */
+
         for(i=0U; i < depth; i++){
 
             if(stack[i] == ptr){
@@ -1567,25 +1556,26 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
                 BLINK_ERROR("supergroup cannot be sequence");
                 retval = false;
             }
+            else{
 
-            if(retval && castTypeDef(ptr)->type.isDynamic){
+                if(castTypeDef(ptr)->type.isDynamic){
 
-                BLINK_ERROR("supergroup cannot be dynamic")
-                retval = false;
-            }    
-
-            if(retval){
-
-                depth++;
-                if(depth == (sizeof(stack)/sizeof(*stack))){
-
-                    BLINK_ERROR("depth")
+                    BLINK_ERROR("supergroup cannot be dynamic")
                     retval = false;
                 }
                 else{
 
-                    stack[depth] = ptr;
-                    ptr = castTypeDef(ptr)->type.resolvedRef;
+                    depth++;
+                    if(depth == (sizeof(stack)/sizeof(*stack))){
+
+                        BLINK_ERROR("depth")
+                        retval = false;
+                    }
+                    else{
+
+                        stack[depth] = ptr;
+                        ptr = castTypeDef(ptr)->type.resolvedRef;
+                    }
                 }
             }
         }
@@ -1627,10 +1617,13 @@ static bool testSuperGroupShadowConstraint(const struct blink_schema *self, cons
             
             if(f != field){
 
-                if((f->nameLen == field->nameLen) && (memcmp(f->name, field->name, f->nameLen) == 0)){
+                if(f->nameLen == field->nameLen){
 
-                    BLINK_ERROR("field name shadowed in subgroup")
-                    return false;
+                    if(memcmp(f->name, field->name, f->nameLen) == 0){
+
+                        BLINK_ERROR("field name shadowed in subgroup")
+                        return false;
+                    }
                 }
             }
 
@@ -1653,7 +1646,7 @@ static struct blink_list_element *newListElement(struct blink_schema *self, stru
 
     if(type != BLINK_ELEM_NULL){
 
-        element = (struct blink_element *)self->calloc(1, sizeof(struct blink_element));
+        element = (struct blink_element *)self->calloc(1, sizeof(struct blink_element));    /*lint !e9087 casting to the type that was allocated */
 
         if(element != NULL){
 
@@ -1716,6 +1709,7 @@ static struct blink_list_element *newListElement(struct blink_schema *self, stru
                     break;            
                 case BLINK_ELEM_NULL:
                 default:
+                    /*unused*/
                     break;
                 }
 
@@ -1734,16 +1728,19 @@ static struct blink_list_element *newListElement(struct blink_schema *self, stru
             }
             else{
 
+                /* calloc() */
                 BLINK_ERROR("calloc()")
             }
         }
         else{
 
+            /* calloc() */
             BLINK_ERROR("calloc()")
         }
     }
     else{
-
+        
+        /* bad argument */
         BLINK_ERROR("cannot create a BLINK_ELEM_NULL")
     }
 
@@ -1779,14 +1776,26 @@ static struct blink_list_element *searchListByName(struct blink_list_element *he
     BLINK_ASSERT(offsetof(struct blink_symbol, name) == offsetof(struct blink_base_type, name))
     BLINK_ASSERT(offsetof(struct blink_symbol, nameLen) == offsetof(struct blink_base_type, nameLen))
 
+        
+    BLINK_ASSERT(   (ptr == NULL) ||
+                    (ptr->type == BLINK_ELEM_NS)||
+                    (ptr->type == BLINK_ELEM_GROUP)||
+                    (ptr->type == BLINK_ELEM_FIELD)||
+                    (ptr->type == BLINK_ELEM_TYPE)||
+                    (ptr->type == BLINK_ELEM_ENUM)||
+                    (ptr->type == BLINK_ELEM_SYMBOL))
+    
     while(ptr != NULL){
 
-        const struct blink_base_type *deref = (const struct blink_base_type *)ptr->ptr;
+        const struct blink_base_type *deref = (const struct blink_base_type *)ptr->ptr; /*lint !e9087 'struct blink_base_type' verified as common subtype by BLINK_ASSERT */
 
-        if((deref->nameLen == nameLen) && (memcmp(deref->name, name, nameLen) == 0)){
+        if(deref->nameLen == nameLen){
 
-            retval = ptr;
-            break;
+            if(memcmp(deref->name, name, nameLen) == 0){
+
+                retval = ptr;
+                break;
+            }
         }
 
         ptr = ptr->next;
@@ -1815,8 +1824,8 @@ static void splitCName(const char *in, size_t inLen, const char **nsName, size_t
         if(in[i] == ':'){
             *nsName = in;
             *nsNameLen = i;
-            *name = &in[i+1];
-            *nameLen = inLen - (i+1);
+            *name = &in[i+1U];
+            *nameLen = inLen - (i+1U);
             break;
         }
     }
@@ -1836,14 +1845,14 @@ static struct blink_list_element *getTerminal(struct blink_list_element *element
     struct blink_list_element *ptr = element;
     *dynamic = false;
 
-    while((ptr->type == BLINK_ELEM_TYPE) && (((struct blink_type_def *)ptr->ptr)->type.tag == BLINK_ITYPE_REF)){
+    while((ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){   /*lint !e9007 no side effect */
 
-        if(((struct blink_type_def *)ptr->ptr)->type.isDynamic){
+        if(castTypeDef(ptr)->type.isDynamic){
 
             *dynamic = true;
         }
         
-        ptr = ((struct blink_type_def *)ptr->ptr)->type.resolvedRef;
+        ptr = castTypeDef(ptr)->type.resolvedRef;
     }
 
     return ptr;
@@ -1906,45 +1915,45 @@ static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter
 
 static struct blink_enum *castEnum(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_enum *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_enum *)self->ptr;  /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_symbol *castSymbol(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_symbol *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_symbol *)self->ptr;    /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_field *castField(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_field *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_field *)self->ptr; /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_group *castGroup(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_group *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_group *)self->ptr; /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_namespace *castNamespace(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_namespace *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_namespace *)self->ptr; /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_type_def *castTypeDef(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_type_def *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_type_def *)self->ptr;  /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_annote *castAnnote(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_annote *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_annote *)self->ptr;    /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_incr_annote *castIncrAnnote(struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (struct blink_incr_annote *)self->ptr;
+    return (self == NULL) ? NULL : (struct blink_incr_annote *)self->ptr;   /*lint !e9087 void pointer was used as intermediary */
 }
 
 static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self)
 {
-    return (self == NULL) ? NULL : (const struct blink_type_def *)self->ptr;
+    return (self == NULL) ? NULL : (const struct blink_type_def *)self->ptr;    /*lint !e9087 void pointer was used as intermediary */
 }

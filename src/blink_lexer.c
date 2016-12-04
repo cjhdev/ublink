@@ -150,6 +150,10 @@ const char *BLINK_TokenToString(enum blink_token token, size_t *len)
 
 enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location)
 {
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(value != NULL)
+    
     size_t pos = 0U;
     enum blink_token retval = TOK_EOF;
     size_t r;
@@ -442,8 +446,8 @@ static bool isUnsignedNumber(const char *in, size_t inLen, size_t *read, uint64_
     *read = 0U;
     uint8_t digit = 0U;
 
-    /*lint -e9007 side effect: digit may be initialised */
-    if((*read < inLen) && isInteger(*in, &digit)){
+    
+    if((*read < inLen) && isInteger(*in, &digit)){  /*lint !e9007 side effect is digit may be initialised */
 
         retval = true;
         *out = (uint64_t)digit;
@@ -479,7 +483,7 @@ static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *
     *read = 0U;
     uint8_t digit = 0U;
     
-    if((*read < inLen) && ((*in == '-') || isInteger(*in, &digit))){
+    if((*read < inLen) && ((*in == '-') || isInteger(*in, &digit))){    /*lint !e9007 side effect is digit may be initialised */
 
         bool negative = (*in == '-') ? true : false;
 
@@ -487,7 +491,7 @@ static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *
 
         if(negative){
 
-            if((*read < inLen) && isInteger(in[*read], &digit)){
+            if((*read < inLen) && isInteger(in[*read], &digit)){    /*lint !e9007 side effect is digit may be initialised*/
 
                 *out = (int64_t)digit;
                 (*read)++;
@@ -543,8 +547,8 @@ static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *ou
 
             (*read)++;    
 
-            /*lint -e9007 side effect: digit may be initialised */
-            if((*read < inLen) && isHexInteger(in[*read], &digit)){
+            
+            if((*read < inLen) && isHexInteger(in[*read], &digit)){ /*lint !e9007 side effect is digit may be initialised */
 
                 (*read)++;
 
