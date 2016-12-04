@@ -39,6 +39,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* forward declarations ***********************************************/
 
@@ -48,32 +49,218 @@ struct blink_field;     /**< forward declaration */
 
 /* typedefs ***********************************************************/
 
-typedef void (* begin_static_group_fn_t)(void *, const struct blink_group *);
-typedef void (* end_static_group_fn_t)(void *, const struct blink_group *);
-typedef void (* begin_dynamic_group_fn_t)(void *, const struct blink_group *);
-typedef void (* end_dynamic_group_fn_t)(void *, const struct blink_group *);
-typedef void (* begin_sequence_fn_t)(void *, uint32_t);
-typedef void (* end_sequence_fn_t)(void *);
-typedef void (* string_fn_t)(void *, const uint8_t *, uint32_t);    /**< handle a `string` */
-typedef void (* binary_fn_t)(void *, const uint8_t *, uint32_t);    /**< handle a `binary` */
-typedef void (* fixed_fn_t)(void *, const uint8_t *, uint32_t);     /**< handle a `fixed` */
-typedef void (* bool_fn_t)(void *, bool);       /**< handle a `bool` */
-typedef void (* u8_fn_t)(void *, uint8_t);      /**< handle a `u8` */
-typedef void (* u16_fn_t)(void *, uint16_t);    /**< handle a `u16` */
-typedef void (* u32_fn_t)(void *, uint32_t);    /**< handle a `u32` */
-typedef void (* u64_fn_t)(void *, uint64_t);    /**< handle a `u64` */
-typedef void (* i8_fn_t)(void *, int8_t);       /**< handle a `u8` */
-typedef void (* i16_fn_t)(void *, int16_t);     /**< handle an `i16` */
-typedef void (* i32_fn_t)(void *, int32_t);     /**< handle an `i32` */
-typedef void (* i64_fn_t)(void *, int64_t);     /**< handle an `i64` */
-typedef void (* float_fn_t)(void *, double);    /**< handle an `f64` */
-typedef void (* decimal_fn_t)(void *, int64_t, int8_t); /**< handle a `decimal` */
-typedef void (* enum_fn_t)(void *, const char *, uint16_t, uint64_t);   /**< handle an `enum` */
-typedef void (* milli_time_fn_t)(void *, int64_t);  /**< handle a `millitime` */
-typedef void (* nano_time_fn_t)(void *, int64_t);   /**< handle a `nanotime` */
-typedef void (* milli_timeofday_fn_t)(void *, uint32_t);    /**< handle a `timeOfDayMilli` */
-typedef void (* nano_timeofday_fn_t)(void *, uint64_t);     /**< handle a `timeOfDayNano` */
-typedef void (* date_fn_t)(void *, int64_t);                /**< handle a `date` */
+/** beginning of static group event handler
+ *
+ * @param[in] user
+ * @param[in] group group definition
+ * 
+ * */
+typedef void (* blink_begin_static_group_fn_t)(void *user, const struct blink_group *group);
+
+/** end of static group event handler
+ *
+ * @param[in] user
+ * @param[in] group group definition
+ * 
+ * */
+typedef void (* blink_end_static_group_fn_t)(void *user, const struct blink_group *group);
+
+/** beginning of dynamic group event handler
+ *
+ * @param[in] user
+ * @param[in] group group definition
+ * 
+ * */
+typedef void (* blink_begin_dynamic_group_fn_t)(void *user, const struct blink_group *group);
+
+/** end of dynamic group event handler
+ *
+ * @param[in] user
+ * @param[in] group group definition
+ * 
+ * */
+typedef void (* blink_end_dynamic_group_fn_t)(void *user, const struct blink_group *group);
+
+/** beginning of sequence handler
+ *
+ * @param[in] user
+ * @param[in] numberOfElements number of elements to follow
+ * 
+ * */
+typedef void (* blink_begin_sequence_fn_t)(void *user, uint32_t numberOfElements);
+
+/** end of sequence handler
+ *
+ * @param[in] user
+ * 
+ * */
+typedef void (* blink_end_sequence_fn_t)(void *user);
+
+/** beginning of field handler
+ *
+ * @param[in] user
+ * @param[in] name field name
+ * @param[in] nameLen byte length of `name`
+ * @param[in] optional true if this field is optional
+ * 
+ * */
+typedef void (* blink_begin_field_fn_t)(void *user, const char *name, size_t nameLen, bool optional);
+
+/** end of field handler
+ *
+ * @param[in] user
+ * @param[in] name field name
+ * @param[in] nameLen byte length of `name`
+ * 
+ * */
+typedef void (* blink_end_field_fn_t)(void *user, const char *name, size_t nameLen);
+
+/**
+ * @param[in] user
+ * @param[in] value     byte string
+ * @param[in] valueLen  byte length of `value`
+ *
+ * */
+typedef void (* blink_string_fn_t)(void *user, const uint8_t *value, uint32_t valueLen);
+
+/**
+ * @param[in] user
+ * @param[in] value     byte string
+ * @param[in] valueLen  byte length of `value`
+ *
+ * */
+typedef void (* blink_binary_fn_t)(void *user, const uint8_t *value, uint32_t valueLen);
+
+/**
+ * @param[in] user
+ * @param[in] value     byte string
+ * @param[in] valueLen  byte length of `value`
+ *
+ * */
+typedef void (* blink_fixed_fn_t)(void *user, const uint8_t *value, uint32_t valueLen);
+
+/**
+ * @param[in] user
+ * @param[in] value `bool`
+ *
+ * */
+typedef void (* blink_bool_fn_t)(void *user, bool value);
+
+/**
+ * @param[in] user
+ * @param[in] value `u8`
+ *
+ * */
+typedef void (* blink_u8_fn_t)(void *user, uint8_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `u16`
+ *
+ * */
+typedef void (* blink_u16_fn_t)(void *user, uint16_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `u32`
+ *
+ * */
+typedef void (* blink_u32_fn_t)(void *user, uint32_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `u64`
+ *
+ * */
+typedef void (* blink_u64_fn_t)(void *user, uint64_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `i8`
+ *
+ * */
+typedef void (* blink_i8_fn_t)(void *user, int8_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `i16`
+ *
+ * */
+typedef void (* blink_i16_fn_t)(void *user, int16_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `i32`
+ *
+ * */
+typedef void (* blink_i32_fn_t)(void *user, int32_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `i64`
+ *
+ * */
+typedef void (* blink_i64_fn_t)(void *user, int64_t value);
+
+/**
+ * @param[in] user
+ * @param[in] value `f64`
+ *
+ * */
+typedef void (* blink_float_fn_t)(void *user, double value);
+
+/**
+ * value = mantissa x 10 ^ exponent
+ * 
+ * @param[in] user
+ * @param[in] mantissa `decimal` mantissa
+ * @param[in] exponent `decimal` exponent
+ *
+ * */
+typedef void (* blink_decimal_fn_t)(void *user, int64_t mantissa, int8_t exponent);
+
+/**
+ * @param[in] user
+ * @param[in] name `enum` symbol name string
+ * @param[in] nameLen byte length of `name`
+ *
+ * */
+typedef void (* blink_enum_fn_t)(void *user, const char *name, size_t nameLen);   /**< handle an `enum` */
+
+/**
+ * @param[in] user
+ * @param[in] time `millitime`
+ *
+ * */
+typedef void (* blink_milli_time_fn_t)(void *user, int64_t time);
+
+/**
+ * @param[in] user
+ * @param[in] time `nanotime`
+ *
+ * */
+typedef void (* blink_nano_time_fn_t)(void *user, int64_t time);
+
+/**
+ * @param[in] user
+ * @param[in] timeOfDay `milliTimeOfDay`
+ *
+ * */   
+typedef void (* blink_milli_timeofday_fn_t)(void *user, uint32_t timeOfDay);
+
+/**
+ * @param[in] user
+ * @param[in] timeOfDay `nanoTimeOfDay`
+ *
+ * */   
+typedef void (* blink_nano_timeofday_fn_t)(void *user, uint64_t timeOfDay);
+
+/**
+ * @param[in] user
+ * @param[in] date `date`
+ *
+ * */   
+typedef void (* blink_date_fn_t)(void *user, int64_t date);
 
 /* structs ************************************************************/
 
@@ -83,39 +270,36 @@ typedef void (* date_fn_t)(void *, int64_t);                /**< handle a `date`
  *
  * */
 struct blink_decoder_events {
-    string_fn_t string;             /**< `string` handler */
-    binary_fn_t binary;             /**< `binary` handler */
-    fixed_fn_t fixed;               /**< `fixed` handler */
-    bool_fn_t bool;                 /**< `bool` handler */
-    u8_fn_t u8;                     /**< `u8` handler */
-    u16_fn_t u16;                   /**< `u16` handler */
-    u32_fn_t u32;                   /**< `u32` handler */
-    u64_fn_t u64;                   /**< `u64` handler */
-    i8_fn_t i8;                     /**< `i8` handler */
-    i16_fn_t i16;                   /**< `i16` handler */
-    i32_fn_t i32;                   /**< `i32` handler */
-    i64_fn_t i64;                   /**< `i64` handler */
-    float_fn_t f64;                 /**< `f64` handler */
-    decimal_fn_t decimal;           /**< `decimal` handler */
-    milli_time_fn_t millitime;      /**< `millitime` handler */
-    nano_time_fn_t nanotime;        /**< `nanotime` handler */
-    milli_time_fn_t timeOfDayMilli; /**< `timeOfDayMilli` handler */
-    nano_time_fn_t timeOfDayNano;   /**< `timeOfDayNano` handler */
-    date_fn_t date;                 /**< `date` handler */
-
-    begin_static_group_fn_t beginStaticGroup;   /**< handler for beginning of a static group */
-    end_static_group_fn_t endStaticGroup;       /**< handler for end of a static group */
-
-    begin_dynamic_group_fn_t beginDynamicGroup; /**< handler for beginning of a dynamic group */
-    end_dynamic_group_fn_t endDynamicGroup;     /**< handler for end of a dynamic group */
-
-    begin_sequence_fn_t beginSequence;          /**< handler for beginning of a sequence */
-    end_sequence_fn_t endSequence;              /**< handler for end of a sequence */    
+    blink_string_fn_t string;
+    blink_binary_fn_t binary;
+    blink_fixed_fn_t fixed;
+    blink_bool_fn_t bool;
+    blink_u8_fn_t u8;
+    blink_u16_fn_t u16;
+    blink_u32_fn_t u32;
+    blink_u64_fn_t u64;
+    blink_i8_fn_t i8;
+    blink_i16_fn_t i16;
+    blink_i32_fn_t i32;
+    blink_i64_fn_t i64;
+    blink_float_fn_t f64;
+    blink_decimal_fn_t decimal;
+    blink_milli_time_fn_t millitime;
+    blink_nano_time_fn_t nanotime;
+    blink_milli_time_fn_t timeOfDayMilli;
+    blink_nano_time_fn_t timeOfDayNano;
+    blink_date_fn_t date;
+    blink_begin_field_fn_t beginField;
+    blink_end_field_fn_t endField;
+    blink_begin_static_group_fn_t beginStaticGroup;
+    blink_end_static_group_fn_t endStaticGroup;
+    blink_begin_dynamic_group_fn_t beginDynamicGroup;
+    blink_end_dynamic_group_fn_t endDynamicGroup;
+    blink_begin_sequence_fn_t beginSequence;
+    blink_end_sequence_fn_t endSequence;
 };
 
-/** decoder state
- *
- * @private */
+/** decoder state */
 struct blink_decoder {
         
     const struct blink_schema *schema;      /**< schema to decode against */

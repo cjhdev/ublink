@@ -508,7 +508,7 @@ uint32_t BLINK_DecodeFixed(const uint8_t *in, uint32_t inLen, const uint8_t **ou
     }
     else{
 
-        BLINK_ERROR("S1: EOF")
+        BLINK_ERROR("S1: EOF")  /* EOF */
     }
 
     return retval;
@@ -597,6 +597,53 @@ uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *is
 
     return retval;
 }
+
+#if 0
+uint32_t BLINK_DecodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **fields, uint32_t *fieldsLen, bool *isNull)
+{
+    const uint8_t *inner;
+    uint32_t innerLen;
+    uint32_t retval = 0U;
+    bool idIsNull;
+
+    uint32_t ret = BLINK_DecodeBinary(in, inLen, &inner, &innerLen, isNull);
+
+    if(ret > 0U){
+
+        pos += ret;
+
+        if(isNull){
+
+            if(innerLen != 0U){
+
+                ret = BLINK_DecodeU64(inner, innerLen, id, &idIsNull);
+
+                if(ret > 0U){
+
+                    pos += ret;
+
+                    *fields = inner[ret];
+                    *fieldsLen = innerLen
+                }
+                else{
+
+                    BLINK_ERROR("Group ID cannot be NULL")
+                }
+            }
+            else{
+
+                BLINK_ERROR("W1: Group cannot have size of zero")
+            }
+        }
+        else{
+            
+            retval = ret;
+        }
+    }
+
+    return retval;
+}
+#endif
 
 uint8_t BLINK_EncodeBool(bool in, uint8_t *out, uint32_t outMax)
 {
@@ -701,15 +748,7 @@ uint32_t BLINK_EncodeOptionalFixed(const uint8_t *in, uint32_t inLen, uint8_t *o
 
 uint8_t BLINK_EncodeF64(double in, uint8_t *out, uint32_t outMax)
 {
-    /*lint -e740 -e9087
-     *
-     * A double is cast as a uint64 so that it can be passed as input BLINK_EncodeVLC.
-     *
-     * This will cause problems on targets where double and uint64_t do not have the
-     * same size and alignment.
-     *
-     * */
-    uint64_t *value = (uint64_t *)&in;
+    uint64_t *value = (uint64_t *)&in;  /*lint !e740 !e9087 double cast to uint64_t */
     
     return BLINK_EncodeVLC(*value, false, out, outMax);
 }

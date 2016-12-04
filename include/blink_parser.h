@@ -49,10 +49,21 @@ extern "C" {
 
 /* typdefs ************************************************************/
 
-/** a calloc-like function */
+/** A calloc-like function
+ *
+ * @param[in] nelem number of elements
+ * @param[in] elsize byte size of an element
+ * @return a pointer to the allocated memory
+ * @retval NULL allocation failed
+ * 
+ * */
 typedef void *(* fn_blink_calloc_t)(size_t nelem, size_t elsize);
 
-/** a free-like function */
+/** A free-like function
+ *
+ * @param[in] ptr pointer to memory previously allocated
+ *
+ * */
 typedef void (* fn_blink_free_t)(void *ptr);
 
 /* enums **************************************************************/
@@ -103,7 +114,7 @@ struct blink_schema {
 
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
 struct blink_field_iterator {
-    struct blink_list_element *field[BLINK_INHERIT_DEPTH];  /**< stack of pointers to fields within groups (inheritence is limited to MAX_DEPTH) */
+    struct blink_list_element *field[BLINK_INHERIT_DEPTH];  /**< stack of pointers to fields within groups */
     uint16_t depth;                                         /**< current depth in `field` */
 };
 
@@ -232,8 +243,8 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self);
 
 /** Get the size of this field (if applicable)
  *
- * @note applicable if #TYPE_FIXED, #TYPE_BINARY, or #TYPE_STRING
- * @note for #TYPE_STRING and #TYPE_BINARY size means maximum size
+ * @note applicable if #BLINK_TYPE_FIXED, #BLINK_TYPE_BINARY, or #BLINK_TYPE_STRING
+ * @note for #BLINK_TYPE_STRING and #BLINK_TYPE_BINARY size means maximum size
  *
  * @param[in] self receiver
  * 
@@ -244,14 +255,14 @@ uint32_t BLINK_GetFieldSize(const struct blink_field *self);
 
 /** Get the type referencestring of this field (if applicable)
  *
- * @note applicable if #TYPE_REF or #TYPE_DYNAMIC_REF
+ * @note applicable if #BLINK_TYPE_REF or #BLINK_TYPE_DYNAMIC_REF
  *
  * @param[in] self receiver
  * @param[out] refLen byte length of reference string
  *
  * @return pointer to reference string
  * 
- * @retval NULL this field is not a #TYPE_REF or #TYPE_DYNAMIC_REF
+ * @retval NULL this field is not a #BLINK_TYPE_DYNAMIC_GROUP or #BLINK_TYPE_DYNAMIC_REF
  *
  * */
 const char *BLINK_GetFieldRef(const struct blink_field *self, size_t *refLen);
