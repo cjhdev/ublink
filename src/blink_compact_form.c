@@ -598,52 +598,29 @@ uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *is
     return retval;
 }
 
-#if 0
-uint32_t BLINK_DecodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **fields, uint32_t *fieldsLen, bool *isNull)
+uint8_t BLINK_DecodePresent(const uint8_t *in, uint32_t inLen, bool *out)
 {
-    const uint8_t *inner;
-    uint32_t innerLen;
-    uint32_t retval = 0U;
-    bool idIsNull;
+    BLINK_ASSERT(out != NULL)
 
-    uint32_t ret = BLINK_DecodeBinary(in, inLen, &inner, &innerLen, isNull);
+    bool isNull;
+    uint64_t value;
+    uint8_t retval = BLINK_DecodeVLC(in, inLen, false, &value, &isNull);
 
-    if(ret > 0U){
+    if(retval > 0U){
 
-        pos += ret;
+        if(isNull || (value == 0x01U)){
 
-        if(isNull){
-
-            if(innerLen != 0U){
-
-                ret = BLINK_DecodeU64(inner, innerLen, id, &idIsNull);
-
-                if(ret > 0U){
-
-                    pos += ret;
-
-                    *fields = inner[ret];
-                    *fieldsLen = innerLen
-                }
-                else{
-
-                    BLINK_ERROR("Group ID cannot be NULL")
-                }
-            }
-            else{
-
-                BLINK_ERROR("W1: Group cannot have size of zero")
-            }
+            *out = (isNull) ? false : true;            
         }
         else{
-            
-            retval = ret;
+
+            BLINK_ERROR("W9: presence flag must be 0xc0 or 0x01")
+            retval = 0U;
         }
     }
 
     return retval;
 }
-#endif
 
 uint8_t BLINK_EncodeBool(bool in, uint8_t *out, uint32_t outMax)
 {

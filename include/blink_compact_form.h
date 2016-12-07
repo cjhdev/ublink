@@ -332,6 +332,19 @@ uint8_t BLINK_DecodeDecimal(const uint8_t *in, uint32_t inLen, int64_t *mantissa
 uint8_t BLINK_DecodeF64(const uint8_t *in, uint32_t inLen, double *out, bool *isNull);
 
 /**
+ * Decode a present field
+ *
+ * @param[in] in input buffer
+ * @param[in] inLen byte length of `in`
+ * @param[out] out set to `true` if present
+ *
+ * @return number of bytes successfully read from `in`
+ * @retval 0..1
+ * 
+ * */
+uint8_t BLINK_DecodePresent(const uint8_t *in, uint32_t inLen, bool *out);
+
+/**
  * Encode `bool`
  *
  * @param[in] in input value

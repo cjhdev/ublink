@@ -70,20 +70,20 @@ struct blink_type {
     bool isSequence;            /**< this is a SEQUENCE of type */                
     uint32_t size;              /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */
     const char *ref;            /**< name of reference (applicable to #BLINK_ITYPE_REF) */
-    size_t refLen;                                  /**< byte length of `ref` */
-    enum blink_itype_tag tag;                       /**< what type is this? */
-    struct blink_list_element *resolvedRef;   /**< `ref` resolves to this structure */
+    size_t refLen;                          /**< byte length of `ref` */
+    enum blink_itype_tag tag;               /**< what type is this? */
+    struct blink_list_element *resolvedRef; /**< `ref` resolves to this structure */
     struct blink_list_element *a;
 };
 
 /** field */
 struct blink_field {
-    const char *name;           /**< name of this field */
-    size_t nameLen;             /**< byte length of `name` */
-    bool isOptional;            /**< field is optional */
+    const char *name;               /**< name of this field */
+    size_t nameLen;                 /**< byte length of `name` */
+    bool isOptional;                /**< field is optional */
     uint64_t id;
     bool hasID;
-    struct blink_type type;     /**< field type information */
+    struct blink_type type;         /**< field type information */
     struct blink_list_element *a;
 };
 
@@ -111,9 +111,9 @@ struct blink_symbol {
 
 /** enumeration */
 struct blink_enum {
-    const char *name;           /**< name of this field */
-    size_t nameLen;             /**< byte length of `name` */
-    struct blink_list_element *s;     /**< symbols belonging to enumeration */
+    const char *name;               /**< name of this field */
+    size_t nameLen;                 /**< byte length of `name` */
+    struct blink_list_element *s;   /**< symbols belonging to enumeration */
     struct blink_list_element *a;
 };
 
@@ -513,6 +513,26 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
         }
 
         ptr = ptr->next;
+    }
+
+    return retval;
+}
+
+bool BLINK_KindOfGroup(const struct blink_group *base, const struct blink_group *group)
+{
+    bool retval = false;
+    
+    if(group != base){
+
+        
+
+        getTerminal(group->s)
+        ptr = ;
+
+        while(ptr != NULL){
+
+            
+        }
     }
 
     return retval;
