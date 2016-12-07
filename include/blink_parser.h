@@ -253,19 +253,27 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self);
  * */
 uint32_t BLINK_GetFieldSize(const struct blink_field *self);
 
-/** Get the type referencestring of this field (if applicable)
- *
- * @note applicable if #BLINK_TYPE_REF or #BLINK_TYPE_DYNAMIC_REF
- *
- * @param[in] self receiver
- * @param[out] refLen byte length of reference string
- *
- * @return pointer to reference string
+
+/** Return group for field type
  * 
- * @retval NULL this field is not a #BLINK_TYPE_DYNAMIC_GROUP or #BLINK_TYPE_DYNAMIC_REF
+ * @param[in] self receiver
+ *
+ * @return pointer to group definition
+ *
+ * @retval NULL field type is not a static or dynamic group
  *
  * */
-const char *BLINK_GetFieldRef(const struct blink_field *self, size_t *refLen);
+const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self);
+
+/** test if self is group or a subclass of group
+ * 
+ * @param[in] self receiver
+ * @param[in] group
+ *
+ * @return is self a group or subclass of group?
+ *
+ * */ 
+bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_group *group);
 
 /**
  * @param[in] self receiver

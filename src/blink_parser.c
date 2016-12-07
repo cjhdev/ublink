@@ -466,13 +466,26 @@ uint32_t BLINK_GetFieldSize(const struct blink_field *self)
     return self->type.size;
 }
 
-const char *BLINK_GetFieldRef(const struct blink_field *self, size_t *refLen)
+const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(refLen != NULL)
 
-    *refLen = self->nameLen;
-    return self->name;
+    const struct blink_group *retval = NULL;
+
+    if(self->type.tag == BLINK_ITYPE_REF){
+
+        bool dynamic;
+        struct blink_list_element *ref = getTerminal(self->type.resolvedRef, &dynamic);
+
+        BLINK_ASSERT(ref != NULL)
+
+        if(ref->type == BLINK_ELEM_GROUP){
+
+            retval = castGroup(ref);
+        }
+    }
+
+    return retval;
 }
 
 const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, const char *name, size_t nameLen, int32_t *value)
@@ -518,22 +531,11 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
     return retval;
 }
 
-bool BLINK_KindOfGroup(const struct blink_group *base, const struct blink_group *group)
+bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_group *group)
 {
     bool retval = false;
-    
-    if(group != base){
 
-        
-
-        getTerminal(group->s)
-        ptr = ;
-
-        while(ptr != NULL){
-
-            
-        }
-    }
+    //todo
 
     return retval;
 }
