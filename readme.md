@@ -24,6 +24,9 @@ uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.
 
 // define the maximum number of references allowed in a chain (default: 10)
 #define BLINK_LINK_DEPTH    10
+
+// define the maximum number of nested groups in a message (default: 10)
+#define BLINK_NEST_DEPTH    10
 ~~~
 
 ## Todo

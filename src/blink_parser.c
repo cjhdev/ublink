@@ -481,7 +481,7 @@ const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self)
 
         if(ref->type == BLINK_ELEM_GROUP){
 
-            retval = castGroup(ref);
+            retval = (const struct blink_group *)castGroup(ref);
         }
     }
 
@@ -533,7 +533,7 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
 
 bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_group *group)
 {
-    bool retval = false;
+    bool retval = true;
 
     //todo
 

@@ -42,7 +42,7 @@
 /* static function prototypes *****************************************/
 
 static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint32_t inLen);
-static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **fields, uint32_t *fieldsLen, bool *isNull);
+static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **inner, uint32_t *innerLen, bool *isNull);
 
 /* functions **********************************************************/
 
@@ -76,15 +76,13 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(in != NULL)
 
-    struct blink_decoder_state state;
-
     struct stack_frame {
         const uint8_t *in;
         uint32_t inLen;
         uint32_t pos;
-        const struct blink_group *g;    /* current group */
+        const struct blink_group *g;
         struct blink_field_iterator iter; 
-        const struct blink_field *f;    /* current field */
+        const struct blink_field *f;
         uint32_t sequenceSize;     
         uint32_t sequenceCount;
         bool isSequence;
@@ -695,10 +693,17 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                     }
                 }
             }
-                break;                
+                break;
+            }
             case BLINK_TYPE_OBJECT:
             case BLINK_TYPE_DYNAMIC_GROUP:
-            {
+            case BLINK_TYPE_STATIC_GROUP:
+            default:
+                break
+            }
+            
+            if((type == BLINK_TYPE_OBJECT) || (type == BLINK_TYPE_DYNAMIC_GROUP)){
+
                 const uint8_t *value;
                 uint32_t valueLen;
 
@@ -733,13 +738,17 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                             s->g = BLINK_GetGroupByID(self->schema, id);
 
                             if(s->g == NULL){
-                                BLINK_ERROR("W2: ID is unknown")
+                                BLINK_ERROR("W14: ID is unknown")
                                 return 0U;
                             }
 
                             if(s->type == BLINK_TYPE_DYNAMIC_GROUP){
 
-                                //test that group is OK
+                                if(!BLINK_GroupIsKindOf(s->g, BLINK_GetFieldGroup(s->f))){
+
+                                    BLINK_ERROR("W15: incompatible type")
+                                    return 0U;
+                                }
                             }
 
                             BLINK_InitFieldIterator(&s->iter, s->g);
@@ -748,45 +757,42 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                     }
                 }
             }
-                break;            
-            case BLINK_TYPE_STATIC_GROUP:
-            {
-                bool present = true;
+            else{
 
-                if(isOptional){
+                if(type == BLINK_TYPE_STATIC_GROUP){
 
-                    ret = BLINK_DecodePresent(&s->in[s->pos], s->inLen - s->pos, &present);
+                    bool present = true;
 
-                    if(ret < 0U){
+                    if(isOptional){
 
-                        return 0U;
+                        ret = BLINK_DecodePresent(&s->in[s->pos], s->inLen - s->pos, &present);
+
+                        if(ret < 0U){
+                            return 0U;
+                        }
+
+                        s->pos += ret;
                     }
 
-                    s->pos += ret;
-                }
+                    if(present){
 
-                if(present){
+                        if(depth == ((sizeof(stack)/sizeof(*stack))-1U)){
 
-                    if(depth == ((sizeof(stack)/sizeof(*stack))-1U)){
+                            BLINK_ERROR("too deep!")
+                            return 0U;
+                        }
+                        
+                        depth++;
+                        s = &stack[depth];
+                        s->pos = 0U;
 
-                        BLINK_ERROR("too deep!")
-                        return 0U;
+                        s->g = BLINK_GetFieldGroup(stack[depth-1U].f);
+                        BLINK_InitFieldIterator(&s->iter, s->g);
+                        s->f = BLINK_NextField(s->iter);
                     }
-                    
-                    depth++;
-                    s = &stack[depth];
-                    s->pos = 0U;
-
-                    s->g = BLINK_GetFieldGroup(stack[depth-1U].f);
-                    BLINK_InitFieldIterator(&s->iter, s->g);
-                    s->f = BLINK_NextField(s->iter);
                 }
             }
-                break;            
-            default:
-                break;                                    
-            }
-
+            
             s->sequenceCount++;
         }
 
@@ -832,18 +838,22 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
         }
         while(true);            
     }
-    
+
     return retval;
 }
 
-static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **fields, uint32_t *fieldsLen, bool *isNull)
+static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **inner, uint32_t *innerLen, bool *isNull)
 {
-    const uint8_t *inner;
-    uint32_t innerLen;
-    uint32_t retval = 0U;
-    bool idIsNull;
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(id != NULL)
+    BLINK_ASSERT(inner != NULL)
+    BLINK_ASSERT(innerLen != NULL)
+    BLINK_ASSERT(isNull != NULL)
 
-    uint32_t ret = BLINK_DecodeBinary(in, inLen, &inner, &innerLen, isNull);
+    uint32_t retval = 0U;
+    uint32_t pos = 0U;
+    bool idIsNull;
+    uint32_t ret = BLINK_DecodeBinary(in, *inLen, inner, innerLen, isNull);
 
     if(ret > 0U){
 
@@ -853,19 +863,21 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
 
             if(innerLen != 0U){
 
-                ret = BLINK_DecodeU64(inner, innerLen, id, &idIsNull);
+                ret = BLINK_DecodeU64(*inner, *innerLen, id, &idIsNull);
 
                 if(ret > 0U){
 
-                    pos += ret;
+                    if(idIsNull){
 
-                    *fields = inner[ret];
-                    *fieldsLen = innerLen
-                }
-                else{
+                        BLINK_ERROR("Group ID cannot be NULL")    
+                    }
+                    else{
 
-                    BLINK_ERROR("Group ID cannot be NULL")
-                }
+                        retval = pos + ret;
+                        *inner = &(*inner)[ret];
+                        *innerLen -= ret;                        
+                    }
+                }                
             }
             else{
 
