@@ -533,9 +533,33 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
 
 bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_group *group)
 {
-    bool retval = true;
+    bool retval = false;
 
-    //todo
+    if(self == group){
+
+        retval = true;
+    }
+    else{
+                
+        bool dynamic;
+        struct blink_list_element *ptr = getTerminal(self->s, &dynamic);
+
+        while(!retval && (ptr != NULL)){
+
+            struct blink_group *g = castGroup(ptr);
+
+            if(g == group){
+
+                retval = true;
+                break;
+            }
+            else{
+
+                ptr = getTerminal(g->s, &dynamic);
+            }
+        }
+        
+    }
 
     return retval;
 }
@@ -1861,20 +1885,22 @@ static void splitCName(const char *in, size_t inLen, const char **nsName, size_t
 
 static struct blink_list_element *getTerminal(struct blink_list_element *element, bool *dynamic)
 {
-    BLINK_ASSERT(element != NULL)
     BLINK_ASSERT(dynamic != NULL)
 
     struct blink_list_element *ptr = element;
     *dynamic = false;
 
-    while((ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){   /*lint !e9007 no side effect */
+    if(ptr != NULL){
 
-        if(castTypeDef(ptr)->type.isDynamic){
+        while((ptr->type == BLINK_ELEM_TYPE) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){   /*lint !e9007 no side effect */
 
-            *dynamic = true;
+            if(castTypeDef(ptr)->type.isDynamic){
+
+                *dynamic = true;
+            }
+            
+            ptr = castTypeDef(ptr)->type.resolvedRef;
         }
-        
-        ptr = castTypeDef(ptr)->type.resolvedRef;
     }
 
     return ptr;
