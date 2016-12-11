@@ -66,63 +66,63 @@ enum blink_itype_tag {
 
 /** type */
 struct blink_type {
+    const char *name;            /**< name of reference (applicable to #BLINK_ITYPE_REF) */
+    size_t nameLen;              /**< byte length of `name` */
+    struct blink_list_element *a;
     bool isDynamic;             /**< reference is dynamic (applicable to #BLINK_ITYPE_REF) */
     bool isSequence;            /**< this is a SEQUENCE of type */                
-    uint32_t size;              /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */
-    const char *ref;            /**< name of reference (applicable to #BLINK_ITYPE_REF) */
-    size_t refLen;                          /**< byte length of `ref` */
+    uint32_t size;              /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */    
     enum blink_itype_tag tag;               /**< what type is this? */
-    struct blink_list_element *resolvedRef; /**< `ref` resolves to this structure */
-    struct blink_list_element *a;
+    struct blink_list_element *resolvedRef; /**< `ref` resolves to this structure */    
 };
 
 /** field */
 struct blink_field {
     const char *name;               /**< name of this field */
     size_t nameLen;                 /**< byte length of `name` */
+    struct blink_list_element *a;
     bool isOptional;                /**< field is optional */
     uint64_t id;
     bool hasID;
-    struct blink_type type;         /**< field type information */
-    struct blink_list_element *a;
+    struct blink_type type;         /**< field type information */    
 };
 
 /** group */
 struct blink_group {
     const char *name;               /**< name of this group */
     size_t nameLen;                 /**< byte length of `name` */
+    struct blink_list_element *a;
     bool hasID;                     /**< group has an ID */
     uint64_t id;                    /**< group ID */
     const char *superGroup;         /**< name of super group */
     size_t superGroupLen;           /**< byte length of supergroup name */    
     struct blink_list_element *s;   /**< optional supergroup */
-    struct blink_list_element *f;   /**< fields belonging to group */
-    struct blink_list_element *a;
+    struct blink_list_element *f;   /**< fields belonging to group */    
 };
 
 /** enumeration symbol */
 struct blink_symbol {
     const char *name;               /**< name of symbol */
     size_t nameLen;                 /**< byte length of `name` */
-    int32_t value;                  /**< integer value */
-    bool implicitValue;             /**< true if `value` is not explicitly defined */
     struct blink_list_element *a;
+    int32_t value;                  /**< integer value */
+    bool implicitValue;             /**< true if `value` is not explicitly defined */    
 };
 
 /** enumeration */
 struct blink_enum {
     const char *name;               /**< name of this field */
     size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *s;   /**< symbols belonging to enumeration */
     struct blink_list_element *a;
+    struct blink_list_element *s;   /**< symbols belonging to enumeration */    
 };
 
 /** type definition */
 struct blink_type_def {
     const char *name;               /**< name of type definition */
     size_t nameLen;                 /**< byte length of `name` */
-    struct blink_type type;         /**< type information */
     struct blink_list_element *a;
+    struct blink_type type;         /**< type information */    
 };
 
 struct blink_annote {
@@ -1200,8 +1200,8 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_t
         
         pos += r;
 
-        type->ref = value.literal.ptr;
-        type->refLen = value.literal.len;
+        type->name = value.literal.ptr;
+        type->nameLen = value.literal.len;
         type->tag = BLINK_ITYPE_REF;
 
         if(BLINK_GetToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_STAR){
@@ -1367,7 +1367,7 @@ static bool resolveDefinitions(struct blink_schema *self)
         
             if(t->type.tag == BLINK_ITYPE_REF){
 
-                t->type.resolvedRef = resolve(self, t->type.ref, t->type.refLen);
+                t->type.resolvedRef = resolve(self, t->type.name, t->type.nameLen);
 
                 if(castTypeDef(defPtr)->type.resolvedRef == NULL){
 
@@ -1400,7 +1400,7 @@ static bool resolveDefinitions(struct blink_schema *self)
 
                 if(f->type.tag == BLINK_ITYPE_REF){
 
-                    f->type.resolvedRef = resolve(self, f->type.ref, f->type.refLen);
+                    f->type.resolvedRef = resolve(self, f->type.name, f->type.nameLen);
 
                     if(f->type.resolvedRef == NULL){
 
@@ -1495,6 +1495,9 @@ static bool testConstraints(struct blink_schema *self)
 
 static bool testReferenceConstraint(const struct blink_schema *self, const struct blink_list_element *reference)
 {
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(reference != NULL)
+
     bool retval = true;
     const struct blink_list_element *ptr = reference;
     const struct blink_list_element *stack[BLINK_LINK_DEPTH];
@@ -1575,6 +1578,9 @@ static bool testReferenceConstraint(const struct blink_schema *self, const struc
 
 static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, const struct blink_group *group)
 {
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(group != NULL)
+
     bool retval = true;
     struct blink_list_element *ptr = group->s;
     struct blink_list_element *stack[BLINK_LINK_DEPTH];
@@ -1649,6 +1655,9 @@ static bool testSuperGroupReferenceConstraint(const struct blink_schema *self, c
 
 static bool testSuperGroupShadowConstraint(const struct blink_schema *self, const struct blink_group *group)
 {
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(group != NULL)
+
     struct blink_field_iterator fi;
     BLINK_InitFieldIterator(&fi, group);
     const struct blink_field *field = BLINK_NextField(&fi);
@@ -1963,45 +1972,54 @@ static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter
 
 static struct blink_enum *castEnum(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_ENUM))
     return (self == NULL) ? NULL : (struct blink_enum *)self->ptr;  /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_symbol *castSymbol(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_SYMBOL))
     return (self == NULL) ? NULL : (struct blink_symbol *)self->ptr;    /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_field *castField(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_FIELD))
     return (self == NULL) ? NULL : (struct blink_field *)self->ptr; /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_group *castGroup(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_GROUP))
     return (self == NULL) ? NULL : (struct blink_group *)self->ptr; /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_namespace *castNamespace(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_NS))
     return (self == NULL) ? NULL : (struct blink_namespace *)self->ptr; /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_type_def *castTypeDef(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_TYPE))
     return (self == NULL) ? NULL : (struct blink_type_def *)self->ptr;  /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_annote *castAnnote(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_ANNOTE))
     return (self == NULL) ? NULL : (struct blink_annote *)self->ptr;    /*lint !e9087 void pointer was used as intermediary */
 }
 
 static struct blink_incr_annote *castIncrAnnote(struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_INCR_ANNOTE))
     return (self == NULL) ? NULL : (struct blink_incr_annote *)self->ptr;   /*lint !e9087 void pointer was used as intermediary */
 }
 
 static const struct blink_type_def *castConstTypeDef(const struct blink_list_element *self)
 {
+    BLINK_ASSERT((self == NULL) || (self->type == BLINK_ELEM_TYPE))
     return (self == NULL) ? NULL : (const struct blink_type_def *)self->ptr;    /*lint !e9087 void pointer was used as intermediary */
 }
