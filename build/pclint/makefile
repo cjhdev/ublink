@@ -9,7 +9,7 @@ PCLINT_BIN := /usr/local/bin/pclint
 CC := gcc
 GXX := g++
 
-SRC := $(filter-out $(DIR_ROOT)/src/blink_event_decoder.c, $(wildcard $(DIR_ROOT)/src/*.c))
+SRC := $(wildcard $(DIR_ROOT)/src/*.c)
 
 INCLUDES += -I$(DIR_SETTINGS)
 INCLUDES += -I$(DIR_ENVIRONMENT)

@@ -273,7 +273,7 @@ struct blink_decoder_events {
     blink_string_fn_t string;
     blink_binary_fn_t binary;
     blink_fixed_fn_t fixed;
-    blink_bool_fn_t bool;
+    blink_bool_fn_t boolean;
     blink_u8_fn_t u8;
     blink_u16_fn_t u16;
     blink_u32_fn_t u32;
@@ -284,10 +284,11 @@ struct blink_decoder_events {
     blink_i64_fn_t i64;
     blink_float_fn_t f64;
     blink_decimal_fn_t decimal;
+    blink_enum_fn_t enumeration;
     blink_milli_time_fn_t millitime;
     blink_nano_time_fn_t nanotime;
-    blink_milli_time_fn_t timeOfDayMilli;
-    blink_nano_time_fn_t timeOfDayNano;
+    blink_milli_timeofday_fn_t timeOfDayMilli;
+    blink_nano_timeofday_fn_t timeOfDayNano;
     blink_date_fn_t date;
     blink_begin_field_fn_t beginField;
     blink_end_field_fn_t endField;

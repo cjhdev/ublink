@@ -39,6 +39,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* definitions ********************************************************/
 
@@ -170,7 +171,7 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
  * @retval NULL group not found
  *
  * */
-const struct blink_group *BLINK_GetGroupByName(struct blink_schema *self, const char *qName, size_t qNameLen);
+const struct blink_group *BLINK_GetGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen);
 
 /** Find a group by ID
  * 
@@ -182,7 +183,7 @@ const struct blink_group *BLINK_GetGroupByName(struct blink_schema *self, const 
  * @retval NULL group not found
  *
  * */
-const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t id);
+const struct blink_group *BLINK_GetGroupByID(const struct blink_schema *self, uint64_t id);
 
 /** Initialise a field iterator
  *
@@ -232,6 +233,15 @@ const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen);
  * */
 bool BLINK_GetFieldIsOptional(const struct blink_field *self);
 
+/** 
+ * @param[in] self receiver
+ * @return Is this field a sequence?
+ * @retval true
+ * @retval false
+ *
+ * */
+bool BLINK_GetFieldIsSequence(const struct blink_field *self);
+
 /** Get the type of this field
  *
  * @param[in] self receiver
@@ -265,6 +275,17 @@ uint32_t BLINK_GetFieldSize(const struct blink_field *self);
  * */
 const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self);
 
+/** Return enum for field type
+ *
+ * @param[in] self receiver
+ *
+ * @return pointer to enum definition
+ *
+ * @retval NULL field type is not an enum
+ *
+ * */
+const struct blink_enum *BLINK_GetFieldEnum(const struct blink_field *self);
+
 /** test if self is group or a subclass of group
  * 
  * @param[in] self receiver
@@ -286,7 +307,7 @@ bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_grou
  * @retval NULL symbol not found
  * 
  * */
-const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, const char *name, size_t nameLen, int32_t *value);
+const struct blink_symbol *BLINK_GetEnumSymbolByName(const struct blink_enum *self, const char *name, size_t nameLen);
 
 /**
  * @param[in] self receiver
@@ -299,7 +320,11 @@ const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, c
  * @retval NULL symbol not found
  * 
  * */
-const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, int32_t value, const char **name, size_t *nameLen);
+const struct blink_symbol *BLINK_GetEnumSymbolByValue(const struct blink_enum *self, int32_t value);
+
+const char *BLINK_GetSymbolName(const struct blink_symbol *self, size_t *nameLen);
+
+int32_t BLINK_GetSymbolValue(const struct blink_symbol *self);
 
 
 

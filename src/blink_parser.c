@@ -286,7 +286,7 @@ const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t
 
         if((gPtr != NULL) && gPtr->hasID && (gPtr->id == id)){    
 
-            retval = gPtr;
+            retval = (const struct blink_group *)gPtr;
         }
         else{
             
@@ -403,6 +403,13 @@ bool BLINK_GetFieldIsOptional(const struct blink_field *self)
     return self->isOptional;
 }
 
+bool BLINK_GetFieldIsSequence(const struct blink_field *self)
+{
+    BLINK_ASSERT(self != NULL)
+
+    return self->isSequence;
+}
+
 enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
@@ -488,29 +495,39 @@ const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self)
     return retval;
 }
 
-const struct blink_symbol *BLINK_GetSymbolValue(const struct blink_enum *self, const char *name, size_t nameLen, int32_t *value)
+const struct blink_enum *BLINK_GetFieldEnum(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(name != NULL)
-    BLINK_ASSERT(value != NULL)
 
-    const struct blink_symbol *retval = NULL;
-    struct blink_list_element *element = searchListByName(self->s, name, nameLen);
+    const struct blink_enum *retval = NULL;
 
-    if(element != NULL){
+    if(self->type.tag == BLINK_ITYPE_REF){
 
-        retval = castSymbol(element);
-        *value = retval->value;
+        bool dynamic;
+        struct blink_list_element *ref = getTerminal(self->type.resolvedRef, &dynamic);
+
+        BLINK_ASSERT(ref != NULL)
+
+        if(ref->type == BLINK_ELEM_ENUM){
+
+            retval = (const struct blink_enum *)castEnum(ref);
+        }
     }
 
     return retval;
 }
 
-const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, int32_t value, const char **name, size_t *nameLen)
+const struct blink_symbol *BLINK_GetEnumSymbolByName(const struct blink_enum *self, const char *name, size_t nameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(name != NULL)
-    BLINK_ASSERT(nameLen != NULL)
+    
+    return (const struct blink_symbol *)castSymbol(searchListByName(self->s, name, nameLen));
+}
+
+const struct blink_symbol *BLINK_GetEnumSymbolByValue(const struct blink_enum *self, int32_t value)
+{
+    BLINK_ASSERT(self != NULL)
     
     struct blink_list_element *ptr = self->s;
     const struct blink_symbol *retval = NULL;
@@ -520,8 +537,6 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
         if(castSymbol(ptr)->value == value){
 
             retval = castSymbol(ptr);
-            *name = retval->name;
-            *nameLen = retval->nameLen;
             break;
         }
 
@@ -529,6 +544,23 @@ const struct blink_symbol *BLINK_GetSymbolName(const struct blink_enum *self, in
     }
 
     return retval;
+}
+
+const char *BLINK_GetSymbolName(const struct blink_symbol *self, size_t *nameLen)
+{
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(nameLen != NULL)
+
+    *nameLen = self->nameLen;
+    
+    return self->name;
+}
+
+int32_t BLINK_GetSymbolValue(const struct blink_symbol *self)
+{
+    BLINK_ASSERT(self != NULL)
+    
+    return self->value;
 }
 
 bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_group *group)
