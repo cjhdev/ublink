@@ -171,7 +171,7 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
  * @retval NULL group not found
  *
  * */
-const struct blink_group *BLINK_GetGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen);
+const struct blink_group *BLINK_GetSchemaGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen);
 
 /** Find a group by ID
  * 
@@ -183,7 +183,7 @@ const struct blink_group *BLINK_GetGroupByName(const struct blink_schema *self, 
  * @retval NULL group not found
  *
  * */
-const struct blink_group *BLINK_GetGroupByID(const struct blink_schema *self, uint64_t id);
+const struct blink_group *BLINK_GetSchemaGroupByID(const struct blink_schema *self, uint64_t id);
 
 /** Initialise a field iterator
  *

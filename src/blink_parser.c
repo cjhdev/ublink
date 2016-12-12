@@ -202,7 +202,7 @@ static bool testSuperGroupShadowConstraint(const struct blink_schema *self, cons
 
 static struct blink_list_element *getTerminal(struct blink_list_element *element, bool *dynamic);
 
-static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, struct blink_schema *schema);
+static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, const struct blink_schema *schema);
 static struct blink_list_element *nextDefinition(struct blink_def_iterator *iter);
 
 static struct blink_enum *castEnum(struct blink_list_element *self);
@@ -255,7 +255,7 @@ void BLINK_DestroySchema(struct blink_schema *self)
     (void)memset(self, 0x0, sizeof(*self));
 }
 
-const struct blink_group *BLINK_GetGroupByName(struct blink_schema *self, const char *qName, size_t qNameLen)
+const struct blink_group *BLINK_GetSchemaGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(qName != NULL)
@@ -272,7 +272,7 @@ const struct blink_group *BLINK_GetGroupByName(struct blink_schema *self, const 
     return (ns == NULL) ? NULL : (const struct blink_group *)castGroup(searchListByName(ns->defs, name, nameLen));
 }
 
-const struct blink_group *BLINK_GetGroupByID(struct blink_schema *self, uint64_t id)
+const struct blink_group *BLINK_GetSchemaGroupByID(const struct blink_schema *self, uint64_t id)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -407,7 +407,7 @@ bool BLINK_GetFieldIsSequence(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
-    return self->isSequence;
+    return self->type.isSequence;
 }
 
 enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self)
@@ -1947,7 +1947,7 @@ static struct blink_list_element *getTerminal(struct blink_list_element *element
     return ptr;
 }
 
-static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, struct blink_schema *schema)
+static struct blink_list_element *initDefinitionIterator(struct blink_def_iterator *iter, const struct blink_schema *schema)
 {
     BLINK_ASSERT(iter != NULL)
     BLINK_ASSERT(schema != NULL)

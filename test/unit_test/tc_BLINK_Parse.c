@@ -25,7 +25,7 @@ void test_BLINK_Parse_emptyGroup(void)
     const char input[] = "empty";
 
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
 }
 
 void test_BLINK_Parse_emptySuperGroup(void)
@@ -35,8 +35,8 @@ void test_BLINK_Parse_emptySuperGroup(void)
         "empty : super";
 
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
-    TEST_ASSERT_TRUE(BLINK_GetGroupByName(&ctxt, "super", strlen("super")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "super", strlen("super")) != NULL);
 }
 
 void test_BLINK_Parse_undefinedSuperGroup(void)
@@ -88,12 +88,12 @@ void test_BLINK_Parse_greeting(void)
     const char input[] = "Message/0 -> string Greeting";
     
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")) != NULL);
-    TEST_ASSERT_TRUE(BLINK_GetGroupByID(&ctxt, 0) != NULL);
-    TEST_ASSERT_EQUAL(BLINK_GetGroupByID(&ctxt, 0), BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")));
+    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "Message", strlen("Message")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByID(&ctxt, 0) != NULL);
+    TEST_ASSERT_EQUAL(BLINK_GetSchemaGroupByID(&ctxt, 0), BLINK_GetSchemaGroupByName(&ctxt, "Message", strlen("Message")));
 
     struct blink_field_iterator iter;
-    BLINK_InitFieldIterator(&iter, BLINK_GetGroupByName(&ctxt, "Message", strlen("Message")));
+    BLINK_InitFieldIterator(&iter, BLINK_GetSchemaGroupByName(&ctxt, "Message", strlen("Message")));
 
     const struct blink_field *f = BLINK_NextField(&iter);
     TEST_ASSERT_TRUE(f != NULL);
@@ -120,7 +120,7 @@ void test_BLINK_Parse_namespace_emptyGroup(void)
     const char input[] = "namespace test empty";
 
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetGroupByName(&ctxt, "test:empty", strlen("test:empty")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "test:empty", strlen("test:empty")) != NULL);
 }
 
 void test_BLINK_Parse_enum_single(void)

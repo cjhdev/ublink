@@ -28,8 +28,8 @@ void test_BLINK_GroupIsKindOf_is(void)
 
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
 
-    const struct blink_group *base = BLINK_GetGroupByName(&ctxt, "base", strlen("base"));
-    const struct blink_group *derived = BLINK_GetGroupByName(&ctxt, "derived", strlen("derived"));
+    const struct blink_group *base = BLINK_GetSchemaGroupByName(&ctxt, "base", strlen("base"));
+    const struct blink_group *derived = BLINK_GetSchemaGroupByName(&ctxt, "derived", strlen("derived"));
 
     TEST_ASSERT_TRUE(base != NULL);
     TEST_ASSERT_TRUE(derived != NULL);
@@ -46,8 +46,8 @@ void test_BLINK_GroupIsKindOf_isMulti(void)
 
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
 
-    const struct blink_group *base = BLINK_GetGroupByName(&ctxt, "base", strlen("base"));
-    const struct blink_group *derived = BLINK_GetGroupByName(&ctxt, "derived", strlen("derived"));
+    const struct blink_group *base = BLINK_GetSchemaGroupByName(&ctxt, "base", strlen("base"));
+    const struct blink_group *derived = BLINK_GetSchemaGroupByName(&ctxt, "derived", strlen("derived"));
 
     TEST_ASSERT_TRUE(base != NULL);
     TEST_ASSERT_TRUE(derived != NULL);
@@ -63,8 +63,8 @@ void test_BLINK_GroupIsKindOf_isNot(void)
 
     TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
 
-    const struct blink_group *base = BLINK_GetGroupByName(&ctxt, "base", strlen("base"));
-    const struct blink_group *otherBase = BLINK_GetGroupByName(&ctxt, "otherBase", strlen("otherBase"));
+    const struct blink_group *base = BLINK_GetSchemaGroupByName(&ctxt, "base", strlen("base"));
+    const struct blink_group *otherBase = BLINK_GetSchemaGroupByName(&ctxt, "otherBase", strlen("otherBase"));
 
     TEST_ASSERT_TRUE(base != NULL);
     TEST_ASSERT_TRUE(otherBase != NULL);

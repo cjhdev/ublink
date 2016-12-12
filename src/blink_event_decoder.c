@@ -127,7 +127,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
     }
     
     s->pos = 0U;    
-    s->g = BLINK_GetGroupByID(self->schema, id);
+    s->g = BLINK_GetSchemaGroupByID(self->schema, id);
 
     if(s->g == NULL){
         BLINK_ERROR("W2: ID is unknown")
@@ -801,7 +801,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                             s->in = value;
                             s->inLen = valueLen;
 
-                            s->g = BLINK_GetGroupByID(self->schema, id);
+                            s->g = BLINK_GetSchemaGroupByID(self->schema, id);
 
                             if(s->g == NULL){
                                 BLINK_ERROR("W14: ID is unknown")
