@@ -322,7 +322,7 @@ struct blink_decoder {
  * @retval NULL decoder could not be initialised
  * 
  * */
-struct blink_decoder *BLINK_InitEventDecoder(struct blink_decoder *decoder, void *user, const struct blink_schema *schema, const struct blink_decoder_events *events);
+struct blink_decoder *BLINK_EventDecoderInit(struct blink_decoder *decoder, void *user, const struct blink_schema *schema, const struct blink_decoder_events *events);
 
 /**
  * Decode a compact form group

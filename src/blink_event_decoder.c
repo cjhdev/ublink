@@ -72,7 +72,7 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
 
 /* functions **********************************************************/
 
-struct blink_decoder *BLINK_InitEventDecoder(struct blink_decoder *decoder, void *user, const struct blink_schema *schema, const struct blink_decoder_events *events)
+struct blink_decoder *BLINK_EventDecoderInit(struct blink_decoder *decoder, void *user, const struct blink_schema *schema, const struct blink_decoder_events *events)
 {
     BLINK_ASSERT(decoder != NULL)
     BLINK_ASSERT(schema != NULL)
@@ -892,7 +892,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
         }
     }
 
-    return pos + s->pos;
+    return pos;
 }
 
 static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *id, const uint8_t **inner, uint32_t *innerLen, bool *isNull)
@@ -904,15 +904,13 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
     BLINK_ASSERT(isNull != NULL)
 
     uint32_t retval = 0U;
-    uint32_t pos = 0U;
     bool idIsNull;
-    uint32_t ret = BLINK_DecodeBinary(in, inLen, inner, innerLen, isNull);
+    uint32_t ret;
+    uint32_t outerLen = BLINK_DecodeBinary(in, inLen, inner, innerLen, isNull);
+    
+    if(outerLen > 0U){
 
-    if(ret > 0U){
-
-        pos += ret;
-
-        if(!isNull){
+        if(!(*isNull)){
 
             if(*innerLen != 0U){
 
@@ -926,7 +924,7 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
                     }
                     else{
 
-                        retval = pos + ret;
+                        retval = outerLen;
                         *inner = &(*inner)[ret];
                         *innerLen -= ret;                        
                     }
@@ -940,7 +938,7 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
         }
         else{
             
-            retval = ret;
+            retval = outerLen;
         }
     }
 

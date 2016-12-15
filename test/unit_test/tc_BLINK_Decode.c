@@ -327,6 +327,17 @@ void test_BLINK_DecodeBinary_tooShort(void)
     TEST_ASSERT_EQUAL(0, BLINK_DecodeBinary(in, sizeof(in), &out, &outLen, &isNull));    
 }
 
+void test_BLINK_DecodeBinary_null(void)
+{
+    const uint8_t in[] = {0xc0};
+    const uint8_t *out;
+    uint32_t outLen;
+    bool isNull = true;
+
+    TEST_ASSERT_EQUAL(sizeof(in), BLINK_DecodeBinary(in, sizeof(in), &out, &outLen, &isNull));    
+    TEST_ASSERT_TRUE(isNull);    
+}
+
 void test_BLINK_DecodeFixed(void)
 {
     const uint8_t in[] = {'h','e','l','l','o'};    
