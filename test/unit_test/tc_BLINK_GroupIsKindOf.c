@@ -12,12 +12,12 @@ static struct blink_schema ctxt;
 
 void setUp(void)
 {
-    BLINK_InitSchema(&ctxt, calloc, free); 
+    BLINK_SchemaInit(&ctxt, calloc, free); 
 }
 
 void tearDown(void)
 {
-    BLINK_DestroySchema(&ctxt);
+    BLINK_SchemaDestroy(&ctxt);
 }
 
 void test_BLINK_GroupIsKindOf_is(void)
@@ -26,10 +26,10 @@ void test_BLINK_GroupIsKindOf_is(void)
         "base\n"
         "derived : base";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 
-    const struct blink_group *base = BLINK_GetSchemaGroupByName(&ctxt, "base", strlen("base"));
-    const struct blink_group *derived = BLINK_GetSchemaGroupByName(&ctxt, "derived", strlen("derived"));
+    const struct blink_group *base = BLINK_SchemaGetGroupByName(&ctxt, "base", strlen("base"));
+    const struct blink_group *derived = BLINK_SchemaGetGroupByName(&ctxt, "derived", strlen("derived"));
 
     TEST_ASSERT_TRUE(base != NULL);
     TEST_ASSERT_TRUE(derived != NULL);
@@ -44,10 +44,10 @@ void test_BLINK_GroupIsKindOf_isMulti(void)
         "inter : base -> u8 thing\n"
         "derived : inter";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 
-    const struct blink_group *base = BLINK_GetSchemaGroupByName(&ctxt, "base", strlen("base"));
-    const struct blink_group *derived = BLINK_GetSchemaGroupByName(&ctxt, "derived", strlen("derived"));
+    const struct blink_group *base = BLINK_SchemaGetGroupByName(&ctxt, "base", strlen("base"));
+    const struct blink_group *derived = BLINK_SchemaGetGroupByName(&ctxt, "derived", strlen("derived"));
 
     TEST_ASSERT_TRUE(base != NULL);
     TEST_ASSERT_TRUE(derived != NULL);
@@ -61,10 +61,10 @@ void test_BLINK_GroupIsKindOf_isNot(void)
         "base\n"
         "otherBase";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 
-    const struct blink_group *base = BLINK_GetSchemaGroupByName(&ctxt, "base", strlen("base"));
-    const struct blink_group *otherBase = BLINK_GetSchemaGroupByName(&ctxt, "otherBase", strlen("otherBase"));
+    const struct blink_group *base = BLINK_SchemaGetGroupByName(&ctxt, "base", strlen("base"));
+    const struct blink_group *otherBase = BLINK_SchemaGetGroupByName(&ctxt, "otherBase", strlen("otherBase"));
 
     TEST_ASSERT_TRUE(base != NULL);
     TEST_ASSERT_TRUE(otherBase != NULL);

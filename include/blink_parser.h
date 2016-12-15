@@ -133,7 +133,7 @@ struct blink_field_iterator {
  * @return pointer to initialised schema
  *
  * */
-struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_calloc_t calloc, fn_blink_free_t free);
+struct blink_schema *BLINK_SchemaInit(struct blink_schema *schema, fn_blink_calloc_t calloc, fn_blink_free_t free);
 
 /** Destroy a schema object
  *
@@ -142,7 +142,7 @@ struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_call
  * @param[in] self receiver
  *
  * */
-void BLINK_DestroySchema(struct blink_schema *self);
+void BLINK_SchemaDestroy(struct blink_schema *self);
 
 /** Parse a single Blink Protocol schema definition
  *
@@ -157,7 +157,7 @@ void BLINK_DestroySchema(struct blink_schema *self);
  * @retval NULL parse failed
  *
  * */
-struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size_t inLen);
+struct blink_schema *BLINK_SchemaParse(struct blink_schema *self, const char *in, size_t inLen);
 
 
 /** Find a group by name
@@ -171,7 +171,7 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
  * @retval NULL group not found
  *
  * */
-const struct blink_group *BLINK_GetSchemaGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen);
+const struct blink_group *BLINK_SchemaGetGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen);
 
 /** Find a group by ID
  * 
@@ -183,7 +183,7 @@ const struct blink_group *BLINK_GetSchemaGroupByName(const struct blink_schema *
  * @retval NULL group not found
  *
  * */
-const struct blink_group *BLINK_GetSchemaGroupByID(const struct blink_schema *self, uint64_t id);
+const struct blink_group *BLINK_SchemaGetGroupByID(const struct blink_schema *self, uint64_t id);
 
 /** Initialise a field iterator
  *
@@ -191,7 +191,7 @@ const struct blink_group *BLINK_GetSchemaGroupByID(const struct blink_schema *se
  * @param[in] group group to iterate
  * 
  * */
-void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group);
+void BLINK_FieldIteratorInit(struct blink_field_iterator *iter, const struct blink_group *group);
 
 /** Get next field from an iterator
  *
@@ -202,7 +202,7 @@ void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct bli
  * @retval NULL no next field
  *
  * */
-const struct blink_field *BLINK_NextField(struct blink_field_iterator *self);
+const struct blink_field *BLINK_FieldIteratorNext(struct blink_field_iterator *self);
 
 /** Get the name of a group
  *
@@ -212,7 +212,7 @@ const struct blink_field *BLINK_NextField(struct blink_field_iterator *self);
  * @return pointer to name string
  *
  * */
-const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen);
+const char *BLINK_GroupGetName(const struct blink_group *self, size_t *nameLen);
 
 /** Get the name of this field
  *
@@ -222,7 +222,7 @@ const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen);
  * @return pointer to name string
  *
  * */
-const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen);
+const char *BLINK_FieldGetName(const struct blink_field *self, size_t *nameLen);
 
 /** 
  * @param[in] self receiver
@@ -231,7 +231,7 @@ const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen);
  * @retval false
  *
  * */
-bool BLINK_GetFieldIsOptional(const struct blink_field *self);
+bool BLINK_FieldGetIsOptional(const struct blink_field *self);
 
 /** 
  * @param[in] self receiver
@@ -240,7 +240,7 @@ bool BLINK_GetFieldIsOptional(const struct blink_field *self);
  * @retval false
  *
  * */
-bool BLINK_GetFieldIsSequence(const struct blink_field *self);
+bool BLINK_FieldGetIsSequence(const struct blink_field *self);
 
 /** Get the type of this field
  *
@@ -249,7 +249,7 @@ bool BLINK_GetFieldIsSequence(const struct blink_field *self);
  * @return field type
  * 
  * */
-enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self);
+enum blink_type_tag BLINK_FieldGetType(const struct blink_field *self);
 
 /** Get the size of this field (if applicable)
  *
@@ -261,7 +261,7 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self);
  * @return size of field
  * 
  * */
-uint32_t BLINK_GetFieldSize(const struct blink_field *self);
+uint32_t BLINK_FieldGetSize(const struct blink_field *self);
 
 
 /** Return group for field type
@@ -273,7 +273,7 @@ uint32_t BLINK_GetFieldSize(const struct blink_field *self);
  * @retval NULL field type is not a static or dynamic group
  *
  * */
-const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self);
+const struct blink_group *BLINK_FieldGetGroup(const struct blink_field *self);
 
 /** Return enum for field type
  *
@@ -284,7 +284,7 @@ const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self);
  * @retval NULL field type is not an enum
  *
  * */
-const struct blink_enum *BLINK_GetFieldEnum(const struct blink_field *self);
+const struct blink_enum *BLINK_FieldGetEnum(const struct blink_field *self);
 
 /** test if self is group or a subclass of group
  * 
@@ -307,7 +307,7 @@ bool BLINK_GroupIsKindOf(const struct blink_group *self, const struct blink_grou
  * @retval NULL symbol not found
  * 
  * */
-const struct blink_symbol *BLINK_GetEnumSymbolByName(const struct blink_enum *self, const char *name, size_t nameLen);
+const struct blink_symbol *BLINK_EnumGetSymbolByName(const struct blink_enum *self, const char *name, size_t nameLen);
 
 /**
  * @param[in] self receiver
@@ -320,13 +320,11 @@ const struct blink_symbol *BLINK_GetEnumSymbolByName(const struct blink_enum *se
  * @retval NULL symbol not found
  * 
  * */
-const struct blink_symbol *BLINK_GetEnumSymbolByValue(const struct blink_enum *self, int32_t value);
+const struct blink_symbol *BLINK_EnumGetSymbolByValue(const struct blink_enum *self, int32_t value);
 
-const char *BLINK_GetSymbolName(const struct blink_symbol *self, size_t *nameLen);
+const char *BLINK_SymbolGetName(const struct blink_symbol *self, size_t *nameLen);
 
-int32_t BLINK_GetSymbolValue(const struct blink_symbol *self);
-
-
+int32_t BLINK_SymbolGetValue(const struct blink_symbol *self);
 
 #ifdef __cplusplus
 }

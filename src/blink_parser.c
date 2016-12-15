@@ -217,7 +217,7 @@ static struct blink_incr_annote *castIncrAnnote(struct blink_list_element *self)
 
 /* functions **********************************************************/
 
-struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_calloc_t calloc, fn_blink_free_t free)
+struct blink_schema *BLINK_SchemaInit(struct blink_schema *schema, fn_blink_calloc_t calloc, fn_blink_free_t free)
 {
     BLINK_ASSERT(schema != NULL)
     BLINK_ASSERT(calloc != NULL)
@@ -230,7 +230,7 @@ struct blink_schema *BLINK_InitSchema(struct blink_schema *schema, fn_blink_call
     return schema;
 }
 
-void BLINK_DestroySchema(struct blink_schema *self)
+void BLINK_SchemaDestroy(struct blink_schema *self)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -255,7 +255,7 @@ void BLINK_DestroySchema(struct blink_schema *self)
     (void)memset(self, 0x0, sizeof(*self));
 }
 
-const struct blink_group *BLINK_GetSchemaGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen)
+const struct blink_group *BLINK_SchemaGetGroupByName(const struct blink_schema *self, const char *qName, size_t qNameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(qName != NULL)
@@ -272,7 +272,7 @@ const struct blink_group *BLINK_GetSchemaGroupByName(const struct blink_schema *
     return (ns == NULL) ? NULL : (const struct blink_group *)castGroup(searchListByName(ns->defs, name, nameLen));
 }
 
-const struct blink_group *BLINK_GetSchemaGroupByID(const struct blink_schema *self, uint64_t id)
+const struct blink_group *BLINK_SchemaGetGroupByID(const struct blink_schema *self, uint64_t id)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -297,7 +297,7 @@ const struct blink_group *BLINK_GetSchemaGroupByID(const struct blink_schema *se
     return retval;
 }
 
-void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct blink_group *group)
+void BLINK_FieldIteratorInit(struct blink_field_iterator *iter, const struct blink_group *group)
 {
     BLINK_ASSERT(iter != NULL)
     BLINK_ASSERT(group != NULL)
@@ -325,7 +325,7 @@ void BLINK_InitFieldIterator(struct blink_field_iterator *iter, const struct bli
     BLINK_ASSERT(iter->depth < BLINK_INHERIT_DEPTH)
 }
 
-const struct blink_field *BLINK_NextField(struct blink_field_iterator *self)
+const struct blink_field *BLINK_FieldIteratorNext(struct blink_field_iterator *self)
 {
     BLINK_ASSERT(self != NULL)
     
@@ -351,7 +351,7 @@ const struct blink_field *BLINK_NextField(struct blink_field_iterator *self)
     return retval;    
 }
 
-struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size_t inLen)
+struct blink_schema *BLINK_SchemaParse(struct blink_schema *self, const char *in, size_t inLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(in != NULL)
@@ -372,13 +372,13 @@ struct blink_schema *BLINK_Parse(struct blink_schema *self, const char *in, size
 
     if(retval != self){
 
-        BLINK_DestroySchema(self);
+        BLINK_SchemaDestroy(self);
     }
 
     return retval;    
 }
 
-const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen)
+const char *BLINK_GroupGetName(const struct blink_group *self, size_t *nameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(nameLen != NULL)
@@ -387,7 +387,7 @@ const char *BLINK_GetGroupName(const struct blink_group *self, size_t *nameLen)
     return self->name;
 }
 
-const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen)
+const char *BLINK_FieldGetName(const struct blink_field *self, size_t *nameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(nameLen != NULL)
@@ -396,21 +396,21 @@ const char *BLINK_GetFieldName(const struct blink_field *self, size_t *nameLen)
     return self->name;
 }
 
-bool BLINK_GetFieldIsOptional(const struct blink_field *self)
+bool BLINK_FieldGetIsOptional(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
     return self->isOptional;
 }
 
-bool BLINK_GetFieldIsSequence(const struct blink_field *self)
+bool BLINK_FieldGetIsSequence(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
     return self->type.isSequence;
 }
 
-enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self)
+enum blink_type_tag BLINK_FieldGetType(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -466,14 +466,14 @@ enum blink_type_tag BLINK_GetFieldType(const struct blink_field *self)
     return retval;
 }
 
-uint32_t BLINK_GetFieldSize(const struct blink_field *self)
+uint32_t BLINK_FieldGetSize(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
     return self->type.size;
 }
 
-const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self)
+const struct blink_group *BLINK_FieldGetGroup(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -495,7 +495,7 @@ const struct blink_group *BLINK_GetFieldGroup(const struct blink_field *self)
     return retval;
 }
 
-const struct blink_enum *BLINK_GetFieldEnum(const struct blink_field *self)
+const struct blink_enum *BLINK_FieldGetEnum(const struct blink_field *self)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -517,7 +517,7 @@ const struct blink_enum *BLINK_GetFieldEnum(const struct blink_field *self)
     return retval;
 }
 
-const struct blink_symbol *BLINK_GetEnumSymbolByName(const struct blink_enum *self, const char *name, size_t nameLen)
+const struct blink_symbol *BLINK_EnumGetSymbolByName(const struct blink_enum *self, const char *name, size_t nameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(name != NULL)
@@ -525,7 +525,7 @@ const struct blink_symbol *BLINK_GetEnumSymbolByName(const struct blink_enum *se
     return (const struct blink_symbol *)castSymbol(searchListByName(self->s, name, nameLen));
 }
 
-const struct blink_symbol *BLINK_GetEnumSymbolByValue(const struct blink_enum *self, int32_t value)
+const struct blink_symbol *BLINK_EnumGetSymbolByValue(const struct blink_enum *self, int32_t value)
 {
     BLINK_ASSERT(self != NULL)
     
@@ -546,7 +546,7 @@ const struct blink_symbol *BLINK_GetEnumSymbolByValue(const struct blink_enum *s
     return retval;
 }
 
-const char *BLINK_GetSymbolName(const struct blink_symbol *self, size_t *nameLen)
+const char *BLINK_SymbolGetName(const struct blink_symbol *self, size_t *nameLen)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(nameLen != NULL)
@@ -556,7 +556,7 @@ const char *BLINK_GetSymbolName(const struct blink_symbol *self, size_t *nameLen
     return self->name;
 }
 
-int32_t BLINK_GetSymbolValue(const struct blink_symbol *self)
+int32_t BLINK_SymbolGetValue(const struct blink_symbol *self)
 {
     BLINK_ASSERT(self != NULL)
     
@@ -1691,14 +1691,14 @@ static bool testSuperGroupShadowConstraint(const struct blink_schema *self, cons
     BLINK_ASSERT(group != NULL)
 
     struct blink_field_iterator fi;
-    BLINK_InitFieldIterator(&fi, group);
-    const struct blink_field *field = BLINK_NextField(&fi);
+    BLINK_FieldIteratorInit(&fi, group);
+    const struct blink_field *field = BLINK_FieldIteratorNext(&fi);
 
     while(field != NULL){
 
         struct blink_field_iterator fii;
-        BLINK_InitFieldIterator(&fii, group);
-        const struct blink_field *f = BLINK_NextField(&fii);
+        BLINK_FieldIteratorInit(&fii, group);
+        const struct blink_field *f = BLINK_FieldIteratorNext(&fii);
 
         while(f != NULL){
             
@@ -1714,10 +1714,10 @@ static bool testSuperGroupShadowConstraint(const struct blink_schema *self, cons
                 }
             }
 
-            f = BLINK_NextField(&fii);
+            f = BLINK_FieldIteratorNext(&fii);
         }
     
-        field = BLINK_NextField(&fi);
+        field = BLINK_FieldIteratorNext(&fi);
     }
 
     return true;

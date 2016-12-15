@@ -12,20 +12,20 @@ static struct blink_schema ctxt;
 
 void setUp(void)
 {
-    BLINK_InitSchema(&ctxt, calloc, free); 
+    BLINK_SchemaInit(&ctxt, calloc, free); 
 }
 
 void tearDown(void)
 {
-    BLINK_DestroySchema(&ctxt);
+    BLINK_SchemaDestroy(&ctxt);
 }
 
 void test_BLINK_Parse_emptyGroup(void)
 {
     const char input[] = "empty";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_TRUE(BLINK_SchemaGetGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
 }
 
 void test_BLINK_Parse_emptySuperGroup(void)
@@ -34,23 +34,23 @@ void test_BLINK_Parse_emptySuperGroup(void)
         "super\n"
         "empty : super";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
-    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "super", strlen("super")) != NULL);
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_TRUE(BLINK_SchemaGetGroupByName(&ctxt, "empty", strlen("empty")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_SchemaGetGroupByName(&ctxt, "super", strlen("super")) != NULL);
 }
 
 void test_BLINK_Parse_undefinedSuperGroup(void)
 {
     const char input[] = "empty : super";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 void test_BLINK_Parse_groupIsSuperGroup(void)
 {
     const char input[] = "empty : empty";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 void test_BLINK_Parse_groupIsSuperGroupByIntermediate(void)
@@ -59,7 +59,7 @@ void test_BLINK_Parse_groupIsSuperGroupByIntermediate(void)
         "intermediate = empty\n"
         "empty : intermediate";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 void test_BLINK_Parse_superGroupIsDynamic(void)
@@ -69,7 +69,7 @@ void test_BLINK_Parse_superGroupIsDynamic(void)
         "intermediate = super*\n"
         "empty : intermediate";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 void test_BLINK_Parse_superGroupIsSequence(void)
@@ -79,7 +79,7 @@ void test_BLINK_Parse_superGroupIsSequence(void)
         "intermediate = super []\n"
         "empty : intermediate";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 
@@ -87,21 +87,21 @@ void test_BLINK_Parse_greeting(void)
 {
     const char input[] = "Message/0 -> string Greeting";
     
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "Message", strlen("Message")) != NULL);
-    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByID(&ctxt, 0) != NULL);
-    TEST_ASSERT_EQUAL(BLINK_GetSchemaGroupByID(&ctxt, 0), BLINK_GetSchemaGroupByName(&ctxt, "Message", strlen("Message")));
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_TRUE(BLINK_SchemaGetGroupByName(&ctxt, "Message", strlen("Message")) != NULL);
+    TEST_ASSERT_TRUE(BLINK_SchemaGetGroupByID(&ctxt, 0) != NULL);
+    TEST_ASSERT_EQUAL(BLINK_SchemaGetGroupByID(&ctxt, 0), BLINK_SchemaGetGroupByName(&ctxt, "Message", strlen("Message")));
 
     struct blink_field_iterator iter;
-    BLINK_InitFieldIterator(&iter, BLINK_GetSchemaGroupByName(&ctxt, "Message", strlen("Message")));
+    BLINK_FieldIteratorInit(&iter, BLINK_SchemaGetGroupByName(&ctxt, "Message", strlen("Message")));
 
-    const struct blink_field *f = BLINK_NextField(&iter);
+    const struct blink_field *f = BLINK_FieldIteratorNext(&iter);
     TEST_ASSERT_TRUE(f != NULL);
 
     size_t len;
-    const char *name = BLINK_GetFieldName(f, &len);
-    enum blink_type_tag tag = BLINK_GetFieldType(f);
-    uint32_t size = BLINK_GetFieldSize(f);
+    const char *name = BLINK_FieldGetName(f, &len);
+    enum blink_type_tag tag = BLINK_FieldGetType(f);
+    uint32_t size = BLINK_FieldGetSize(f);
     
     TEST_ASSERT_EQUAL(BLINK_TYPE_STRING, tag);
     TEST_ASSERT_EQUAL(0xffffffff, size);
@@ -110,24 +110,24 @@ void test_BLINK_Parse_greeting(void)
     TEST_ASSERT_EQUAL_STRING_LEN("Greeting", name, len);
     TEST_ASSERT_EQUAL_STRING_LEN("Greeting", name, len);
 
-    TEST_ASSERT_FALSE(BLINK_GetFieldIsOptional(f));
+    TEST_ASSERT_FALSE(BLINK_FieldGetIsOptional(f));
 
-    TEST_ASSERT_TRUE(BLINK_NextField(&iter) == NULL);
+    TEST_ASSERT_TRUE(BLINK_FieldIteratorNext(&iter) == NULL);
 }
 
 void test_BLINK_Parse_namespace_emptyGroup(void)
 {
     const char input[] = "namespace test empty";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
-    TEST_ASSERT_TRUE(BLINK_GetSchemaGroupByName(&ctxt, "test:empty", strlen("test:empty")) != NULL);
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_TRUE(BLINK_SchemaGetGroupByName(&ctxt, "test:empty", strlen("test:empty")) != NULL);
 }
 
 void test_BLINK_Parse_enum_single(void)
 {
     const char input[] = "test = | lonely";
 
-    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(&ctxt, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 void test_BLINK_Parse_circular_type_reference(void)
@@ -136,7 +136,7 @@ void test_BLINK_Parse_circular_type_reference(void)
         "test = testTwo\n"
         "testTwo = test";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_duplicate_type_definition(void)
@@ -145,7 +145,7 @@ void test_BLINK_Parse_duplicate_type_definition(void)
         "test = u8\n"
         "test = u16";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_duplicate_type_group_definition(void)
@@ -154,7 +154,7 @@ void test_BLINK_Parse_duplicate_type_group_definition(void)
         "test = u8\n"
         "test -> u16 field";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_duplicate_group_definition(void)
@@ -163,7 +163,7 @@ void test_BLINK_Parse_duplicate_group_definition(void)
         "test -> u8 field\n"
         "test -> u16 field";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_duplicate_enum_definition(void)
@@ -172,42 +172,42 @@ void test_BLINK_Parse_duplicate_enum_definition(void)
         "test = | bla\n"
         "test = | bla";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_duplicate_enum_field(void)
 {
     const char input[] = "test = bla | bla";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_ambiguous_enum_value(void)
 {
     const char input[] = "Month = Jan/1 | Feb | Mar/2";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_enum_value_upperLimit(void)
 {
     const char input[] = "Month = | Jan/2147483648";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_enum_value_lowerLimit(void)
 {
     const char input[] = "Month = | Jan/-2147483649";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_duplicate_group_field(void)
 {
     const char input[] = "test -> u8 bla, u8 bla";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));    
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));    
 }
 
 void test_BLINK_Parse_superGroupShadowField(void)
@@ -216,7 +216,7 @@ void test_BLINK_Parse_superGroupShadowField(void)
         "super -> u8 field\n"
         "test : super -> u16 field";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 void test_BLINK_Parse_superSuperGroupShadowField(void)
@@ -226,7 +226,7 @@ void test_BLINK_Parse_superSuperGroupShadowField(void)
         "super : superSuper -> u8 different\n"
         "test : super -> u16 field";
 
-    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_Parse(&ctxt, input, sizeof(input)));
+    TEST_ASSERT_EQUAL_PTR(NULL, BLINK_SchemaParse(&ctxt, input, sizeof(input)));
 }
 
 
