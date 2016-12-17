@@ -677,7 +677,7 @@ uint32_t BLINK_EncodeBinary(const uint8_t *in, uint32_t inLen, uint8_t *out, uin
     /* fail safe if (inLen + ret) > UINT32_MAX */
     if((ret > 0U) && ((outMax - ret) >= inLen)){
 
-        memcpy(&out[ret], in, inLen);
+        (void)memcpy(&out[ret], in, inLen);
         retval = ret + inLen;
     }
 
@@ -698,7 +698,7 @@ uint32_t BLINK_EncodeFixed(const uint8_t *in, uint32_t inLen, uint8_t *out, uint
 
     if(outMax >= inLen){
 
-        memcpy(out, in, inLen);
+        (void)memcpy(out, in, inLen);
         retval = inLen;
     }
 
@@ -716,7 +716,7 @@ uint32_t BLINK_EncodeOptionalFixed(const uint8_t *in, uint32_t inLen, uint8_t *o
     if((outMax > 0U) && ((outMax - 1U) >= inLen)){
 
         out[0] = 0x01U;
-        memcpy(&out[1], in, inLen);
+        (void)memcpy(&out[1], in, inLen);
         retval = inLen + 1U;
     }
         
