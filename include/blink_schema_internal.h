@@ -79,7 +79,7 @@ struct blink_list_element {
         BLINK_ELEM_SYMBOL,              /**< blink_symbol */
         BLINK_ELEM_TYPE,                /**< blink_type */
         BLINK_ELEM_ANNOTE,              /**< blink_annote */        
-        BLINK_ELEM_INCR_ANNOTE        /**< blink_inline_annote */        
+        BLINK_ELEM_INCR_ANNOTE          /**< blink_inline_annote */        
     } type;                             /**< type allocated at `ptr` */    
     void *ptr;                          /**< points to instance of `type` */
 };

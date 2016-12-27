@@ -1,6 +1,6 @@
 require_relative "doxyfile.rb"
 
-DIR_ROOT = "../.."
+DIR_ROOT = ".."
 DIR_OUTPUT = "output"
 DIR_HTML = "#{DIR_OUTPUT}/html"
 
@@ -38,7 +38,7 @@ task :doxygen do
         d.input = ["#{DIR_ROOT}/readme.md", "#{DIR_ROOT}/test"] + Dir.glob("#{DIR_ROOT}/include/*")
         d.strip_from_path = ["#{Dir.pwd}/#{DIR_ROOT}/include"]        
         d.use_mdfile_as_mainpage = "readme.md"
-        d.example_path = ["#{DIR_ROOT}/test/unit_test"]
+        d.example_path = ["#{DIR_ROOT}/test"]
     end
 
     puts config.to_s

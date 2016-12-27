@@ -21,7 +21,7 @@ Blink Protocol schemas.
 
 #define ARBITRARY_HEAP_SIZE 1024U
 
-/* initialise a pool for the schema */
+//initialise a pool for the schema
 uint8_t schemaHeap[ARBITRARY_HEAP_SIZE];
 struct blink_pool schemaPool;
 (void)BLINK_Pool_init(&schemaPool, schemaHeap, sizeof(schemaHeap));
