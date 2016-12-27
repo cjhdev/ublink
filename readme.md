@@ -42,14 +42,13 @@ blink_schema_t schema = BLINK_Schema_new(&schemaPool, syntax, sizeof(syntax));
 Example makefile snippet:
 
 ~~~
-# add the include directory
 INCLUDES += $(DIR_UBLINK)/include
 
-# add the source directory to vpath:
 VPATH += $(DIR_UBLINK)/src
 
-# compile source to objects
-OBJECTS += $(wildcard $(DIR_UBLINK)/src/*.c):.o
+SRC := $(wildcard $(DIR_UBLINK)/src/*.c)
+
+OBJECTS += $(SRC:.c=.o)
 ~~~
 
 Add `#include "ublink.h"` to source files that use the UBlink API.
