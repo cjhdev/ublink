@@ -95,37 +95,33 @@ static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **o
 
 /* functions **********************************************************/
 
-const char *BLINK_TokenToString(enum blink_token token, size_t *len)
+const char *BLINK_Lexer_tokenToString(enum blink_token token)
 {
     const char *retval = NULL;    
     size_t i;
-    size_t l = 0U;
 
     switch(token){
     case TOK_NAME:
         retval = "<name>";
-        l = sizeof("<name>")-1U;
         break;    
     case TOK_CNAME:
         retval = "<cname>";
-        l = sizeof("<cname>")-1U;
         break;    
     case TOK_EOF:
         retval = "<eof>";
-        l = sizeof("<eof>")-1U;
         break;    
     case TOK_UINT:
         retval = "<uint>";
-        l = sizeof("<uint>")-1U;
         break;    
     case TOK_INT:
         retval = "<int>";
-        l = sizeof("<int>")-1U;
         break;    
     case TOK_LITERAL:
         retval = "<literal>";
-        l = sizeof("<literal>")-1U;
-        break;    
+        break;
+    case TOK_UNKNOWN:
+        retval = "<unknown>";
+        break;
     default:
     
         for(i = 0U; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
@@ -133,22 +129,18 @@ const char *BLINK_TokenToString(enum blink_token token, size_t *len)
             if(tokenTable[i].token == token){
 
                 retval = tokenTable[i].s;
-                l = tokenTable[i].size;
                 break;
             }
         }
         break;
     }
 
-    if(len != NULL){
-
-        *len = l;
-    }
+    BLINK_ASSERT(retval != NULL)
 
     return retval;
 }
 
-enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location)
+enum blink_token BLINK_Lexer_getToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location)
 {
     BLINK_ASSERT(in != NULL)
     BLINK_ASSERT(read != NULL)

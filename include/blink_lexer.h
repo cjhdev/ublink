@@ -24,9 +24,11 @@
 #define BLINK_LEXER_H
 
 /**
- * @defgroup blink_lexer
+ * @defgroup blink_lexer blink_lexer
+ * @ingroup ublink
  *
- * Convert syntax to a token.
+ * Internal dependency required by blink_schema for converting schema
+ * syntax into tokens.
  * 
  * @{
  * */
@@ -41,60 +43,57 @@ extern "C" {
 
 /* enums **************************************************************/
 
-/** The following tokens are returned by #BLINK_GetToken */
 enum blink_token {
     TOK_STRING = 0,         /**< `string` */
     TOK_BINARY,             /**< `binary` */
-    TOK_FIXED,            /**< `fixed` */
-    TOK_BOOL,             /**< `bool` */            
-    TOK_U8,               /**< `u8` */
-    TOK_U16,              /**< `u16` */
-    TOK_U32,              /**< `u32` */
-    TOK_U64,              /**< `u64` */
-    TOK_I8,               /**< `i8` */
-    TOK_I16,              /**< `i16` */
-    TOK_I32,              /**< `i32` */
-    TOK_I64,              /**< `i64` */
-    TOK_F64,              /**< `f64` */
-    TOK_DATE,             /**< `date` */
-    TOK_TIME_OF_DAY_MILLI,    /**< `timeOfDayMilli` */
-    TOK_TIME_OF_DAY_NANO,     /**< `timeOfDayNano` */
-    TOK_MILLI_TIME,       /**< `milltime` */
-    TOK_NANO_TIME,        /**< `nanotime` */    
-    TOK_DECIMAL,          /**< `decimal` */
-    TOK_OBJECT,           /**< `object` */
-    TOK_NAME,             /**< `[\\]?[A-Za-z_][A-Za-z_0-9]+` */
-    TOK_CNAME,            /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                        
-    TOK_EQUAL,            /**< `=` */
-    TOK_COMMA,            /**< `,` */
-    TOK_PERIOD,           /**< <period> */
-    TOK_QUESTION,         /**< `?` */    
-    TOK_LBRACKET,         /**< `[` */
-    TOK_RBRACKET,         /**< `]` */
-    TOK_LPAREN,           /**< `(` */
-    TOK_RPAREN,           /**< `)` */
-    TOK_STAR,             /**< `*` */
-    TOK_BAR,              /**< `|` */
-    TOK_SLASH,            /**< `/` */
-    TOK_AT,               /**< `@` */
-    TOK_COLON,            /**< `:` */    
-    TOK_RARROW,           /**< `->` */
-    TOK_LARROW,           /**< `<-` */
-    TOK_NAMESPACE,        /**< `namespace` */
-    TOK_SCHEMA,           /**< `schema` */    
-    TOK_TYPE,             /**< `type` */    
-    TOK_UINT,             /**< `[0][x][0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */
-    TOK_INT,              /**< `[-][1-9][0-9]*` */
-    TOK_LITERAL,          /**< a string within double or single quotation marks */
-    TOK_UNKNOWN,          /**< no match */
-    TOK_EOF               /**< end of file */    
+    TOK_FIXED,              /**< `fixed` */
+    TOK_BOOL,               /**< `bool` */            
+    TOK_U8,                 /**< `u8` */
+    TOK_U16,                /**< `u16` */
+    TOK_U32,                /**< `u32` */
+    TOK_U64,                /**< `u64` */
+    TOK_I8,                 /**< `i8` */
+    TOK_I16,                /**< `i16` */
+    TOK_I32,                /**< `i32` */
+    TOK_I64,                /**< `i64` */
+    TOK_F64,                /**< `f64` */
+    TOK_DATE,               /**< `date` */
+    TOK_TIME_OF_DAY_MILLI,  /**< `timeOfDayMilli` */
+    TOK_TIME_OF_DAY_NANO,   /**< `timeOfDayNano` */
+    TOK_MILLI_TIME,         /**< `milltime` */
+    TOK_NANO_TIME,          /**< `nanotime` */    
+    TOK_DECIMAL,            /**< `decimal` */
+    TOK_OBJECT,             /**< `object` */
+    TOK_NAME,               /**< `[\\]?[A-Za-z_][A-Za-z_0-9]+` */
+    TOK_CNAME,              /**< `[A-Za-z_][A-Za-z_0-9]+:[A-Za-z_][A-Za-z_0-9]` */                        
+    TOK_EQUAL,              /**< `=` */
+    TOK_COMMA,              /**< `,` */
+    TOK_PERIOD,             /**< <period> */
+    TOK_QUESTION,           /**< `?` */    
+    TOK_LBRACKET,           /**< `[` */
+    TOK_RBRACKET,           /**< `]` */
+    TOK_LPAREN,             /**< `(` */
+    TOK_RPAREN,             /**< `)` */
+    TOK_STAR,               /**< `*` */
+    TOK_BAR,                /**< `|` */
+    TOK_SLASH,              /**< `/` */
+    TOK_AT,                 /**< `@` */
+    TOK_COLON,              /**< `:` */    
+    TOK_RARROW,             /**< `->` */
+    TOK_LARROW,             /**< `<-` */
+    TOK_NAMESPACE,          /**< `namespace` */
+    TOK_SCHEMA,             /**< `schema` */    
+    TOK_TYPE,               /**< `type` */    
+    TOK_UINT,               /**< <uint> `[0][x][0-9a-fA-F][0-9a-fA-F]+ | [0-9]+` */
+    TOK_INT,                /**< <int> `[-][1-9][0-9]*` */
+    TOK_LITERAL,            /**< <literal> a string within double or single quotation marks */
+    TOK_UNKNOWN,            /**< <unknown> no match */
+    TOK_EOF                 /**< <eof> end of file */    
 };
 
 /* unions *************************************************************/
 
-/** Some tokens have a value returned by #BLINK_GetToken */
 union blink_token_value {    
-    /** Initialised for #TOK_NAME, #TOK_CNAME, and #TOK_LITERAL */
     struct {
         const char *ptr;    /**< pointer to printable string */
         size_t len;         /**< byte length of `ptr` */
@@ -114,32 +113,35 @@ struct blink_token_location {
 
 /* function prototypes ************************************************/
 
-/** Return next token from syntax
+/** Use this function to convert an octet string into a token
+ *
+ * @code
+ * const char input[] = "emptyGroup";
+ * size_t read;
+ * union blink_token_value value;
+ *
+ * // will return TOK_NAME
+ * enum blink_token tok = BLINK_GetToken(input, sizeof(input), &read, &value, NULL);
+ * @endcode
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
- * @param[out] read bytes read from `in`
- * @param[out] value value of token (only initialised for TOK_NAME, TOK_CNAME, TOK_NUMBER)
+ * @param[in] in input to convert into a token
+ * @param[in] inLen byte length of input
+ * @param[out] read bytes read from input
+ * @param[out] value value of token (only initialised for TOK_NAME, TOK_CNAME, TOK_UINT, TOK_INT, TOK_LITERAL)
  * @param[out] location optional location information
  *
- * @return enum #blink_token
+ * @return token
  *
  * */
-enum blink_token BLINK_GetToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location);
+enum blink_token BLINK_Lexer_getToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location);
 
-/** Try to convert a token to its string representation
- *
- * @note not all tokens can be converted to strings (e.g. #TOK_EOF)
+/** Convert a token enum to a string representation
  * 
  * @param[in] token token to convert to string
- * @param[out] len byte length of string
- *
- * @return pointer to token string
- *
- * @retval NULL no string exists for this token
+ * @return null terminated string
  *
  * */
-const char *BLINK_TokenToString(enum blink_token token, size_t *len);
+const char *BLINK_Lexer_tokenToString(enum blink_token token);
 
 #ifdef __cplusplus
 }

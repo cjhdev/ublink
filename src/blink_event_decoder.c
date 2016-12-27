@@ -22,8 +22,8 @@
 
 /* includes ***********************************************************/
 
-#include "blink_parser.h"
-#include "blink_compact_form.h"
+#include "blink_schema.h"
+#include "blink_compact.h"
 #include "blink_event_decoder.h"
 #include "blink_debug.h"
 
@@ -127,14 +127,14 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
     }
     
     s->pos = 0U;    
-    s->g = BLINK_SchemaGetGroupByID(self->schema, id);
+    s->g = BLINK_Schema_getGroupByID(self->schema, id);
 
     if(s->g == NULL){
         BLINK_ERROR("W2: ID is unknown")
         return 0U;
     }
 
-    BLINK_FieldIteratorInit(&s->iter, s->g);
+    BLINK_FieldIterator_init(&s->iter, s->g);
 
     s->event = NEXT_FIELD_DEFINITION;
     
@@ -145,14 +145,14 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
 
             while(true){
 
-                s->f = BLINK_FieldIteratorNext(&s->iter);
+                s->f = BLINK_FieldIterator_next(&s->iter);
 
                 if(s->f == NULL){
 
                     /* group may have an extension */
-                    if(((s->inLen - s->pos) > 0U) && ((depth == 0U) || (BLINK_FieldGetType(stack[depth-1U].f) == BLINK_TYPE_DYNAMIC_GROUP))){                        
+                    if(((s->inLen - s->pos) > 0U) && ((depth == 0U) || (BLINK_Field_getType(stack[depth-1U].f) == BLINK_TYPE_DYNAMIC_GROUP))){                        
 
-                        ret = BLINK_DecodeU32(&s->in[s->pos], s->inLen - s->pos, &s->sequenceSize, &isNull);
+                        ret = BLINK_Compact_decodeU32(&s->in[s->pos], s->inLen - s->pos, &s->sequenceSize, &isNull);
 
                         if(ret == 0U){
                             return 0U;
@@ -190,13 +190,12 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                 
                     if(self->events.beginField != NULL){
 
-                        size_t nameLen;
-                        self->events.beginField(self->user, BLINK_FieldGetName(s->f, &nameLen), nameLen, BLINK_FieldGetIsOptional(s->f));
+                        self->events.beginField(self->user, BLINK_Field_getName(s->f), BLINK_Field_isOptional(s->f));
                     }
 
-                    if(BLINK_FieldGetIsOptional(s->f)){
+                    if(BLINK_Field_isOptional(s->f)){
 
-                        ret = BLINK_DecodeU32(&s->in[s->pos], s->inLen - s->pos, &s->sequenceSize, &isNull);
+                        ret = BLINK_Compact_decodeU32(&s->in[s->pos], s->inLen - s->pos, &s->sequenceSize, &isNull);
 
                         if(ret == 0U){
                             return 0U;
@@ -206,7 +205,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
 
                         if(isNull){
                             
-                            if(!BLINK_FieldGetIsOptional(s->f)){
+                            if(!BLINK_Field_isOptional(s->f)){
 
                                 BLINK_ERROR("W5: sequence cannot be NULL")
                                 return 0U;
@@ -225,7 +224,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                         s->event = NEXT_FIELD_VALUE;
                     }
 
-                    s->expectedType = BLINK_FieldGetType(s->f);
+                    s->expectedType = BLINK_Field_getType(s->f);
                 }                            
             }        
         }
@@ -237,16 +236,16 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                 const uint8_t *value;
                 uint32_t valueLen;
 
-                ret = BLINK_DecodeString(&s->in[s->pos], s->inLen - s->pos, &value, &valueLen, &isNull);
+                ret = BLINK_Compact_decodeString(&s->in[s->pos], s->inLen - s->pos, &value, &valueLen, &isNull);
     
                 if(ret > 0U){
                     
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: string cannot be NULL")
                         return 0U;
                     }
-                    else if(valueLen > BLINK_FieldGetSize(s->f)){
+                    else if(valueLen > BLINK_Field_getSize(s->f)){
 
                         BLINK_ERROR("too big")
                         return 0U;
@@ -268,16 +267,16 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                 const uint8_t *value;
                 uint32_t valueLen;
 
-                ret = BLINK_DecodeBinary(&s->in[s->pos], s->inLen - s->pos, &value, &valueLen, &isNull);
+                ret = BLINK_Compact_decodeBinary(&s->in[s->pos], s->inLen - s->pos, &value, &valueLen, &isNull);
     
                 if(ret > 0U){
                     
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: binary cannot be NULL")
                         return 0U;
                     }
-                    else if(valueLen > BLINK_FieldGetSize(s->f)){
+                    else if(valueLen > BLINK_Field_getSize(s->f)){
 
                         BLINK_ERROR("too big")
                         return 0U;
@@ -297,16 +296,16 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             case BLINK_TYPE_FIXED:
             {
                 const uint8_t *value;
-                uint32_t valueLen = BLINK_FieldGetSize(s->f);
+                uint32_t valueLen = BLINK_Field_getSize(s->f);
 
-                if(BLINK_FieldGetIsOptional(s->f)){
+                if(BLINK_Field_isOptional(s->f)){
 
-                    ret = BLINK_DecodeOptionalFixed(&s->in[s->pos], s->inLen - s->pos, &value, valueLen, &isNull);
+                    ret = BLINK_Compact_decodeOptionalFixed(&s->in[s->pos], s->inLen - s->pos, &value, valueLen, &isNull);
                 }
                 else{
 
                     isNull = false;
-                    ret = BLINK_DecodeFixed(&s->in[s->pos], s->inLen - s->pos, &value, valueLen);                    
+                    ret = BLINK_Compact_decodeFixed(&s->in[s->pos], s->inLen - s->pos, &value, valueLen);                    
                 }
                         
                 if(ret > 0U){
@@ -325,11 +324,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 bool value;
                 
-                ret = BLINK_DecodeBool(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeBool(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
 
                 if(ret > 0U){
                     
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: bool cannot be NULL")
                         return 0U;           
@@ -351,11 +350,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                 int64_t mantissa;
                 int8_t exponent;
 
-                ret = BLINK_DecodeDecimal(&s->in[s->pos], s->inLen - s->pos, &mantissa, &exponent, &isNull);
+                ret = BLINK_Compact_decodeDecimal(&s->in[s->pos], s->inLen - s->pos, &mantissa, &exponent, &isNull);
                 
                 if(ret > 0U){
                     
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: decimal cannot be NULL")
                         return 0U;           
@@ -376,11 +375,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 uint8_t value;
 
-                ret = BLINK_DecodeU8(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeU8(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u8 cannot be NULL")
                         return 0U;
@@ -401,11 +400,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 uint16_t value;
 
-                ret = BLINK_DecodeU16(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeU16(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;  
@@ -426,11 +425,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 uint32_t value;
 
-                ret = BLINK_DecodeU32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeU32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;
@@ -451,11 +450,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 uint64_t value;
 
-                ret = BLINK_DecodeU64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeU64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;
@@ -476,11 +475,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int8_t value;
 
-                ret = BLINK_DecodeI8(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI8(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;
@@ -501,11 +500,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int16_t value;
 
-                ret = BLINK_DecodeI16(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI16(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;
@@ -526,11 +525,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int32_t value;
 
-                ret = BLINK_DecodeI32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;
@@ -551,11 +550,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int64_t value;
 
-                ret = BLINK_DecodeI64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: u16 cannot be NULL")
                         return 0U;
@@ -576,11 +575,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 double value;
 
-                ret = BLINK_DecodeF64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeF64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: f64 cannot be NULL")
                         return 0U; 
@@ -601,11 +600,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int32_t value;
                 
-                ret = BLINK_DecodeI32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: enum cannot be NULL")
                         return 0U;
@@ -616,14 +615,13 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
 
                         if(!isNull){
 
-                            const struct blink_symbol *sym = BLINK_EnumGetSymbolByValue(BLINK_FieldGetEnum(s->f), value);
-                            size_t nameLen;
+                            const struct blink_symbol *sym = BLINK_Enum_getSymbolByValue(BLINK_Field_getEnum(s->f), value);
 
                             if(sym != NULL){
 
                                 if(self->events.enumeration != NULL){
 
-                                    self->events.enumeration(self->user, BLINK_SymbolGetName(sym, &nameLen), nameLen);
+                                    self->events.enumeration(self->user, BLINK_Symbol_getName(sym));
                                 }
                             }
                             else{
@@ -640,11 +638,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int32_t value;
 
-                ret = BLINK_DecodeI32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: date cannot be NULL")
                         return 0U;
@@ -665,11 +663,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int64_t value;
                 
-                ret = BLINK_DecodeI64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: millitime cannot be NULL")
                         return 0U;     
@@ -690,11 +688,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 int64_t value;
                 
-                ret = BLINK_DecodeI64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeI64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: nanotime cannot be NULL")
                         return 0U; 
@@ -715,11 +713,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 uint32_t value;
                 
-                ret = BLINK_DecodeU32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeU32(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: timeOfDayNano cannot be NULL")
                         return 0U;
@@ -740,11 +738,11 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 uint64_t value;
                 
-                ret = BLINK_DecodeU64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
+                ret = BLINK_Compact_decodeU64(&s->in[s->pos], s->inLen - s->pos, &value, &isNull);
                 
                 if(ret > 0U){
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: timeOfDayNano cannot be NULL")
                         return 0U;
@@ -773,7 +771,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
 
                     s->pos += ret;
 
-                    if(isNull && !BLINK_FieldGetIsOptional(s->f)){
+                    if(isNull && !BLINK_Field_isOptional(s->f)){
 
                         BLINK_ERROR("W5: object cannot be NULL")
                         return 0U;               
@@ -795,7 +793,7 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                             s->in = value;
                             s->inLen = valueLen;
 
-                            s->g = BLINK_SchemaGetGroupByID(self->schema, id);
+                            s->g = BLINK_Schema_getGroupByID(self->schema, id);
 
                             if(s->g == NULL){
                                 BLINK_ERROR("W14: ID is unknown")
@@ -804,14 +802,14 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
 
                             if(s->expectedType == BLINK_TYPE_DYNAMIC_GROUP){
 
-                                if(!BLINK_GroupIsKindOf(s->g, BLINK_FieldGetGroup(s->f))){
+                                if(!BLINK_Group_isKindOf(s->g, BLINK_Field_getGroup(s->f))){
 
                                     BLINK_ERROR("W15: incompatible type")
                                     return 0U;
                                 }
                             }
 
-                            BLINK_FieldIteratorInit(&s->iter, s->g);
+                            BLINK_FieldIterator_init(&s->iter, s->g);
                             s->event = NEXT_FIELD_DEFINITION;                     
                         }
                     }
@@ -822,9 +820,9 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
             {
                 bool present = true;
 
-                if(BLINK_FieldGetIsOptional(s->f)){
+                if(BLINK_Field_isOptional(s->f)){
 
-                    ret = BLINK_DecodePresent(&s->in[s->pos], s->inLen - s->pos, &present);
+                    ret = BLINK_Compact_decodePresent(&s->in[s->pos], s->inLen - s->pos, &present);
 
                     if(ret == 0U){
                         return 0U;
@@ -846,8 +844,8 @@ static uint32_t decode(const struct blink_decoder *self, const uint8_t *in, uint
                     s->pos = 0U;
                     s->in = &stack[depth-1U].in[stack[depth-1U].pos];
                     s->inLen = stack[depth-1U].inLen - stack[depth-1U].pos;
-                    s->g = BLINK_FieldGetGroup(stack[depth-1U].f);
-                    BLINK_FieldIteratorInit(&s->iter, s->g);
+                    s->g = BLINK_Field_getGroup(stack[depth-1U].f);
+                    BLINK_FieldIterator_init(&s->iter, s->g);
                     s->event = NEXT_FIELD_DEFINITION;                     
                 }
             }
@@ -906,7 +904,7 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
     uint32_t retval = 0U;
     bool idIsNull;
     uint32_t ret;
-    uint32_t outerLen = BLINK_DecodeBinary(in, inLen, inner, innerLen, isNull);
+    uint32_t outerLen = BLINK_Compact_decodeBinary(in, inLen, inner, innerLen, isNull);
     
     if(outerLen > 0U){
 
@@ -914,7 +912,7 @@ static uint32_t decodeGroupHeader(const uint8_t *in, uint32_t inLen, uint64_t *i
 
             if(*innerLen != 0U){
 
-                ret = BLINK_DecodeU64(*inner, *innerLen, id, &idIsNull);
+                ret = BLINK_Compact_decodeU64(*inner, *innerLen, id, &idIsNull);
 
                 if(ret > 0U){
 

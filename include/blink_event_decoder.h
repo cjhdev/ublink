@@ -24,7 +24,8 @@
 #define BLINK_EVENT_DECODER_H
 
 /**
- * @defgroup blink_event_decoder
+ * @defgroup blink_event_decoder blink_event_decoder
+ * @ingroup ublink
  *
  * Event driven decoder
  * 
@@ -48,6 +49,8 @@ struct blink_group;     /**< forward declaration */
 struct blink_field;     /**< forward declaration */
 
 /* typedefs ***********************************************************/
+
+typedef void (* blink_error_fn_t)(void *user, uint32_t offset, const char *reason);
 
 /** beginning of static group event handler
  *
@@ -100,20 +103,18 @@ typedef void (* blink_end_sequence_fn_t)(void *user);
  *
  * @param[in] user
  * @param[in] name field name
- * @param[in] nameLen byte length of `name`
  * @param[in] optional true if this field is optional
  * 
  * */
-typedef void (* blink_begin_field_fn_t)(void *user, const char *name, size_t nameLen, bool optional);
+typedef void (* blink_begin_field_fn_t)(void *user, const char *name, bool optional);
 
 /** end of field handler
  *
  * @param[in] user
  * @param[in] name field name
- * @param[in] nameLen byte length of `name`
  * 
  * */
-typedef void (* blink_end_field_fn_t)(void *user, const char *name, size_t nameLen);
+typedef void (* blink_end_field_fn_t)(void *user, const char *name);
 
 /**
  * @param[in] user
@@ -222,10 +223,9 @@ typedef void (* blink_decimal_fn_t)(void *user, int64_t mantissa, int8_t exponen
 /**
  * @param[in] user
  * @param[in] name `enum` symbol name string
- * @param[in] nameLen byte length of `name`
  *
  * */
-typedef void (* blink_enum_fn_t)(void *user, const char *name, size_t nameLen);   /**< handle an `enum` */
+typedef void (* blink_enum_fn_t)(void *user, const char *name);   /**< handle an `enum` */
 
 /**
  * @param[in] user

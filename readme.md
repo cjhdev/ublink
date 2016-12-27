@@ -3,37 +3,69 @@ uBlink
 
 [![Build Status](https://travis-ci.org/cjhdev/ublink.svg?branch=master)](https://travis-ci.org/cjhdev/ublink)
 
-uBlink is a C99 implementation of [The Blink Protocol](http://www.blinkprotocol.org/ "The Blink Protocol") suitable for embedded applications.
+UBlink is C library for building compact binary messages according to
+Blink Protocol schemas. 
 
 ## Highlights
 
-- Compact form encode/decode primitives
 - Hand coded schema parser and lexer
-- Allocate-only malloc minimum requirement (i.e. you can use a simple heap that is reset instead of calling free)
-- Tests and coverage statistics
+- Compact form encode/decode primitives
+- allocate/reset pool based allocator
+- Tests
 - Linted to MISRA 2012
 
-## Compile Time Options
+## Example
 
-~~~c
-// remove asserts (default: not defined)
-#define NDEBUG
+~~~
+#include "ublink.h"
 
-// define the maximum inheritence depth (default: 10)
-#define BLINK_INHERIT_DEPTH 10
+#define ARBITRARY_HEAP_SIZE 1024U
 
-// define the maximum number of references allowed in a chain (default: 10)
-#define BLINK_LINK_DEPTH    10
+/* initialise a pool for the schema */
+uint8_t schemaHeap[ARBITRARY_HEAP_SIZE];
+struct blink_pool schemaPool;
+(void)BLINK_Pool_init(&schemaPool, schemaHeap, sizeof(schemaHeap));
 
-// define the maximum number of nested groups in a message (default: 10)
-#define BLINK_NEST_DEPTH    10
+const char syntax[] =
+    "InsertOrder/1 ->\n"
+    "   string Symbol,\n"
+    "   string OrderId,\n"
+    "   u32 Price,\n"
+    "   u32 Quantity\n";
+
+blink_schema_t schema = BLINK_Schema_new(&schemaPool, syntax, sizeof(syntax));
+
 ~~~
 
-## Todo
+## Integrating With Your Project
 
-- Overflow protection for parsing signed and unsigned integers in blink_lexer.c
-- Location support in blink_parser.c
-- Event driven decoder
+Example makefile snippet:
+
+~~~
+# add the include directory
+INCLUDES += $(DIR_UBLINK)/include
+
+# add the source directory to vpath:
+VPATH += $(DIR_UBLINK)/src
+
+# compile source to objects
+OBJECTS += $(wildcard $(DIR_UBLINK)/src/*.c):.o
+~~~
+
+Add `#include "ublink.h"` to source files that use the UBlink API.
+
+
+### Compile Time Options
+
+The following options can be defined at compile time. 
+
+~~~
+# remove asserts (default: not defined)
+DEFINES += -DNDEBUG
+
+# define the maximum number of references allowed in a chain (default: 10)
+DEFINES += -DBLINK_LINK_DEPTH=10
+~~~
 
 ## See Also
 

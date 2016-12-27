@@ -2,9 +2,8 @@ notifications:
     email: false
 language: C
 script:
-    - cd build/unit_test
-    - make
-    - make coverage
+    - cd test
+    - sh build_and_run.sh
 
     
     
