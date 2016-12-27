@@ -46,7 +46,7 @@ INCLUDES += $(DIR_UBLINK)/include
 
 VPATH += $(DIR_UBLINK)/src
 
-SRC := $(wildcard $(DIR_UBLINK)/src/*.c)
+SRC += $(wildcard $(DIR_UBLINK)/src/*.c)
 
 OBJECTS += $(SRC:.c=.o)
 ~~~
