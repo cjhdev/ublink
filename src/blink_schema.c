@@ -79,7 +79,7 @@ blink_schema_t BLINK_Schema_new(blink_pool_t pool, const char *in, size_t inLen)
     BLINK_ASSERT(in != NULL)
 
     blink_schema_t retval = NULL;
-    struct blink_schema *self = BLINK_Pool_malloc(pool, sizeof(struct blink_schema));
+    struct blink_schema *self = BLINK_Pool_calloc(pool, sizeof(struct blink_schema));
 
     if(self != NULL){
 
@@ -204,6 +204,12 @@ blink_field_t BLINK_FieldIterator_next(blink_field_iterator_t self)
     return retval;    
 }
 
+blink_field_t BLINK_FieldIterator_peek(blink_field_iterator_t self)
+{
+    BLINK_ASSERT(self != NULL)
+    
+    return (blink_field_t)castField(self->field[self->depth]);
+}
 
 const char *BLINK_Group_getName(blink_group_t self)
 {
@@ -1566,7 +1572,7 @@ static struct blink_list_element *newListElement(blink_pool_t pool, struct blink
 
     if(type != BLINK_ELEM_NULL){
 
-        retval = BLINK_Pool_malloc(pool, sizeof(struct blink_list_element));
+        retval = BLINK_Pool_calloc(pool, sizeof(struct blink_list_element));
 
         if(retval != NULL){
 
@@ -1588,28 +1594,28 @@ static struct blink_list_element *newListElement(blink_pool_t pool, struct blink
 
             switch(type){
             case BLINK_ELEM_NS:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_namespace));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_namespace));
                 break;                    
             case BLINK_ELEM_GROUP:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_group));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_group));
                 break;            
             case BLINK_ELEM_FIELD:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_field));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_field));
                 break;            
             case BLINK_ELEM_ENUM:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_enum));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_enum));
                 break;            
             case BLINK_ELEM_SYMBOL:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_symbol));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_symbol));
                 break;            
             case BLINK_ELEM_TYPE:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_type_def));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_type_def));
                 break;            
             case BLINK_ELEM_ANNOTE:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_annote));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_annote));
                 break;            
             case BLINK_ELEM_INCR_ANNOTE:
-                retval->ptr = BLINK_Pool_malloc(pool, sizeof(struct blink_incr_annote));
+                retval->ptr = BLINK_Pool_calloc(pool, sizeof(struct blink_incr_annote));
                 break;            
             case BLINK_ELEM_NULL:
             default:

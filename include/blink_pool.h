@@ -42,13 +42,13 @@
  * Allocate a word aligned block:
  *
  * @code
- * long *memory = (long *)BLINK_Pool_malloc(&pool, 42U);
+ * long *memory = (long *)BLINK_Pool_calloc(&pool, 42U);
  *
  * // a null pointer means the pool is exhausted
  * assert(memory != NULL);
  *
- * // note that BLINK_Pool_malloc interface will return zeroed memory
- * assert(memory = 0);
+ * // note that BLINK_Pool_calloc interface will return zeroed memory
+ * assert(*memory = 0);
  * 
  * *memory = 42;
  * @endcode
@@ -107,6 +107,16 @@ typedef struct blink_pool * blink_pool_t;
  * */
 blink_pool_t BLINK_Pool_init(struct blink_pool *self, uint8_t *heap, size_t size);
 
+/** Teardown and cleanup an initialised pool
+ *
+ * @note not required for simple init/reset pools but
+ * no side effect if called
+ *
+ * @param[in] self initialised pool
+ *
+ * */
+void BLINK_Pool_destroy(blink_pool_t self);
+
 /** Allocate word aligned memory from the pool
  *
  * @note memory shall be set to zero at allocation time
@@ -119,7 +129,7 @@ blink_pool_t BLINK_Pool_init(struct blink_pool *self, uint8_t *heap, size_t size
  * @retval NULL insufficient free memory
  *
  * */
-void *BLINK_Pool_malloc(blink_pool_t self, size_t size);
+void *BLINK_Pool_calloc(blink_pool_t self, size_t size);
 
 /** Discover how much free memory is left in the pool
  * 

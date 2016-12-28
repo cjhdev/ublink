@@ -347,6 +347,15 @@ int32_t BLINK_Symbol_getValue(blink_symbol_t self);
  * */
 blink_field_iterator_t BLINK_FieldIterator_init(struct blink_field_iterator *iter, blink_group_t group);
 
+/** Get next field from a field iterator but do not change the iterator state
+ * 
+ * @param[in] self
+ * @return field
+ * @retval NULL no next field in group
+ *
+ * */
+blink_field_t BLINK_FieldIterator_peek(blink_field_iterator_t self);
+
 /** Get next field from a field iterator
  * 
  * @param[in] self

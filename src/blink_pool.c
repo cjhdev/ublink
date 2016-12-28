@@ -43,7 +43,7 @@ blink_pool_t BLINK_Pool_init(struct blink_pool *self, uint8_t *heap, size_t size
     return self;
 }
 
-void *BLINK_Pool_malloc(blink_pool_t self, size_t size)
+void *BLINK_Pool_calloc(blink_pool_t self, size_t size)
 {
     BLINK_ASSERT(self != NULL)
 
@@ -59,7 +59,7 @@ void *BLINK_Pool_malloc(blink_pool_t self, size_t size)
         }
         else{
 
-            /* malloc() */
+            /* calloc() */
             BLINK_DEBUG("insufficient memory (asking for %lu of a possible %lu bytes)", actualSize, BLINK_Pool_getFreeSpace(self))
         }
     }
@@ -72,4 +72,9 @@ size_t BLINK_Pool_getFreeSpace(blink_pool_t self)
     BLINK_ASSERT(self != NULL)
 
     return (self->size - self->pos);
+}
+
+void BLINK_Pool_destroy(blink_pool_t self)
+{
+    BLINK_ASSERT(self != NULL)
 }
