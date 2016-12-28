@@ -1,5 +1,5 @@
 /**
- * @example __FILE__
+ * @example tc_blink_schema_getgroupbyid.c
  *
  * */
 

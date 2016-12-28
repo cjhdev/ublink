@@ -27,7 +27,7 @@
  * @defgroup blink_compact blink_compact
  * @ingroup ublink
  *
- * Compact form primitives.
+ * Compact form encode/decode functions
  * 
  * @{
  * */
@@ -50,13 +50,13 @@ typedef struct blink_stream * blink_stream_t;
 /* functions **********************************************************/
 
 /**
- * Encode a VLC null
+ * Encode a null
  *
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return bytes written to `out`
- * @retval 0..1
+ * @return null was encoded
+ * @retval true
+ * @retval false
  * 
  * */
 bool BLINK_Compact_encodeNull(blink_stream_t out);
@@ -64,11 +64,11 @@ bool BLINK_Compact_encodeNull(blink_stream_t out);
 /**
  * Encode a present symbol
  *
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return bytes written to `out`
- * @retval 0..1
+ * @return present was encoded
+ * @retval true
+ * @retval false
  * 
  * */
 bool BLINK_Compact_encodePresent(blink_stream_t out);
@@ -76,13 +76,13 @@ bool BLINK_Compact_encodePresent(blink_stream_t out);
 /**
  * Decode `bool`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..1
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeBool(blink_stream_t in, bool *out, bool *isNull);
@@ -90,13 +90,13 @@ bool BLINK_Compact_decodeBool(blink_stream_t in, bool *out, bool *isNull);
 /**
  * Decode `u8`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..1
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeU8(blink_stream_t in, uint8_t *out, bool *isNull);
@@ -104,13 +104,13 @@ bool BLINK_Compact_decodeU8(blink_stream_t in, uint8_t *out, bool *isNull);
 /**
  * Decode `u16`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..3
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeU16(blink_stream_t in, uint16_t *out, bool *isNull);
@@ -118,13 +118,13 @@ bool BLINK_Compact_decodeU16(blink_stream_t in, uint16_t *out, bool *isNull);
 /**
  * Decode `u32`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..5
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeU32(blink_stream_t in, uint32_t *out, bool *isNull);
@@ -132,13 +132,13 @@ bool BLINK_Compact_decodeU32(blink_stream_t in, uint32_t *out, bool *isNull);
 /**
  * Decode `u64`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..9
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeU64(blink_stream_t in, uint64_t *out, bool *isNull);
@@ -146,13 +146,13 @@ bool BLINK_Compact_decodeU64(blink_stream_t in, uint64_t *out, bool *isNull);
 /**
  * Decode `i8`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..1
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeI8(blink_stream_t in, int8_t *out, bool *isNull);
@@ -160,13 +160,13 @@ bool BLINK_Compact_decodeI8(blink_stream_t in, int8_t *out, bool *isNull);
 /**
  * Decode `i16`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..3
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeI16(blink_stream_t in, int16_t *out, bool *isNull);
@@ -174,13 +174,13 @@ bool BLINK_Compact_decodeI16(blink_stream_t in, int16_t *out, bool *isNull);
 /**
  * Decode `i32`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..5
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeI32(blink_stream_t in, int32_t *out, bool *isNull);
@@ -188,13 +188,13 @@ bool BLINK_Compact_decodeI32(blink_stream_t in, int32_t *out, bool *isNull);
 /**
  * Decode `i64`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out decoded value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..9
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeI64(blink_stream_t in, int64_t *out, bool *isNull);
@@ -202,14 +202,14 @@ bool BLINK_Compact_decodeI64(blink_stream_t in, int64_t *out, bool *isNull);
 /**
  * Decode `decimal`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] mantissa decoded mantissa
  * @param[out] exponent decoded exponent
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..11
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeDecimal(blink_stream_t in, int64_t *mantissa, int8_t *exponent, bool *isNull);
@@ -217,13 +217,13 @@ bool BLINK_Compact_decodeDecimal(blink_stream_t in, int64_t *mantissa, int8_t *e
 /**
  * Decode `f64`
  * 
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out value
  * @param[out] isNull set to `true` if `in` decodes to NULL
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..9
+ * @return value was decoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_decodeF64(blink_stream_t in, double *out, bool *isNull);
@@ -231,12 +231,12 @@ bool BLINK_Compact_decodeF64(blink_stream_t in, double *out, bool *isNull);
 /**
  * Decode a present field
  *
- * @param[in] in input buffer
- * @param[in] inLen byte length of `in`
+ * @param[in] in input stream
  * @param[out] out set to `true` if present
  *
- * @return number of bytes successfully read from `in`
- * @retval 0..1
+ * @return value was decoded
+ * @retval true
+ * @retval false
  * 
  * */
 bool BLINK_Compact_decodePresent(blink_stream_t in, bool *out);
@@ -245,11 +245,11 @@ bool BLINK_Compact_decodePresent(blink_stream_t in, bool *out);
  * Encode `bool`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..1
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeBool(bool in, blink_stream_t out);
@@ -258,11 +258,11 @@ bool BLINK_Compact_encodeBool(bool in, blink_stream_t out);
  * Encode `u8`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..2
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeU8(uint8_t in, blink_stream_t out);
@@ -271,11 +271,11 @@ bool BLINK_Compact_encodeU8(uint8_t in, blink_stream_t out);
  * Encode `u16`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..3
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeU16(uint16_t in, blink_stream_t out);
@@ -284,11 +284,11 @@ bool BLINK_Compact_encodeU16(uint16_t in, blink_stream_t out);
  * Encode `u32`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..5
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeU32(uint32_t in, blink_stream_t out);
@@ -297,11 +297,11 @@ bool BLINK_Compact_encodeU32(uint32_t in, blink_stream_t out);
  * Encode `u64`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..9
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeU64(uint64_t in, blink_stream_t out);
@@ -310,11 +310,11 @@ bool BLINK_Compact_encodeU64(uint64_t in, blink_stream_t out);
  * Encode `i8`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..2
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeI8(int8_t in, blink_stream_t out);
@@ -323,11 +323,11 @@ bool BLINK_Compact_encodeI8(int8_t in, blink_stream_t out);
  * Encode `i16`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..3
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeI16(int16_t in, blink_stream_t out);
@@ -336,11 +336,11 @@ bool BLINK_Compact_encodeI16(int16_t in, blink_stream_t out);
  * Encode `i32`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..5
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeI32(int32_t in, blink_stream_t out);
@@ -349,11 +349,11 @@ bool BLINK_Compact_encodeI32(int32_t in, blink_stream_t out);
  * Encode `i64`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..9
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeI64(int64_t in, blink_stream_t out);
@@ -362,11 +362,11 @@ bool BLINK_Compact_encodeI64(int64_t in, blink_stream_t out);
  * Encode `f64`
  *
  * @param[in] in input value
- * @param[out] out output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..9
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeF64(double in, blink_stream_t out);
@@ -376,11 +376,11 @@ bool BLINK_Compact_encodeF64(double in, blink_stream_t out);
  *
  * @param[in] mantissa
  * @param[in] exponent
- * @param[out] output buffer
- * @param[in] outMax maximum byte length of `out`
+ * @param[in] out output stream
  *
- * @return number of bytes successfully written to `out`
- * @retval 0..11
+ * @return value was encoded
+ * @retval true
+ * @retval false
  *
  * */
 bool BLINK_Compact_encodeDecimal(int64_t mantissa, int8_t exponent, blink_stream_t out);
