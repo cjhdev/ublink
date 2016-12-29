@@ -384,6 +384,24 @@ bool BLINK_Compact_encodeF64(double in, blink_stream_t out);
  *
  * */
 bool BLINK_Compact_encodeDecimal(int64_t mantissa, int8_t exponent, blink_stream_t out);
+
+/**
+ * Calculate encoded size of unsigned integer
+ *
+ * @param[in] value unsigned integer
+ * @return encoded size in bytes
+ *
+ * */
+uint8_t BLINK_Compact_sizeofUnsigned(uint64_t value);
+
+/**
+ * Calculate encoded size of signed integer
+ *
+ * @param[in] value signed integer
+ * @return encoded size in bytes
+ *
+ * */
+uint8_t BLINK_Compact_sizeofSigned(int64_t value);
  
 #ifdef __cplusplus
 }

@@ -10,10 +10,9 @@ Blink Protocol schemas.
 
 - Hand coded schema parser and lexer
 - Compact form encode/decode primitives
-- allocate/reset pool based allocator
-- message input/output streams
+- Allocate/reset pool based allocator
+- Message input/output streams
 - Tests
-- Linted to MISRA 2012
 
 ## Example
 

@@ -30,8 +30,6 @@
 
 /* static function prototypes *****************************************/
 
-static uint8_t getVLCSizeUnsigned(uint64_t value);
-static uint8_t getVLCSizeSigned(int64_t value);
 static bool encodeVLC(uint64_t in, bool isSigned, blink_stream_t out);
 static bool decodeVLC(blink_stream_t in, bool isSigned, uint64_t *out, bool *isNull);
 
@@ -421,9 +419,7 @@ bool BLINK_Compact_encodeDecimal(int64_t mantissa, int8_t exponent, blink_stream
     return retval;
 }
 
-/* static functions ***************************************************/
-
-static uint8_t getVLCSizeUnsigned(uint64_t value)
+uint8_t BLINK_Compact_sizeofUnsigned(uint64_t value)
 {
     uint8_t retval;
 
@@ -458,7 +454,7 @@ static uint8_t getVLCSizeUnsigned(uint64_t value)
     return retval;
 }
 
-static uint8_t getVLCSizeSigned(int64_t value)
+uint8_t BLINK_Compact_sizeofSigned(int64_t value)
 {
     uint8_t retval;
 
@@ -526,10 +522,12 @@ static uint8_t getVLCSizeSigned(int64_t value)
     return retval;
 }
 
+/* static functions ***************************************************/
+
 static bool encodeVLC(uint64_t in, bool isSigned, blink_stream_t out)
 {
     uint8_t buffer[9U];
-    uint8_t bytes = (isSigned) ? getVLCSizeSigned((int64_t)in) : getVLCSizeUnsigned(in);
+    uint8_t bytes = (isSigned) ? BLINK_Compact_sizeofSigned((int64_t)in) : BLINK_Compact_sizeofUnsigned(in);
     uint8_t i;
 
     if(bytes == 1U){

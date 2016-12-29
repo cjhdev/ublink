@@ -40,7 +40,7 @@ bool BLINK_Stream_write(blink_stream_t self, const uint8_t *in, size_t bytesToWr
 
         if((s->outMax - s->pos) >= bytesToWrite){
             
-            memcpy(&s->out[s->pos], in, bytesToWrite);
+            (void)memcpy(&s->out[s->pos], in, bytesToWrite);
             s->pos += bytesToWrite;
             retval = true;
         }
@@ -70,7 +70,7 @@ bool BLINK_Stream_read(blink_stream_t self, uint8_t *out, size_t bytesToRead)
 
         if((s->inLen - s->pos) >= bytesToRead){
             
-            memcpy(out, &s->in[s->pos], bytesToRead);
+            (void)memcpy(out, &s->in[s->pos], bytesToRead);
             s->pos += bytesToRead;
             retval = true;
         }
