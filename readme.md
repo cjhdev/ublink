@@ -47,7 +47,7 @@ void example(void)
 
 Example makefile snippet:
 
-``` mf
+~~~ mf
 INCLUDES += $(DIR_UBLINK)/include
 
 VPATH += $(DIR_UBLINK)/src
@@ -55,7 +55,7 @@ VPATH += $(DIR_UBLINK)/src
 SRC += $(wildcard $(DIR_UBLINK)/src/*.c)
 
 OBJECTS += $(SRC:.c=.o)
-```
+~~~
 
 Add `#include "ublink.h"` to source files that use the UBlink API.
 
@@ -64,13 +64,13 @@ Add `#include "ublink.h"` to source files that use the UBlink API.
 
 The following options can be defined at compile time. 
 
-``` mf
+~~~ mf
 # remove asserts (default: not defined)
 DEFINES += -DNDEBUG
 
 # define the maximum number of references allowed in a chain (default: 10)
 DEFINES += -DBLINK_LINK_DEPTH=10
-```
+~~~
 
 ## See Also
 
