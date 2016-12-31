@@ -27,7 +27,7 @@
  * @defgroup blink_stream blink_stream
  * @ingroup ublink
  *
- * Configurable uni-directional IO stream.
+ * Configurable IO streams.
  * 
  * @{
  *

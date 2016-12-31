@@ -3,8 +3,7 @@ uBlink
 
 [![Build Status](https://travis-ci.org/cjhdev/ublink.svg?branch=master)](https://travis-ci.org/cjhdev/ublink)
 
-UBlink is C library for building compact binary messages according to
-Blink Protocol schemas. 
+[Blink Protocol](http://www.blinkprotocol.org/ "Blink Protocol") in C.
 
 ## Highlights
 
@@ -19,22 +18,29 @@ Blink Protocol schemas.
 ~~~
 #include "ublink.h"
 
-#define ARBITRARY_HEAP_SIZE 1024U
+blink_pool_t pool;
+blink_schema_t schema;
 
-//initialise a pool for the schema
-uint8_t schemaHeap[ARBITRARY_HEAP_SIZE];
-struct blink_pool schemaPool;
-(void)BLINK_Pool_init(&schemaPool, schemaHeap, sizeof(schemaHeap));
+static void setup(void)
+{
+    static uint8_t heap[ARBITRARY_HEAP_SIZE];
+    static struct blink_pool p;
+    pool = BLINK_Pool_init(&p, heap, sizeof(heap));
 
-const char syntax[] =
-    "InsertOrder/1 ->\n"
-    "   string Symbol,\n"
-    "   string OrderId,\n"
-    "   u32 Price,\n"
-    "   u32 Quantity\n";
+    static const char syntax[] =
+        "InsertOrder/1 ->\n"
+        "   string Symbol,\n"
+        "   string OrderId,\n"
+        "   u32 Price,\n"
+        "   u32 Quantity\n";
 
-blink_schema_t schema = BLINK_Schema_new(&schemaPool, syntax, sizeof(syntax));
+    schema = BLINK_Schema_new(pool, syntax, sizeof(syntax));
+}
 
+void example(void)
+{
+    setup();
+}
 ~~~
 
 ## Integrating With Your Project

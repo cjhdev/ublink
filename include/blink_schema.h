@@ -85,12 +85,8 @@
  * @code
  * size_t stackDimension = BLINK_Group_numberOfSuperGroup(group)+1U;
  * blink_schema_t stack[stackDimension];
- * struct blink_field_iterator iter = BLINK_FieldIterator_new(stack, stackDimension, group);
+ * struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackDimension, group);
  * @endcode
- *
- * Fields are accessed sequentally rather than directly since fields are
- * only useful to decode/encode operations which always occur in the
- * defined sequence.
  *
  * Below is an example of accessing field definitions sequentally using
  * the iterator:

@@ -27,7 +27,7 @@
  * @defgroup blink_pool blink_pool
  * @ingroup ublink
  *
- * A memory allocator for UBlink modules.
+ * A linear memory allocator for uBlink modules.
  *
  * ### Example Workflow
  *
@@ -81,7 +81,7 @@ struct blink_pool {
 
 /* typedefs ***********************************************************/
 
-/** This type shall be used by UBlink modules to refer to initialised pools */ 
+/** This type shall be used by uBlink modules to refer to initialised pools */ 
 typedef struct blink_pool * blink_pool_t;
 
 /* function prototypes ************************************************/

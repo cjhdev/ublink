@@ -27,7 +27,7 @@
  * @defgroup blink_schema_internal blink_schema_internal
  * @ingroup ublink
  *
- * Internal dependency required by blink_schema.
+ * Definitions required by blink_schema and other modules.
  *
  * @{
  * */
@@ -40,28 +40,28 @@
 
 /* enums **************************************************************/
 
-/** A field shall represent one of the following types */
+/** internal field types */
 enum blink_itype_tag {
-    BLINK_ITYPE_STRING = 0,        /**< UTF8 encoded string */
-    BLINK_ITYPE_BINARY,            /**< octet string */
-    BLINK_ITYPE_FIXED,             /**< fixed size string */
-    BLINK_ITYPE_BOOL,              /**< boolean */
-    BLINK_ITYPE_U8,                /**< 8 bit unsigned integer */
-    BLINK_ITYPE_U16,               /**< 16 bit unsigned integer */
-    BLINK_ITYPE_U32,               /**< 32 bit unsigned integer */
-    BLINK_ITYPE_U64,               /**< 64 bit unsigned integer */
-    BLINK_ITYPE_I8,                /**< 8 bit signed integer */
-    BLINK_ITYPE_I16,               /**< 16 bit signed integer */
-    BLINK_ITYPE_I32,               /**< 32 bit signed integer */
-    BLINK_ITYPE_I64,               /**< 64 bit signed integer */
-    BLINK_ITYPE_F64,               /**< IEEE 754 double */
+    BLINK_ITYPE_STRING = 0,
+    BLINK_ITYPE_BINARY,
+    BLINK_ITYPE_FIXED,
+    BLINK_ITYPE_BOOL,
+    BLINK_ITYPE_U8,
+    BLINK_ITYPE_U16,
+    BLINK_ITYPE_U32,
+    BLINK_ITYPE_U64,
+    BLINK_ITYPE_I8,
+    BLINK_ITYPE_I16,
+    BLINK_ITYPE_I32,
+    BLINK_ITYPE_I64,
+    BLINK_ITYPE_F64,
     BLINK_ITYPE_DATE,              
     BLINK_ITYPE_TIME_OF_DAY_MILLI,
     BLINK_ITYPE_TIME_OF_DAY_NANO,
     BLINK_ITYPE_NANO_TIME,
     BLINK_ITYPE_MILLI_TIME,        
-    BLINK_ITYPE_DECIMAL,           /**< 8 bit signed integer exponent, 64 bit signed integer mantissa */
-    BLINK_ITYPE_OBJECT,            /**< any group encoded as dynamic group */
+    BLINK_ITYPE_DECIMAL,
+    BLINK_ITYPE_OBJECT,
     BLINK_ITYPE_REF                /**< reference to a typedef, enum, or group */
 };
 

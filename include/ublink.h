@@ -26,7 +26,7 @@
 /**
  * @defgroup ublink ublink
  *
- * UBlink API
+ * uBlink API
  * 
  * */
 

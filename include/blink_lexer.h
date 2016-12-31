@@ -27,8 +27,7 @@
  * @defgroup blink_lexer blink_lexer
  * @ingroup ublink
  *
- * Internal dependency required by blink_schema for converting schema
- * syntax into tokens.
+ * Used by blink_schema to convert schema syntax into tokens and values.
  * 
  * @{
  * */
