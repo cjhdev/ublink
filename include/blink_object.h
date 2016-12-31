@@ -79,7 +79,7 @@ blink_object_t BLINK_Object_newGroup(blink_pool_t pool, blink_schema_t group);
 /** Set a group field to NULL
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  *
  * @return true if successful
  *
@@ -89,7 +89,7 @@ bool BLINK_Object_setNull(blink_object_t group, const char *fieldName);
 /** Write enum to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value enum
  *
  * @return true if successful
@@ -100,7 +100,7 @@ bool BLINK_Object_setEnum(blink_object_t group, const char *fieldName, const cha
 /** Write boolean to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value boolean
  *
  * @return true if successful
@@ -111,7 +111,7 @@ bool BLINK_Object_setBool(blink_object_t group, const char *fieldName, bool valu
 /** Write decimal to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value decimal
  *
  * @return true if successful
@@ -122,7 +122,7 @@ bool BLINK_Object_setDecimal(blink_object_t group, const char *fieldName, struct
 /** Write u8 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value u8
  *
  * @return true if successful
@@ -133,7 +133,7 @@ bool BLINK_Object_setU8(blink_object_t group, const char *fieldName, uint8_t val
 /** Write u16 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value u16
  *
  * @return true if successful
@@ -144,7 +144,7 @@ bool BLINK_Object_setU16(blink_object_t group, const char *fieldName, uint16_t v
 /** Write u32 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value u32
  *
  * @return true if successful
@@ -155,7 +155,7 @@ bool BLINK_Object_setU32(blink_object_t group, const char *fieldName, uint32_t v
 /** Write u64 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value u64
  *
  * @return true if successful
@@ -166,7 +166,7 @@ bool BLINK_Object_setU64(blink_object_t group, const char *fieldName, uint64_t v
 /** Write i8 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value i8
  *
  * @return true if successful
@@ -177,7 +177,7 @@ bool BLINK_Object_setI8(blink_object_t group, const char *fieldName, int8_t valu
 /** Write i16 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value i16
  *
  * @return true if successful
@@ -188,7 +188,7 @@ bool BLINK_Object_setI16(blink_object_t group, const char *fieldName, int16_t va
 /** Write i32 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value i32
  *
  * @return true if successful
@@ -199,7 +199,7 @@ bool BLINK_Object_setI32(blink_object_t group, const char *fieldName, int32_t va
 /** Write i64 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value i64
  *
  * @return true if successful
@@ -210,7 +210,7 @@ bool BLINK_Object_setI64(blink_object_t group, const char *fieldName, int64_t va
 /** Write f64 to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value f64
  *
  * @return true if successful
@@ -221,7 +221,7 @@ bool BLINK_Object_setF64(blink_object_t group, const char *fieldName, double val
 /** Write string to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value string
  *
  * @return true if successful
@@ -232,7 +232,7 @@ bool BLINK_Object_setString(blink_object_t group, const char *fieldName, struct 
 /** Write binary to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value binary
  *
  * @return true if successful
@@ -243,7 +243,7 @@ bool BLINK_Object_setBinary(blink_object_t group, const char *fieldName, struct 
 /** Write fixed to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value fixed
  *
  * @return true if successful
@@ -254,7 +254,7 @@ bool BLINK_Object_setFixed(blink_object_t group, const char *fieldName, struct b
 /** Write group to field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[in] value group
  *
  * @return true if successful
@@ -265,7 +265,7 @@ bool BLINK_Object_setGroup(blink_object_t group, const char *fieldName, blink_ob
 /** Test if field value is NULL
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  *
  * @return true if field value is NULL
  *
@@ -275,7 +275,7 @@ bool BLINK_Object_fieldIsNull(blink_object_t group, const char *fieldName);
 /** Read enum from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value length of enum 
  * @param[out] valueLen length of enum value
  *
@@ -287,7 +287,7 @@ bool BLINK_Object_getEnum(blink_object_t group, const char *fieldName, const cha
 /** Read boolean from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value boolean
  *
  * @return true if value can be read
@@ -298,7 +298,7 @@ bool BLINK_Object_getBool(blink_object_t group, const char *fieldName, bool *val
 /** Read decimal from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value boolean
  *
  * @return true if value can be read
@@ -309,7 +309,7 @@ bool BLINK_Object_getDecimal(blink_object_t group, const char *fieldName, struct
 /** Read u8 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value u8
  *
  * @return true if value can be read
@@ -320,7 +320,7 @@ bool BLINK_Object_getU8(blink_object_t group, const char *fieldName, uint8_t *va
 /** Read u16 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value u16
  *
  * @return true if value can be read
@@ -331,7 +331,7 @@ bool BLINK_Object_getU16(blink_object_t group, const char *fieldName, uint16_t *
 /** Read u32 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value u32
  *
  * @return true if value can be read
@@ -342,7 +342,7 @@ bool BLINK_Object_getU32(blink_object_t group, const char *fieldName, uint32_t *
 /** Read u64 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value u64
  *
  * @return true if value can be read
@@ -353,7 +353,7 @@ bool BLINK_Object_getU64(blink_object_t group, const char *fieldName, uint64_t *
 /** Read i8 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value i8
  *
  * @return true if value can be read
@@ -364,7 +364,7 @@ bool BLINK_Object_getI8(blink_object_t group, const char *fieldName, int8_t *val
 /** Read i16 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value i16
  *
  * @return true if value can be read
@@ -375,7 +375,7 @@ bool BLINK_Object_getI16(blink_object_t group, const char *fieldName, int16_t *v
 /** Read i32 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value i32
  *
  * @return true if value can be read
@@ -386,7 +386,7 @@ bool BLINK_Object_getI32(blink_object_t group, const char *fieldName, int32_t *v
 /** Read i64 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value i64
  *
  * @return true if value can be read
@@ -397,7 +397,7 @@ bool BLINK_Object_getI64(blink_object_t group, const char *fieldName, int64_t *v
 /** Read f64 from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value f64
  *
  * @return true if value can be read
@@ -408,7 +408,7 @@ bool BLINK_Object_getF64(blink_object_t group, const char *fieldName, double *va
 /** Read string from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value string
  *
  * @return true if value can be read
@@ -419,7 +419,7 @@ bool BLINK_Object_getString(blink_object_t group, const char *fieldName, struct 
 /** Read binary from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value binary
  *
  * @return true if value can be read
@@ -430,7 +430,7 @@ bool BLINK_Object_getBinary(blink_object_t group, const char *fieldName, struct 
 /** Read fixed from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value fixed
  *
  * @return true if value can be read
@@ -441,7 +441,7 @@ bool BLINK_Object_getFixed(blink_object_t group, const char *fieldName, struct b
 /** Read group from field
  *
  * @param[in] group
- * @parma[in] fieldName
+ * @param[in] fieldName
  * @param[out] value group
  *
  * @return true if value can be read
