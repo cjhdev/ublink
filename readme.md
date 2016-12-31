@@ -15,7 +15,7 @@ uBlink
 
 ## Example
 
-``` C
+~~~ C
 #include "ublink.h"
 
 blink_pool_t pool;
@@ -41,7 +41,7 @@ void example(void)
 {
     setup();
 }
-```
+~~~
 
 ## Integrating With Your Project
 
