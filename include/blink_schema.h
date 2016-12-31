@@ -35,8 +35,8 @@
  *
  * @code
  * uint8_t heap[1024U];
- * struct blink_pool pool_state;
- * blink_pool_t pool = BLINK_Pool_init(&pool, heap, sizeof(heap));
+ * struct blink_pool poolState;
+ * blink_pool_t pool = BLINK_Pool_init(&poolState, heap, sizeof(heap));
  * @endcode
  *
  * Next create a schema object from schema syntax:
@@ -56,14 +56,14 @@
  * it:
  *
  * @code
- * blink_group_t group = BLINK_Schema_getGroupByName(schema, "InsertOrder");
+ * blink_schema_t group = BLINK_Schema_getGroupByName(schema, "InsertOrder");
  * @endcode
  *
  * It's also possible to get a reference to "InsertOrder" by its group
  * ID:
  *
  * @code
- * blink_group_t group = BLINK_Schema_getGroupByID(schema, 1U);
+ * blink_schema_t group = BLINK_Schema_getGroupByID(schema, 1U);
  * @endcode
  *
  * While not very useful in this example, it is possible to read attributes
@@ -77,7 +77,37 @@
  * BLINK_Group_getID(group);
  * @endcode
  *
+ * To access the fields of a group you will need a field iterator. An iterator
+ * is composed of an array of schema references, one entry for this group plus any
+ * inherited supergroups. Where the memory is stored depends on your requirements
+ * for the lifetime of the iterator - below we use a VLA.
  * 
+ * @code
+ * size_t stackDimension = BLINK_Group_numberOfSuperGroup(group)+1U;
+ * blink_schema_t stack[stackDimension];
+ * struct blink_field_iterator iter = BLINK_FieldIterator_new(stack, stackDimension, group);
+ * @endcode
+ *
+ * Fields are accessed sequentally rather than directly since fields are
+ * only useful to decode/encode operations which always occur in the
+ * defined sequence.
+ *
+ * Below is an example of accessing field definitions sequentally using
+ * the iterator:
+ *
+ * @code
+ * // this call does not advance the iterator state
+ * blink_schema_t field = BLINK_FieldIterator_peek(&iter);
+ *
+ * // these calls advance the iterator state 
+ * blink_schema_t fieldSymbol = BLINK_FieldIterator_next(&iter);
+ * blink_schema_t fieldOrderID = BLINK_FieldIterator_next(&iter);
+ * blink_schema_t fieldPrice = BLINK_FieldIterator_next(&iter);
+ * blink_schema_t fieldQuantity = BLINK_FieldIterator_next(&iter);
+ *
+ * // the iterator will be exhausted after returning all fields
+ * assert(BLINK_FieldIterator_peek(&iter) == NULL);
+ * @endcode
  * 
  * 
  * @{
@@ -96,11 +126,6 @@ extern "C" {
 #include "blink_pool.h"
 
 /* definitions ********************************************************/
-
-#ifndef BLINK_INHERIT_DEPTH
-    /** maximum inheritence depth */
-    #define BLINK_INHERIT_DEPTH   10U
-#endif
 
 /* enums **************************************************************/
 
@@ -134,28 +159,15 @@ enum blink_type_tag {
 /* structs ************************************************************/
 
 struct blink_schema;
-struct blink_namespace;
-struct blink_list_element;
-struct blink_group;
-struct blink_field;
-struct blink_enum;
+
+/** this type refers to any immutable schema object */
+typedef struct blink_schema * blink_schema_t;
 
 /** A field iterator stores state required to iterate through all fields of a group (including any inherited fields) */
 struct blink_field_iterator {
-    struct blink_list_element *field[BLINK_INHERIT_DEPTH];  /**< stack of pointers to fields within groups */
-    uint16_t depth;                                         /**< current depth in `field` */
+    blink_schema_t *field;      /**< stack of pointers to fields within groups */
+    size_t index;               /**< current index in `field` */
 };
-
-/* typdefs ************************************************************/
-
-typedef struct blink_schema * blink_partial_schema_t;
-typedef const struct blink_schema * blink_schema_t;
-typedef const struct blink_group * blink_group_t;
-typedef const struct blink_field * blink_field_t;
-typedef const struct blink_enum * blink_enum_t;
-typedef const struct blink_symbol * blink_symbol_t;
-typedef struct blink_list_element * blink_list_element_t;
-typedef struct blink_field_iterator * blink_field_iterator_t;
 
 /* function prototypes ************************************************/
 
@@ -178,7 +190,7 @@ blink_schema_t BLINK_Schema_new(blink_pool_t pool, const char *in, size_t inLen)
  * @retval NULL group not found
  *
  * */
-blink_group_t BLINK_Schema_getGroupByName(blink_schema_t self, const char *name);
+blink_schema_t BLINK_Schema_getGroupByName(blink_schema_t self, const char *name);
 
 /** Find a group by ID
  * 
@@ -188,16 +200,15 @@ blink_group_t BLINK_Schema_getGroupByName(blink_schema_t self, const char *name)
  * @retval NULL group not found
  *
  * */
-blink_group_t BLINK_Schema_getGroupByID(blink_schema_t self, uint64_t id);
-
+blink_schema_t BLINK_Schema_getGroupByID(blink_schema_t schema, uint64_t id);
 
 /** Get group name
  * 
  * @param[in] self
  * @return null terminated name
  *
- * */
-const char *BLINK_Group_getName(blink_group_t self);
+ * */ 
+const char *BLINK_Group_getName(blink_schema_t self);
 
 /** Get group ID
  *
@@ -207,7 +218,7 @@ const char *BLINK_Group_getName(blink_group_t self);
  * @return ID
  *
  * */
-uint64_t BLINK_Group_getID(blink_group_t self);
+uint64_t BLINK_Group_getID(blink_schema_t self);
 
 /** Discover if group has a valid ID
  *
@@ -220,7 +231,7 @@ uint64_t BLINK_Group_getID(blink_group_t self);
  * @retval false    no
  *
  * */
-bool BLINK_Group_hasID(blink_group_t self);
+bool BLINK_Group_hasID(blink_schema_t self);
 
 /** Get field name
  * 
@@ -228,7 +239,7 @@ bool BLINK_Group_hasID(blink_group_t self);
  * @return null terminated string
  *
  * */
-const char *BLINK_Field_getName(blink_field_t self);
+const char *BLINK_Field_getName(blink_schema_t self);
 
 /** Discover if field is optional
  *
@@ -238,7 +249,7 @@ const char *BLINK_Field_getName(blink_field_t self);
  * @retval false
  *
  * */
-bool BLINK_Field_isOptional(blink_field_t self);
+bool BLINK_Field_isOptional(blink_schema_t self);
 
 /** Discover if field is a sequence 
  *
@@ -248,7 +259,7 @@ bool BLINK_Field_isOptional(blink_field_t self);
  * @retval false
  *
  * */
-bool BLINK_Field_isSequence(blink_field_t self);
+bool BLINK_Field_isSequence(blink_schema_t self);
 
 /** Get field type
  *
@@ -256,7 +267,7 @@ bool BLINK_Field_isSequence(blink_field_t self);
  * @return field type
  * 
  * */
-enum blink_type_tag BLINK_Field_getType(blink_field_t self);
+enum blink_type_tag BLINK_Field_getType(blink_schema_t self);
 
 /** Get field size
  *
@@ -266,7 +277,7 @@ enum blink_type_tag BLINK_Field_getType(blink_field_t self);
  * @return field size
  * 
  * */
-uint32_t BLINK_Field_getSize(blink_field_t self);
+uint32_t BLINK_Field_getSize(blink_schema_t self);
 
 
 /** Get group (nested within field)
@@ -278,7 +289,7 @@ uint32_t BLINK_Field_getSize(blink_field_t self);
  * @retval NULL field type is not #BLINK_TYPE_DYNAMIC_GROUP or #BLINK_TYPE_STATIC_GROUP
  *
  * */
-blink_group_t BLINK_Field_getGroup(blink_field_t self);
+blink_schema_t BLINK_Field_getGroup(blink_schema_t self);
 
 /** Get enum (nested within field)
  *
@@ -289,38 +300,38 @@ blink_group_t BLINK_Field_getGroup(blink_field_t self);
  * @retval NULL field type is not #BLINK_TYPE_ENUM
  *
  * */
-blink_enum_t BLINK_Field_getEnum(blink_field_t self);
+blink_schema_t BLINK_Field_getEnum(blink_schema_t self);
 
 /** Test if self is group or a subclass of group
  * 
- * @param[in] self
+ * @param[in] self group object
  * @param[in] group
  * @return is self a kind of group?
  * @retval true
  * @retval false
  *
  * */ 
-bool BLINK_Group_isKindOf(blink_group_t self, blink_group_t group);
+bool BLINK_Group_isKindOf(blink_schema_t self, blink_schema_t group);
 
 /** Find enum symbol by name
  *
- * @param[in] self
+ * @param[in] self enum object
  * @param[in] name null terminated name string
  * @return symbol
  * @retval NULL symbol not found
  * 
  * */
-blink_symbol_t BLINK_Enum_getSymbolByName(blink_enum_t self, const char *name);
+blink_schema_t BLINK_Enum_getSymbolByName(blink_schema_t self, const char *name);
 
 /** Find enum symbol by value
  *
- * @param[in] self
+ * @param[in] self enum object
  * @param[in] value
  * @return symbol
  * @retval NULL symbol not found
  * 
  * */
-blink_symbol_t BLINK_Enum_getSymbolByValue(blink_enum_t self, int32_t value);
+blink_schema_t BLINK_Enum_getSymbolByValue(blink_schema_t self, int32_t value);
 
 /** Get symbol name
  *
@@ -328,7 +339,7 @@ blink_symbol_t BLINK_Enum_getSymbolByValue(blink_enum_t self, int32_t value);
  * @return NULL null terminated string
  *
  * */
-const char *BLINK_Symbol_getName(blink_symbol_t self);
+const char *BLINK_Symbol_getName(blink_schema_t self);
 
 /** Get symbol value
  * 
@@ -336,16 +347,26 @@ const char *BLINK_Symbol_getName(blink_symbol_t self);
  * @return signed 32 bit integer
  *
  * */
-int32_t BLINK_Symbol_getValue(blink_symbol_t self);
+int32_t BLINK_Symbol_getValue(blink_schema_t self);
 
-/** Initialise a field iterator
+/** Create field iterator object
  *
- * @param[in] iter iterator
- * @param[in] group group to iterate
- * @return initialised field iterator
+ * Use the returned object to iterate through group fields.
+ *
+ * @param[in] stack an array of references which must be maintained
+ *                  for same lifetime as iterator object
+ * 
+ * @param[in] depth dimension of `stack`
+ *
+ * To iterate through all inherited fields `depth` must be equal to 
+ * (BLINK_Group_getAncestorCount(self) + 1U).
+ *
+ * To iterate only through the subgroup `depth` must be 1U.
+
+ * @return field iterator
  * 
  * */
-blink_field_iterator_t BLINK_FieldIterator_init(struct blink_field_iterator *iter, blink_group_t group);
+struct blink_field_iterator BLINK_FieldIterator_init(blink_schema_t *stack, size_t depth, blink_schema_t group);
 
 /** Get next field from a field iterator but do not change the iterator state
  * 
@@ -354,7 +375,7 @@ blink_field_iterator_t BLINK_FieldIterator_init(struct blink_field_iterator *ite
  * @retval NULL no next field in group
  *
  * */
-blink_field_t BLINK_FieldIterator_peek(blink_field_iterator_t self);
+blink_schema_t BLINK_FieldIterator_peek(struct blink_field_iterator *self);
 
 /** Get next field from a field iterator
  * 
@@ -363,7 +384,15 @@ blink_field_t BLINK_FieldIterator_peek(blink_field_iterator_t self);
  * @retval NULL no next field in group
  *
  * */
-blink_field_t BLINK_FieldIterator_next(blink_field_iterator_t self);
+blink_schema_t BLINK_FieldIterator_next(struct blink_field_iterator *self);
+
+/** Return the number of supergroups this group inherits from
+ *
+ * @param[in] self group
+ * @return number of supergroups
+ * 
+ * */
+size_t BLINK_Group_numberOfSuperGroup(blink_schema_t self);
 
 #ifdef __cplusplus
 }

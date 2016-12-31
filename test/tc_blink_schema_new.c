@@ -25,7 +25,6 @@ void test_BLINK_Schema_new_emptyGroup(void **user)
     blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
 
     assert_true(schema != NULL);
-    assert_true(BLINK_Schema_getGroupByName(schema, "empty") != NULL);
 }
 
 void test_BLINK_Schema_new_emptySuperGroup(void **user)
@@ -35,9 +34,7 @@ void test_BLINK_Schema_new_emptySuperGroup(void **user)
         "empty : super";
     blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
 
-    assert_true(schema != NULL);
-    assert_true(BLINK_Schema_getGroupByName(schema, "empty") != NULL);
-    assert_true(BLINK_Schema_getGroupByName(schema, "super") != NULL);
+    assert_true(schema != NULL);    
 }
 
 void test_BLINK_Schema_new_undefinedSuperGroup(void **user)
@@ -93,31 +90,7 @@ void test_BLINK_Schema_new_greeting(void **user)
     const char input[] = "Message/0 -> string Greeting";
     blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
     
-    assert_true(schema != NULL);
-    assert_true(BLINK_Schema_getGroupByName(schema, "Message") != NULL);
-    assert_true(BLINK_Schema_getGroupByID(schema, 0) != NULL);
-    
-    assert_ptr_equal(BLINK_Schema_getGroupByID(schema, 0), BLINK_Schema_getGroupByName(schema, "Message"));
-
-    struct blink_field_iterator iter;
-    BLINK_FieldIterator_init(&iter, BLINK_Schema_getGroupByName(schema, "Message"));
-
-    blink_field_t f = BLINK_FieldIterator_next(&iter);
-
-    assert_true(f != NULL);
-
-    const char *name = BLINK_Field_getName(f);
-    enum blink_type_tag tag = BLINK_Field_getType(f);
-    uint32_t size = BLINK_Field_getSize(f);
-    
-    assert_int_equal(BLINK_TYPE_STRING, tag);
-    assert_int_equal(0xffffffff, size);
-
-    assert_string_equal("Greeting", name);
-
-    assert_false(BLINK_Field_isOptional(f));
-
-    assert_true(BLINK_FieldIterator_next(&iter) == NULL);
+    assert_true(schema != NULL);    
 }
 
 void test_BLINK_Schema_new_namespace_emptyGroup(void **user)
@@ -126,7 +99,6 @@ void test_BLINK_Schema_new_namespace_emptyGroup(void **user)
     blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
 
     assert_true(schema != NULL);
-    assert_true(BLINK_Schema_getGroupByName(schema, "test:empty") != NULL);
 }
 
 void test_BLINK_Schema_new_enum_single(void **user)

@@ -65,129 +65,115 @@ enum blink_itype_tag {
     BLINK_ITYPE_REF                /**< reference to a typedef, enum, or group */
 };
 
+enum blink_schema_subclass {
+    BLINK_SCHEMA = 0,
+    BLINK_SCHEMA_NS,
+    BLINK_SCHEMA_GROUP,
+    BLINK_SCHEMA_FIELD,
+    BLINK_SCHEMA_ENUM,
+    BLINK_SCHEMA_SYMBOL,
+    BLINK_SCHEMA_TYPE_DEF,
+    BLINK_SCHEMA_ANNOTE,
+    BLINK_SCHEMA_INCR_ANNOTE,        
+} type;
+
 /* structs ************************************************************/
 
-/** generic single linked list element */
-struct blink_list_element {
-    struct blink_list_element *next;    /**< next element */
-    enum blink_list_type {
-        BLINK_ELEM_NULL,                /**< no type allocated */
-        BLINK_ELEM_NS,                  /**< blink_namespace */
-        BLINK_ELEM_GROUP,               /**< blink_group */
-        BLINK_ELEM_FIELD,               /**< blink_field */
-        BLINK_ELEM_ENUM,                /**< blink_enum */
-        BLINK_ELEM_SYMBOL,              /**< blink_symbol */
-        BLINK_ELEM_TYPE,                /**< blink_type */
-        BLINK_ELEM_ANNOTE,              /**< blink_annote */        
-        BLINK_ELEM_INCR_ANNOTE          /**< blink_inline_annote */        
-    } type;                             /**< type allocated at `ptr` */    
-    void *ptr;                          /**< points to instance of `type` */
+struct blink_schema {
+    enum blink_schema_subclass type;
+    const char *name;                   /**< name of type definition */
+    size_t nameLen;                     /**< byte length of `name` */
+    struct blink_schema *next;
 };
 
 /** type */
-struct blink_type {
-    const char *name;            /**< name of reference (applicable to #BLINK_ITYPE_REF) */
-    size_t nameLen;              /**< byte length of `name` */
-    struct blink_list_element *a;
-    bool isDynamic;             /**< reference is dynamic (applicable to #BLINK_ITYPE_REF) */
-    bool isSequence;            /**< this is a SEQUENCE of type */                
-    uint32_t size;              /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */    
-    enum blink_itype_tag tag;               /**< what type is this? */
-    struct blink_list_element *resolvedRef; /**< `ref` resolves to this structure */    
+struct blink_schema_type {
+    const char *name;               /**< name of reference (applicable to #BLINK_ITYPE_REF) */
+    size_t nameLen;                 /**< byte length of `name` */
+    struct blink_schema *a;         /**< annotations */
+    uint32_t size;                  /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */    
+    bool isDynamic;                 /**< reference is dynamic (applicable to #BLINK_ITYPE_REF) */
+    bool isSequence;                /**< this is a SEQUENCE of type */                
+    enum blink_itype_tag tag;       /**< what type is this? */
+    struct blink_schema *resolved;
 };
 
 /** field */
-struct blink_field {
-    const char *name;               /**< name of this field */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *a;
+struct blink_schema_field {
+    struct blink_schema super;
+    struct blink_schema *a;         /**< annotations */
     bool isOptional;                /**< field is optional */
-    uint64_t id;
     bool hasID;
-    struct blink_type type;         /**< field type information */    
+    uint64_t id;    
+    struct blink_schema_type type;         /**< field type information */
 };
 
 /** group */
-struct blink_group {
-    const char *name;               /**< name of this group */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *a;
+struct blink_schema_group {
+    struct blink_schema super;
+    struct blink_schema *a;
     bool hasID;                     /**< group has an ID */
     uint64_t id;                    /**< group ID */
     const char *superGroup;         /**< name of super group */
     size_t superGroupLen;           /**< byte length of supergroup name */    
-    struct blink_list_element *s;   /**< optional supergroup */
-    struct blink_list_element *f;   /**< fields belonging to group */    
+    struct blink_schema *s;         /**< optional supergroup */
+    struct blink_schema *f;         /**< fields belonging to group */
 };
 
 /** enumeration symbol */
-struct blink_symbol {
-    const char *name;               /**< name of symbol */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *a;
+struct blink_schema_symbol {
+    struct blink_schema super;
+    struct blink_schema *a;
     int32_t value;                  /**< integer value */
-    bool implicitValue;             /**< true if `value` is not explicitly defined */    
+    bool implicitValue;             /**< true if `value` is not explicitly defined */
 };
 
 /** enumeration */
-struct blink_enum {
-    const char *name;               /**< name of this field */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *a;
-    struct blink_list_element *s;   /**< symbols belonging to enumeration */    
+struct blink_schema_enum {
+    struct blink_schema super;
+    struct blink_schema *a;
+    struct blink_schema *s;   /**< symbols belonging to enumeration */
 };
 
 /** type definition */
-struct blink_type_def {
-    const char *name;               /**< name of type definition */
-    size_t nameLen;                 /**< byte length of `name` */
-    struct blink_list_element *a;
-    struct blink_type type;         /**< type information */    
+struct blink_schema_type_def {
+    struct blink_schema super;
+    struct blink_schema *a;
+    struct blink_schema_type type;         /**< type information */
 };
 
-struct blink_annote {
-    const char *name;               /**< name of annotation */
-    size_t nameLen;                 /**< byte length of `name */
+struct blink_schema_annote {
+    struct blink_schema super;
     const char *value;              /**< annotation value */
     size_t valueLen;                /**< byte length of `value` */                
     uint64_t number;
 };
 
-struct blink_incr_annote {
-    const char *name;               /**< key */
-    size_t nameLen;                 /**< byte length of `key` */
+struct blink_schema_incr_annote {
+    struct blink_schema super;
     const char *fieldName;
     size_t fieldNameLen;
     bool type;
-    struct blink_list_element *a;   /**< annotations */
+    struct blink_schema *a;   /**< annotations */
 };
 
 /** namespace */
-struct blink_namespace {    
-    const char *name;   /**< name of this namespace */
-    size_t nameLen;     /**< byte length of `name` */  
-    /** list of groups, enums, and types in this namespace */
-    struct blink_list_element *defs;
-    struct blink_list_element *a;   /** schema <- <annotes> */
+struct blink_schema_namespace {
+    struct blink_schema super;    
+    struct blink_schema *defs;  /**< list of groups, enums, and types in this namespace */
+    struct blink_schema *a;     /**< schema <- <annotes> */
 };
 
-struct blink_element {
-
-    struct blink_list_element *ptr;
-    struct blink_element *next;
-};
-
+/** used to iterate through all definitions in all namespaces */
 struct blink_def_iterator {
-
-    struct blink_list_element *ns;
-    struct blink_list_element *def;
+    struct blink_schema *ns;    /**< namespace pointer */
+    struct blink_schema *def;   /**< definition pointer */
 };
 
-/** schema */
-struct blink_schema {
-    struct blink_list_element *ns;  /**< a schema has zero or more namespace definitions */
+struct blink_schema_base {
+    struct blink_schema super;
+    struct blink_schema *ns;        /**< a schema has zero or more namespace definitions */
     bool finalised;                 /**< when true no more schema definitions can be appended */
-    struct blink_element *elements; /**< used to keep track of everything allocated */
     blink_pool_t pool;
 };
 

@@ -31,8 +31,8 @@ void test_BLINK_Group_isKindOf_is(void **user)
 
     assert_true(schema != NULL);
 
-    blink_group_t base = BLINK_Schema_getGroupByName(schema, "base");
-    blink_group_t derived = BLINK_Schema_getGroupByName(schema, "derived");
+    blink_schema_t base = BLINK_Schema_getGroupByName(schema, "base");
+    blink_schema_t derived = BLINK_Schema_getGroupByName(schema, "derived");
 
     assert_true(base != NULL);
     assert_true(derived != NULL);
@@ -51,8 +51,8 @@ void test_BLINK_Group_isKindOf_isMulti(void **user)
 
     assert_true(schema != NULL);
 
-    blink_group_t base = BLINK_Schema_getGroupByName(schema, "base");
-    blink_group_t derived = BLINK_Schema_getGroupByName(schema, "derived");
+    blink_schema_t base = BLINK_Schema_getGroupByName(schema, "base");
+    blink_schema_t derived = BLINK_Schema_getGroupByName(schema, "derived");
 
     assert_true(base != NULL);
     assert_true(derived != NULL);
@@ -70,8 +70,8 @@ void test_BLINK_Group_isKindOf_isNot(void **user)
 
     assert_true(schema != NULL);
 
-    blink_group_t base = BLINK_Schema_getGroupByName(schema, "base");
-    blink_group_t otherBase = BLINK_Schema_getGroupByName(schema, "otherBase");
+    blink_schema_t base = BLINK_Schema_getGroupByName(schema, "base");
+    blink_schema_t otherBase = BLINK_Schema_getGroupByName(schema, "otherBase");
 
     assert_true(base != NULL);
     assert_true(otherBase != NULL);

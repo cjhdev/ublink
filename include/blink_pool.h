@@ -74,10 +74,9 @@ extern "C" {
 /* structs ************************************************************/
 
 struct blink_pool {
-
-    uint8_t *heap;  /**< pointer to assigned heap */
-    size_t size;    /**< size of heap in bytes */
-    size_t pos;     /**< free memory offset */
+    uint8_t *heap;              /**< pointer to assigned heap */
+    size_t size;                /**< size of heap in bytes */
+    size_t pos;                 /**< free memory offset */
 };
 
 /* typedefs ***********************************************************/
@@ -87,12 +86,9 @@ typedef struct blink_pool * blink_pool_t;
 
 /* function prototypes ************************************************/
 
-/** This function will initialise a blink_pool structure.
- * 
- * @param[in] self
+/** This function will initialise a blink_pool_static structure.
  *
- * A pointer to an instance of blink_pool that
- * will be initialised by this function call.
+ * @param[in] self
  * 
  * @param[in] heap
  *
@@ -102,20 +98,10 @@ typedef struct blink_pool * blink_pool_t;
  *
  * The size of the heap memory block in bytes.
  *
- * @return intialised blink_pool
+ * @return intialised blink_pool_static
  *
  * */
 blink_pool_t BLINK_Pool_init(struct blink_pool *self, uint8_t *heap, size_t size);
-
-/** Teardown and cleanup an initialised pool
- *
- * @note not required for simple init/reset pools but
- * no side effect if called
- *
- * @param[in] self initialised pool
- *
- * */
-void BLINK_Pool_destroy(blink_pool_t self);
 
 /** Allocate word aligned memory from the pool
  *

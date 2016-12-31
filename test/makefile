@@ -19,7 +19,7 @@ CMOCKA_DEFINES += -DHAVE_MALLOC_H
 CFLAGS := -Wall -Werror -g -fprofile-arcs -ftest-coverage $(INCLUDES) $(CMOCKA_DEFINES)
 LDFLAGS := -fprofile-arcs -g
 
-SRC_BLINK := $(notdir $(wildcard $(DIR_ROOT)/src/*.c))
+SRC_BLINK := $(filter-out blink_object.c, $(notdir $(wildcard $(DIR_ROOT)/src/*.c)))
 SRC_CMOCKA := $(notdir $(wildcard $(DIR_CMOCKA)/src/*.c))
 
 OBJ_BLINK := $(SRC_BLINK:.c=.o)

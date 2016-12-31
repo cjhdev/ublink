@@ -30,7 +30,7 @@ int setup(void **user)
         "OrderCanceled/4 ->\n"
         "   string OrderId\n";
     
-    static uint8_t heap[10240U];
+    static uint8_t heap[2048U];
     static struct blink_pool pool;
     *user = (void *)BLINK_Schema_new(BLINK_Pool_init(&pool, heap, sizeof(heap)), input, sizeof(input));
     return 0;
@@ -39,7 +39,7 @@ int setup(void **user)
 void test_BLINK_Schema_getGroupByID_insertOrder(void **user)
 {
     const char name[] = "InsertOrder";
-    blink_group_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 1);
+    blink_schema_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 1);
     assert_true(g != NULL);
     assert_true(g == BLINK_Schema_getGroupByName((blink_schema_t)(*user), name));
 }
@@ -47,7 +47,7 @@ void test_BLINK_Schema_getGroupByID_insertOrder(void **user)
 void test_BLINK_Schema_getGroupByID_cancelOrder(void **user)
 {
     const char name[] = "CancelOrder";
-    blink_group_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 2);
+    blink_schema_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 2);
     assert_true(g != NULL);
     assert_true(g == BLINK_Schema_getGroupByName((blink_schema_t)(*user), name));
 }
@@ -55,7 +55,7 @@ void test_BLINK_Schema_getGroupByID_cancelOrder(void **user)
 void test_BLINK_Schema_getGroupByID_orderInserted(void **user)
 {
     const char name[] = "OrderInserted";
-    blink_group_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 3);
+    blink_schema_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 3);
     assert_true(g != NULL);
     assert_true(g == BLINK_Schema_getGroupByName((blink_schema_t)(*user), name));
 }
@@ -63,7 +63,7 @@ void test_BLINK_Schema_getGroupByID_orderInserted(void **user)
 void test_BLINK_Schema_getGroupByID_orderCanceled(void **user)
 {
     const char name[] = "OrderCanceled";
-    blink_group_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 4);
+    blink_schema_t g = BLINK_Schema_getGroupByID((blink_schema_t)(*user), 4);
     assert_true(g != NULL);
     assert_true(g == BLINK_Schema_getGroupByName((blink_schema_t)(*user), name));
 }
