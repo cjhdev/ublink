@@ -14,8 +14,8 @@
 int setupBuffer(void **user)
 {
     static const uint8_t buffer[] = "helloworld";
-    static struct blink_stream_input_buffer s;
-    *user = (void *)BLINK_Stream_initInputBuffer(&s, buffer, sizeof(buffer));
+    static struct blink_stream s;
+    *user = (void *)BLINK_Stream_initBufferReadOnly(&s, buffer, sizeof(buffer));
     return 0;
 }
 

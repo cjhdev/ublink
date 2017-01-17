@@ -14,8 +14,8 @@
 int setupSingleByteZero(void **user)
 {
     static const uint8_t in[] = {0x00U};
-    static struct blink_stream_input_buffer s;
-    *user = (void *)BLINK_Stream_initInputBuffer(&s, in, sizeof(in));
+    static struct blink_stream s;
+    *user = (void *)BLINK_Stream_initBufferReadOnly(&s, in, sizeof(in));
     return 0;
 }
 
@@ -33,8 +33,8 @@ void test_BLINK_Compact_decodeU8(void **user)
 void test_BLINK_Compact_decodeU8_max(void **user)
 {
     static const uint8_t in[] = {0xbf, 0x03};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));    
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));    
     uint8_t out;
     bool isNull = true;
     uint8_t expectedOut = UINT8_MAX;
@@ -58,8 +58,8 @@ void test_BLINK_Compact_decodeU16(void **user)
 void test_BLINK_Compact_decodeU16_max(void **user)
 {
     static const uint8_t in[] = {0xc2,0xff,0xff};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));    
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));    
     uint16_t out;
     bool isNull = true;
     uint16_t expectedOut = UINT16_MAX;
@@ -83,8 +83,8 @@ void test_BLINK_Compact_decodeU32(void **user)
 void test_BLINK_Compact_decodeU32_max(void **user)
 {
     static const uint8_t in[] = {0xc4,0xff,0xff,0xff,0xff};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     uint32_t out;
     bool isNull = true;
     uint32_t expectedOut = UINT32_MAX;
@@ -108,8 +108,8 @@ void test_BLINK_Compact_decodeU64(void **user)
 void test_BLINK_Compact_decodeU64_max(void **user)
 {
     static const uint8_t in[] = {0xc8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     uint64_t out;
     bool isNull = true;
     uint64_t expectedOut = UINT64_MAX;
@@ -133,8 +133,8 @@ void test_BLINK_Compact_decodeI8(void **user)
 void test_BLINK_Compact_decodeI8_min(void **user)
 {
     const uint8_t in[] = {0x80, 0xfe};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int8_t out;
     bool isNull = true;
     int8_t expectedOut = INT8_MIN;
@@ -147,8 +147,8 @@ void test_BLINK_Compact_decodeI8_min(void **user)
 void test_BLINK_Compact_decodeI8_max(void **user)
 {
     static const uint8_t in[] = {0xbf,0x01};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int8_t out;
     bool isNull = true;
     int8_t expectedOut = INT8_MAX;
@@ -172,8 +172,8 @@ void test_BLINK_Compact_decodeI16(void **user)
 void test_BLINK_Compact_decodeI16_min(void **user)
 {
     const uint8_t in[] = {0xc2, 0x00, 0x80};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int16_t out;
     bool isNull = true;
     int16_t expectedOut = INT16_MIN;
@@ -185,8 +185,8 @@ void test_BLINK_Compact_decodeI16_min(void **user)
 void test_BLINK_Compact_decodeI16_max(void **user)
 {
     const uint8_t in[] = {0xc2, 0xff, 0x7f};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));    
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));    
     int16_t out;
     bool isNull = true;
     int16_t expectedOut = INT16_MAX;
@@ -210,8 +210,8 @@ void test_BLINK_Compact_decodeI32(void **user)
 void test_BLINK_Compact_decodeI32_min(void **user)
 {
     const uint8_t in[] = {0xc4, 0x00, 0x00, 0x00, 0x80};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int32_t out;
     bool isNull = true;
     int32_t expectedOut = INT32_MIN;
@@ -224,8 +224,8 @@ void test_BLINK_Compact_decodeI32_min(void **user)
 void test_BLINK_Compact_decodeI32_max(void **user)
 {
     const uint8_t in[] = {0xc4, 0xff,0xff,0xff,0x7f};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int32_t out;
     bool isNull = true;
     int32_t expectedOut = INT32_MAX;
@@ -249,8 +249,8 @@ void test_BLINK_Compact_decodeI64(void **user)
 void test_BLINK_Compact_decodeI64_min(void **user)
 {
     const uint8_t in[] = {0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));    
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));    
     int64_t out;
     bool isNull = true;
     int64_t expectedOut = INT64_MIN;
@@ -263,8 +263,8 @@ void test_BLINK_Compact_decodeI64_min(void **user)
 void test_BLINK_Compact_decodeI64_max(void **user)
 {
     static const uint8_t in[] = {0xc8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int64_t out;
     bool isNull = true;
     int64_t expectedOut = INT64_MAX;
@@ -299,8 +299,8 @@ void test_BLINK_Compact_decodeBool(void **user)
 void test_BLINK_Compact_Decimal(void **user)
 {
     const uint8_t in[] = {0x00, 0x00};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int64_t mantissa;
     int8_t exponent;        
     bool isNull = true;
@@ -315,8 +315,8 @@ void test_BLINK_Compact_Decimal(void **user)
 void test_BLINK_Compact_Decimal_nullMantissa(void **user)
 {
     const uint8_t in[] = {0x00, 0xc0};
-    struct blink_stream_input_buffer stream;
-    blink_stream_t s = BLINK_Stream_initInputBuffer(&stream, in, sizeof(in));
+    struct blink_stream stream;
+    blink_stream_t s = BLINK_Stream_initBufferReadOnly(&stream, in, sizeof(in));
     int64_t mantissa;
     int8_t exponent;        
     bool isNull = true;
