@@ -33,6 +33,6 @@
 #include "blink_compact_form.h"
 #include "blink_parser.h"
 #include "blink_pool.h"
-#include "blink_event_decoder.h"
+#include "blink_stream.h"
 
 #endif

@@ -38,7 +38,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* enums **************************************************************/
+/* types **************************************************************/
 
 /** internal field types */
 enum blink_itype_tag {
@@ -77,8 +77,6 @@ enum blink_schema_subclass {
     BLINK_SCHEMA_INCR_ANNOTE,        
 } type;
 
-/* structs ************************************************************/
-
 struct blink_schema {
     enum blink_schema_subclass type;
     const char *name;                   /**< name of type definition */
@@ -108,6 +106,13 @@ struct blink_schema_field {
     struct blink_schema_type type;         /**< field type information */
 };
 
+/** namespace */
+struct blink_schema_namespace {
+    struct blink_schema super;    
+    struct blink_schema *defs;  /**< list of groups, enums, and types in this namespace */
+    struct blink_schema *a;     /**< schema <- <annotes> */
+};
+
 /** group */
 struct blink_schema_group {
     struct blink_schema super;
@@ -118,6 +123,7 @@ struct blink_schema_group {
     size_t superGroupLen;           /**< byte length of supergroup name */    
     struct blink_schema *s;         /**< optional supergroup */
     struct blink_schema *f;         /**< fields belonging to group */
+    struct blink_schema_namespace *ns;     /**< link back to namespace */
 };
 
 /** enumeration symbol */
@@ -155,19 +161,6 @@ struct blink_schema_incr_annote {
     size_t fieldNameLen;
     bool type;
     struct blink_schema *a;   /**< annotations */
-};
-
-/** namespace */
-struct blink_schema_namespace {
-    struct blink_schema super;    
-    struct blink_schema *defs;  /**< list of groups, enums, and types in this namespace */
-    struct blink_schema *a;     /**< schema <- <annotes> */
-};
-
-/** used to iterate through all definitions in all namespaces */
-struct blink_def_iterator {
-    struct blink_schema *ns;    /**< namespace pointer */
-    struct blink_schema *def;   /**< definition pointer */
 };
 
 struct blink_schema_base {

@@ -58,9 +58,9 @@ static bool testSuperGroupShadowConstraint(struct blink_schema_base *self, struc
 
 static struct blink_schema *getTerminal(struct blink_schema *element, bool *dynamic);
 
-static struct blink_def_iterator initDefinitionIterator(struct blink_schema *ns);
-static struct blink_schema *nextDefinition(struct blink_def_iterator *iter);
-static struct blink_schema *peekDefinition(struct blink_def_iterator *iter);
+static struct blink_group_iterator initDefinitionIterator(struct blink_schema *ns);
+static struct blink_schema *nextDefinition(struct blink_group_iterator *iter);
+static struct blink_schema *peekDefinition(struct blink_group_iterator *iter);
 
 static struct blink_schema_enum *castEnum(struct blink_schema *self);
 static struct blink_schema_symbol *castSymbol(struct blink_schema *self);
@@ -71,6 +71,8 @@ static struct blink_schema_type_def *castTypeDef(struct blink_schema *self);
 static struct blink_schema_annote *castAnnote(struct blink_schema *self);
 static struct blink_schema_incr_annote *castIncrAnnote(struct blink_schema *self);
 static struct blink_schema_base *castSchema(struct blink_schema *self);
+
+static const char *allocateString(blink_pool_t pool, const char *a, size_t aLen, const char *b, size_t bLen);
 
 /* functions **********************************************************/
 
@@ -129,7 +131,7 @@ blink_schema_t BLINK_Schema_getGroupByID(blink_schema_t self, uint64_t id)
     BLINK_ASSERT(self != NULL)
 
     blink_schema_t retval = NULL;
-    struct blink_def_iterator iter = initDefinitionIterator(castSchema(self)->ns);
+    struct blink_group_iterator iter = initDefinitionIterator(castSchema(self)->ns);
     blink_schema_t defPtr = peekDefinition(&iter);
 
     while((retval == NULL) && (defPtr != NULL)){
@@ -213,11 +215,23 @@ blink_schema_t BLINK_FieldIterator_peek(struct blink_field_iterator *self)
     return self->field[self->index];
 }
 
+const char *BLINK_Namespace_getName(blink_schema_t self)
+{
+    return BLINK_Group_getName(self);
+}
+
 const char *BLINK_Group_getName(blink_schema_t self)
 {
     BLINK_ASSERT(self != NULL)
 
     return self->name;
+}
+
+blink_schema_t BLINK_Group_getNamespace(blink_schema_t self)
+{
+    BLINK_ASSERT(self != NULL)
+
+    return (blink_schema_t)castGroup(self)->ns;
 }
 
 uint64_t BLINK_Group_getID(blink_schema_t self)
@@ -452,6 +466,24 @@ size_t BLINK_Group_numberOfSuperGroup(blink_schema_t self)
     return retval;
 }
 
+struct blink_group_iterator BLINK_GroupIterator_init(blink_schema_t schema)
+{
+    return initDefinitionIterator(castSchema(schema)->ns);    
+}
+
+blink_schema_t BLINK_GroupIterator_next(struct blink_group_iterator *iter)
+{
+    blink_schema_t retval;
+
+    do{
+        
+        retval = nextDefinition(iter);
+    }
+    while((retval != NULL) && (retval->type != BLINK_SCHEMA_GROUP));
+
+    return retval;
+}
+
 /* static functions ***************************************************/
 
 static struct blink_schema_base *parseSchema(struct blink_schema_base *self, const char *in, size_t inLen)
@@ -500,8 +532,14 @@ static struct blink_schema_base *parseSchema(struct blink_schema_base *self, con
             return NULL;
         }
 
-        ns->super.name = value.literal.ptr;
+        ns->super.name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
         ns->super.nameLen = value.literal.len;
+        
+        if(ns->super.name == NULL){
+
+            BLINK_ERROR("calloc()")
+            return NULL;
+        }    
     }
     else{
 
@@ -667,8 +705,14 @@ static struct blink_schema_base *parseSchema(struct blink_schema_base *self, con
                     
             pos += read;
 
-            const char *name = value.literal.ptr;
-            size_t nameLen = value.literal.len;                
+            const char *name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
+            size_t nameLen = value.literal.len;
+            
+            if(name == NULL){
+
+                BLINK_ERROR("calloc()")
+                return NULL;
+            }
             
             if(searchListByName(ns->defs, name, nameLen) != NULL){
 
@@ -758,9 +802,15 @@ static struct blink_schema_base *parseSchema(struct blink_schema_base *self, con
                             return NULL;
                         }
 
-                        s->super.name = value.literal.ptr;
+                        s->super.name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
                         s->super.nameLen = value.literal.len;
-                            
+                        
+                        if(s->super.name == NULL){
+
+                            BLINK_ERROR("calloc()")
+                            return NULL;
+                        }
+
                         if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
 
                             pos += read;
@@ -871,6 +921,7 @@ static struct blink_schema_base *parseSchema(struct blink_schema_base *self, con
                     return NULL;
                 }
 
+                g->ns = ns;
                 g->super.name = name;
                 g->super.nameLen = nameLen;
                 g->a = defAnnotes;
@@ -905,8 +956,14 @@ static struct blink_schema_base *parseSchema(struct blink_schema_base *self, con
 
                     pos += read;
 
-                    g->superGroup = value.literal.ptr;
+                    g->superGroup = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
                     g->superGroupLen = value.literal.len;
+                    
+                    if(g->superGroup == NULL){
+
+                        BLINK_ERROR("calloc()")
+                        return NULL;
+                    }                        
                 }
 
                 read = 0U;
@@ -954,9 +1011,15 @@ static struct blink_schema_base *parseSchema(struct blink_schema_base *self, con
                             return NULL;
                         }
 
-                        f->super.name = value.literal.ptr;
+                        f->super.name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
                         f->super.nameLen = value.literal.len;
+                        
+                        if(f->super.name == NULL){
 
+                            BLINK_ERROR("calloc()")
+                            return NULL;
+                        }                        
+                        
                         if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
 
                             pos += read;
@@ -1088,7 +1151,7 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_s
     else if((tok == TOK_NAME) || (tok == TOK_CNAME)){
         
         pos += r;
-        
+
         type->name = value.literal.ptr;
         type->nameLen = value.literal.len;
         type->tag = BLINK_ITYPE_REF;
@@ -1243,7 +1306,7 @@ static bool resolveDefinitions(struct blink_schema_base *self)
     struct blink_schema_field *f;
     struct blink_schema_type_def *t;
     struct blink_schema *fieldPtr;
-    struct blink_def_iterator iter = initDefinitionIterator(self->ns);
+    struct blink_group_iterator iter = initDefinitionIterator(self->ns);
     struct blink_schema *defPtr = peekDefinition(&iter);
 
     while(defPtr != NULL){
@@ -1336,7 +1399,7 @@ static bool testConstraints(struct blink_schema_base *self)
 
     /* test reference constraints */
 
-    struct blink_def_iterator iter = initDefinitionIterator(self->ns);
+    struct blink_group_iterator iter = initDefinitionIterator(self->ns);
     struct blink_schema *defPtr = peekDefinition(&iter);
 
     while(defPtr != NULL){
@@ -1739,9 +1802,9 @@ static struct blink_schema *getTerminal(struct blink_schema *element, bool *dyna
     return ptr;
 }
 
-static struct blink_def_iterator initDefinitionIterator(struct blink_schema *ns)
+static struct blink_group_iterator initDefinitionIterator(struct blink_schema *ns)
 {
-    struct blink_def_iterator iter;
+    struct blink_group_iterator iter;
 
     (void)memset(&iter, 0, sizeof(iter));
     iter.ns = ns;
@@ -1761,7 +1824,7 @@ static struct blink_def_iterator initDefinitionIterator(struct blink_schema *ns)
     return iter;
 }
 
-static struct blink_schema *nextDefinition(struct blink_def_iterator *iter)
+static struct blink_schema *nextDefinition(struct blink_group_iterator *iter)
 {
     BLINK_ASSERT(iter != NULL)
     
@@ -1793,7 +1856,7 @@ static struct blink_schema *nextDefinition(struct blink_def_iterator *iter)
     return retval;            
 }
 
-static struct blink_schema *peekDefinition(struct blink_def_iterator *iter)
+static struct blink_schema *peekDefinition(struct blink_group_iterator *iter)
 {
     return iter->def;
 }
@@ -1850,4 +1913,22 @@ static struct blink_schema_base *castSchema(struct blink_schema *self)
 {
     BLINK_ASSERT((self == NULL) || (self->type == BLINK_SCHEMA))
     return (struct blink_schema_base *)self;
+}
+
+static const char *allocateString(blink_pool_t pool, const char *a, size_t aLen, const char *b, size_t bLen)
+{
+    char *retval = NULL;
+
+    if((aLen + bLen + 1U) > aLen){
+
+        retval = BLINK_Pool_calloc(pool, (aLen + bLen + 1U));
+
+        if(retval != NULL){
+
+            (void)memcpy(retval, a, aLen);
+            (void)memcpy(&retval[aLen], b, bLen);
+        }
+    }
+
+    return retval;
 }

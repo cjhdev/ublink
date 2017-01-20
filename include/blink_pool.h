@@ -71,15 +71,13 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
-/* structs ************************************************************/
+/* types **************************************************************/
 
 struct blink_pool {
     uint8_t *heap;              /**< pointer to assigned heap */
     size_t size;                /**< size of heap in bytes */
     size_t pos;                 /**< free memory offset */
 };
-
-/* typedefs ***********************************************************/
 
 /** This type shall be used by uBlink modules to refer to initialised pools */ 
 typedef struct blink_pool * blink_pool_t;

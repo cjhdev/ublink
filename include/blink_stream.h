@@ -43,7 +43,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 
-/* structs ************************************************************/
+/* types **************************************************************/
 
 typedef bool (*blink_stream_read_t)(void *state, uint8_t *out, size_t bytesToRead);
 typedef bool (*blink_stream_write_t)(void *state, const uint8_t *in, size_t bytesToWrite);

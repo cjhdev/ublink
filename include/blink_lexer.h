@@ -40,7 +40,7 @@ extern "C" {
 
 #include <stdint.h>
 
-/* enums **************************************************************/
+/* types **************************************************************/
 
 enum blink_token {
     TOK_STRING = 0,         /**< `string` */
@@ -90,8 +90,6 @@ enum blink_token {
     TOK_EOF                 /**< <eof> end of file */    
 };
 
-/* unions *************************************************************/
-
 union blink_token_value {    
     struct {
         const char *ptr;    /**< pointer to printable string */
@@ -102,8 +100,6 @@ union blink_token_value {
     /** Initialised for #TOK_INT */
     int64_t signedNumber;            
 };
-
-/* structs ************************************************************/
 
 struct blink_token_location {
     size_t row;

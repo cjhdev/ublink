@@ -27,12 +27,12 @@
 #include "blink_debug.h"
 #include "blink_lexer.h"
 
-/* structs ************************************************************/
+/* types **************************************************************/
 
 struct token_table {
     const char *s;
     size_t size;
-    enum blink_token token;
+    enum blink_token token;    
 };
 
 /* static variables ***************************************************/
@@ -92,6 +92,7 @@ static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *
 static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *out);
 static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token);
 static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
+
 
 /* functions **********************************************************/
 

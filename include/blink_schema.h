@@ -121,9 +121,7 @@ extern "C" {
 
 #include "blink_pool.h"
 
-/* definitions ********************************************************/
-
-/* enums **************************************************************/
+/* types **************************************************************/
 
 /** A field shall represent one of the following types */
 enum blink_type_tag {
@@ -152,8 +150,6 @@ enum blink_type_tag {
     BLINK_TYPE_DYNAMIC_GROUP        /**< dynamic group */
 };
 
-/* structs ************************************************************/
-
 struct blink_schema;
 
 /** this type refers to any immutable schema object */
@@ -163,6 +159,11 @@ typedef struct blink_schema * blink_schema_t;
 struct blink_field_iterator {
     blink_schema_t *field;      /**< stack of pointers to fields within groups */
     size_t index;               /**< current index in `field` */
+};
+
+struct blink_group_iterator {
+    struct blink_schema *ns;    /**< namespace pointer */
+    struct blink_schema *def;   /**< definition pointer */
 };
 
 /* function prototypes ************************************************/
@@ -198,13 +199,26 @@ blink_schema_t BLINK_Schema_getGroupByName(blink_schema_t self, const char *name
  * */
 blink_schema_t BLINK_Schema_getGroupByID(blink_schema_t schema, uint64_t id);
 
-/** Get group name
+const char *BLINK_Namespace_getName(blink_schema_t self);
+
+/** Get group name (within namespace)
  * 
  * @param[in] self
  * @return null terminated name
  *
  * */ 
 const char *BLINK_Group_getName(blink_schema_t self);
+
+struct blink_group_iterator BLINK_GroupIterator_init(blink_schema_t schema);
+blink_schema_t BLINK_GroupIterator_next(struct blink_group_iterator *iter);
+
+/** Get group namespace
+ * 
+ * @param[in] self
+ * @return namespace
+ *
+ * */ 
+blink_schema_t BLINK_Group_getNamespace(blink_schema_t self);
 
 /** Get group ID
  *
