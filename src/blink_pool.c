@@ -57,7 +57,6 @@ void *BLINK_Pool_calloc(blink_pool_t self, size_t size)
             retval = &self->heap[self->pos];
             self->pos += actualSize;
 
-            BLINK_DEBUG("allocated %lu", actualSize)
         }
         else{
 

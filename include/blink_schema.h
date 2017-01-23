@@ -150,6 +150,14 @@ enum blink_type_tag {
     BLINK_TYPE_DYNAMIC_GROUP        /**< dynamic group */
 };
 
+struct blink_stream;
+typedef struct blink_stream * blink_stream_t;
+
+struct blink_syntax {
+    const char *name;
+    blink_stream_t in;
+};
+
 struct blink_schema;
 
 /** this type refers to any immutable schema object */
@@ -168,16 +176,15 @@ struct blink_group_iterator {
 
 /* function prototypes ************************************************/
 
-/** Create a new schema object from schema syntax
+/** Create a new schema object from schema syntax object
  *
  * @param[in] pool pool to allocate from
- * @param[in] in schema syntax
- * @param[in] inLen byte length of schema syntax
+ * @param[in] in schema syntax stream
  * @return schema
  * @retval NULL
  *
  * */
-blink_schema_t BLINK_Schema_new(blink_pool_t pool, const char *in, size_t inLen);
+blink_schema_t BLINK_Schema_new(blink_pool_t pool, blink_stream_t in);
 
 /** Find group by name
  *

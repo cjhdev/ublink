@@ -11,7 +11,7 @@
 #include "blink_stream.h"
 #include <string.h>
 
-int setupBuffer(void **user)
+static int setupBuffer(void **user)
 {
     static uint8_t buffer[sizeof("helloworld")];
     static struct blink_stream s;
@@ -19,14 +19,14 @@ int setupBuffer(void **user)
     return 0;
 }
 
-void test_BLINK_Stream_write_all(void **user)
+static void test_BLINK_Stream_write_all(void **user)
 {
     const char in[] = "helloworld";
     
     assert_true(BLINK_Stream_write((blink_stream_t)(*user), (const uint8_t *)in, sizeof(in)));
 }
 
-void test_BLINK_Stream_write_eof(void **user)
+static void test_BLINK_Stream_write_eof(void **user)
 {
     const char in[] = "helloworld ";
     

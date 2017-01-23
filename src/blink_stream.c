@@ -33,7 +33,7 @@ static bool adjustOffset(int32_t *pos, int32_t max, int32_t offset);
 
 /* functions **********************************************************/
 
-bool BLINK_Stream_write(blink_stream_t self, const uint8_t *in, size_t bytesToWrite)
+bool BLINK_Stream_write(blink_stream_t self, const void *in, size_t bytesToWrite)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT((bytesToWrite == 0U) || (in != NULL))
@@ -51,11 +51,6 @@ bool BLINK_Stream_write(blink_stream_t self, const uint8_t *in, size_t bytesToWr
                     (void)memcpy(&self->value.buffer.out[self->value.buffer.pos], in, bytesToWrite);
                     self->value.buffer.pos += (uint32_t)bytesToWrite;
                     retval = true;
-                }
-                else{
-
-                    /* buffer too short */
-                    BLINK_ERROR("EOF")
                 }
             }
             break;
@@ -77,7 +72,7 @@ bool BLINK_Stream_write(blink_stream_t self, const uint8_t *in, size_t bytesToWr
     return retval;
 }
 
-bool BLINK_Stream_read(blink_stream_t self, uint8_t *out, size_t bytesToRead)
+bool BLINK_Stream_read(blink_stream_t self, void *out, size_t bytesToRead)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT((bytesToRead == 0U) || (out != NULL))
@@ -95,12 +90,7 @@ bool BLINK_Stream_read(blink_stream_t self, uint8_t *out, size_t bytesToRead)
                     (void)memcpy(out, &self->value.buffer.in[self->value.buffer.pos], bytesToRead);
                     self->value.buffer.pos += (uint32_t)bytesToRead;
                     retval = true;
-                }
-                else{
-
-                    /* buffer too short */
-                    BLINK_ERROR("EOF")
-                }
+                }                
             }
             break;
 
@@ -117,6 +107,36 @@ bool BLINK_Stream_read(blink_stream_t self, uint8_t *out, size_t bytesToRead)
             break;
         }
     }
+
+    return retval;
+}
+
+bool BLINK_Stream_peek(blink_stream_t self, void *out)
+{
+    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(out != NULL)
+
+    bool retval = false;
+
+    switch(self->type){
+    case BLINK_STREAM_BUFFER:
+    
+        if(self->value.buffer.in != NULL){
+            
+            if((self->value.buffer.max - self->value.buffer.pos) >= 1U){
+
+                *((uint8_t *)out) = self->value.buffer.in[self->value.buffer.pos];
+                retval = true;                
+            }
+        }
+        break;
+
+    case BLINK_STREAM_USER:
+    default:
+        /* no action */
+        break;
+    }
+    
 
     return retval;
 }

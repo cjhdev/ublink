@@ -11,7 +11,7 @@
 #include "blink_stream.h"
 #include <string.h>
 
-int setupBuffer(void **user)
+static int setupBuffer(void **user)
 {
     static const uint8_t buffer[] = "helloworld";
     static struct blink_stream s;
@@ -19,7 +19,7 @@ int setupBuffer(void **user)
     return 0;
 }
 
-void test_BLINK_Stream_read_all(void **user)
+static void test_BLINK_Stream_read_all(void **user)
 {
     uint8_t expected[] = "helloworld";
     uint8_t out[sizeof(expected)];
@@ -28,7 +28,7 @@ void test_BLINK_Stream_read_all(void **user)
     assert_memory_equal(out, expected, sizeof(expected));
 }
 
-void test_BLINK_Stream_read_allParts(void **user)
+static void test_BLINK_Stream_read_allParts(void **user)
 {
     const char expectedFirst[] = "hello";
     const char expectedSecond[] = "world";
@@ -45,7 +45,7 @@ void test_BLINK_Stream_read_allParts(void **user)
     assert_memory_equal(out, expectedThird, sizeof(expectedThird));
 }
 
-void test_BLINK_Stream_read_eof(void **user)
+static void test_BLINK_Stream_read_eof(void **user)
 {
     uint8_t expected[] = "helloworld";
     uint8_t out[sizeof(expected)+1U];

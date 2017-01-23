@@ -16,6 +16,7 @@ SRC += blink_lexer.c
 SRC += blink_pool.c
 SRC += generate.c
 SRC += generate_c.c
+SRC += blink_stream.c
 
 OBJ := $(addprefix $(DIR_BUILD)/, $(SRC:.c=.o))
 

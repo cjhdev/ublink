@@ -75,7 +75,7 @@ enum blink_schema_subclass {
     BLINK_SCHEMA_TYPE_DEF,
     BLINK_SCHEMA_ANNOTE,
     BLINK_SCHEMA_INCR_ANNOTE,        
-} type;
+};
 
 struct blink_schema {
     enum blink_schema_subclass type;
@@ -101,9 +101,7 @@ struct blink_schema_field {
     struct blink_schema super;
     struct blink_schema *a;         /**< annotations */
     bool isOptional;                /**< field is optional */
-    bool hasID;
-    uint64_t id;    
-    struct blink_schema_type type;         /**< field type information */
+    struct blink_schema_type type;  /**< field type information */
 };
 
 /** namespace */
@@ -166,7 +164,6 @@ struct blink_schema_incr_annote {
 struct blink_schema_base {
     struct blink_schema super;
     struct blink_schema *ns;        /**< a schema has zero or more namespace definitions */
-    bool finalised;                 /**< when true no more schema definitions can be appended */
     blink_pool_t pool;
 };
 

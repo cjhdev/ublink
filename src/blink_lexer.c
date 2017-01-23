@@ -26,6 +26,7 @@
 
 #include "blink_debug.h"
 #include "blink_lexer.h"
+#include "blink_stream.h"
 
 /* types **************************************************************/
 
@@ -85,14 +86,14 @@ static bool isInteger(char c, uint8_t *out);
 static bool isHexInteger(char c, uint8_t *out);
 static bool isNameChar(char c);
 static bool isFirstNameChar(char c);
-static bool isName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
-static bool isCName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
-static bool isUnsignedNumber(const char *in, size_t inLen, size_t *read, uint64_t *out);
-static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *out);
-static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *out);
-static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token);
-static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen);
 
+static bool isName(blink_stream_t in, bool *enomem, char *out, size_t outMax, size_t *outLen);
+static bool isCName(blink_stream_t in, bool *enomem, char *out, size_t outMax, size_t *outLen);
+static bool isUnsignedNumber(blink_stream_t in, uint64_t *out);
+static bool isSignedNumber(blink_stream_t in, int64_t *out);
+static bool isHexNumber(blink_stream_t in, uint64_t *out);
+static bool stringToToken(blink_stream_t in, enum blink_token *token);
+static bool isLiteral(blink_stream_t in, bool *enomem, char *out, size_t outMax, size_t *outLen);
 
 /* functions **********************************************************/
 
@@ -123,6 +124,9 @@ const char *BLINK_Lexer_tokenToString(enum blink_token token)
     case TOK_UNKNOWN:
         retval = "<unknown>";
         break;
+    case TOK_ENOMEM:
+        retval = "<enomem>";
+        break;
     default:
     
         for(i = 0U; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
@@ -141,89 +145,119 @@ const char *BLINK_Lexer_tokenToString(enum blink_token token)
     return retval;
 }
 
-enum blink_token BLINK_Lexer_getToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location)
+enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t max, union blink_token_value *value, struct blink_token_location *location)
 {
     BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(buffer != NULL)
     BLINK_ASSERT(value != NULL)
     
-    size_t pos = 0U;
     enum blink_token retval = TOK_EOF;
-    size_t r;
+    char c;
+    bool enomem = false;
+    
+    (void)memset(value, 0, sizeof(*value));
 
     /* skip whitespace */
-    while(pos < inLen){
+    while(BLINK_Stream_peek(in, &c)){
 
-        if(!isSeparator(in[pos])){
+        if(!isSeparator(c)){
             break;
         }
-        
-        pos++;
+
+        (void)BLINK_Stream_seekCur(in, sizeof(c));
     }
 
     /* skip comment */
-    if(in[pos] == '#'){
+    if(BLINK_Stream_peek(in, &c) && (c == '#')){
 
-        while(pos < inLen){
+        while(BLINK_Stream_peek(in, &c)){
 
-            if(in[pos] == '\n'){
-                pos++;
+            (void)BLINK_Stream_seekCur(in, sizeof(c));
+
+            if(c == '\n'){
                 break;
             }
-
-            pos++;
         }
     }
 
-    *read = pos;
+    size_t pos = BLINK_Stream_tell(in);
 
-    if(pos < inLen){
+    if(!BLINK_Stream_read(in, &c, sizeof(c)) || (c == '\0')){
 
-        if(in[pos] == '\0'){
-
-            retval = TOK_EOF;
-        }
-        else if(isCName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
-
-            *read += r;
-            retval = TOK_CNAME;
-        }
-        else if(stringToToken(&in[pos], inLen - pos, &r, &retval)){
-
-            *read += r;
-        }
-        else if(isLiteral(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
-
-            *read += r;
-            retval = TOK_LITERAL;                
-        }
-        else if(isName(&in[pos], inLen - pos, &r, &value->literal.ptr, &value->literal.len)){
-
-            *read += r;
-            retval = TOK_NAME;
-        }
-        else if(isHexNumber(&in[pos], inLen - pos, &r, &value->number)){
-
-            *read += r;
-            retval = TOK_UINT;
-        }
-        else if(isUnsignedNumber(&in[pos], inLen - pos, read, &value->number)){
-            
-            *read += r;
-            retval = TOK_UINT;
-        }
-        else if(isSignedNumber(&in[pos], inLen - pos, read, &value->signedNumber)){
-
-            *read += r;
-            retval = TOK_INT;
-        }
-        else{
-
-            retval = TOK_UNKNOWN;
-        }
+        return TOK_EOF;
     }
 
-    return retval;        
+    (void)BLINK_Stream_seekSet(in, pos);
+
+    if(isCName(in, &enomem, buffer, max, &value->literal.len)){
+
+        value->literal.ptr = buffer;
+        
+        return TOK_CNAME;
+    }
+
+    if(enomem){
+
+        return TOK_ENOMEM;
+    }
+
+    (void)BLINK_Stream_seekSet(in, pos);
+        
+    if(stringToToken(in, &retval)){
+
+        return retval;
+    }
+
+    (void)BLINK_Stream_seekSet(in, pos);
+
+    if(isLiteral(in, &enomem, buffer, max, &value->literal.len)){
+
+        value->literal.ptr = buffer;
+
+        return TOK_LITERAL;
+    }
+
+    if(enomem){
+
+        return TOK_ENOMEM;
+    }
+                
+    (void)BLINK_Stream_seekSet(in, pos);
+
+    if(isName(in, &enomem, buffer, max, &value->literal.len)){
+
+        value->literal.ptr = buffer;
+
+        return TOK_NAME;
+    }
+
+    if(enomem){
+
+        return TOK_ENOMEM;
+    }
+                    
+    (void)BLINK_Stream_seekSet(in, pos);
+                        
+    if(isHexNumber(in, &value->number)){
+
+        return TOK_UINT;                            
+    }
+                        
+    (void)BLINK_Stream_seekSet(in, pos);
+
+    if(isUnsignedNumber(in, &value->number)){
+
+        return TOK_UINT;
+    }
+
+    (void)BLINK_Stream_seekSet(in, pos);
+              
+    if(isSignedNumber(in, &value->signedNumber)){
+
+        return TOK_INT;
+    }
+              
+    return TOK_UNKNOWN;        
 }
 
 /* static functions ***************************************************/
@@ -247,23 +281,26 @@ static bool isSeparator(char c)
     return retval;
 }
 
-static bool stringToToken(const char *in, size_t inLen, size_t *read, enum blink_token *token)
+static bool stringToToken(blink_stream_t in, enum blink_token *token)
 {
     BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(token != NULL)
 
     size_t i;
+    char buf[20U];
     bool retval = false;
-    
-    *read = 0U;
+    size_t pos = BLINK_Stream_tell(in);
 
     for(i=0; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
 
-        if(tokenTable[i].size <= inLen){
+        (void)BLINK_Stream_seekSet(in, pos);
 
-            if(memcmp(tokenTable[i].s, in, tokenTable[i].size) == 0){
+        BLINK_ASSERT(sizeof(buf) > tokenTable[i].size)
 
-                *read = tokenTable[i].size;
+        if(BLINK_Stream_read(in, buf, tokenTable[i].size)){
+
+            if(memcmp(tokenTable[i].s, buf, tokenTable[i].size) == 0){
+
                 *token = tokenTable[i].token;
                 retval = true;
                 break;
@@ -325,285 +362,345 @@ static bool isFirstNameChar(char c)
     return ((c == '_') || ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')));
 }
 
-static bool isName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
+static bool isName(blink_stream_t in, bool *enomem, char *out, size_t outMax, size_t *outLen)
 {
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(in != NULL)    
+    BLINK_ASSERT(enomem != NULL)    
     BLINK_ASSERT(out != NULL)
     BLINK_ASSERT(outLen != NULL)
 
+    char c;
+    size_t pos = 0U;
     bool retval = false;
-    *read = 0U;
 
-    if((*read < inLen) && (isFirstNameChar(*in) || (*in == '\\'))){
+    *enomem = false;
+    
+    if(BLINK_Stream_read(in, &c, sizeof(c))){
 
-        bool escape = (*in == '\\') ? true : false;
+        if(isFirstNameChar(c) || (c == '\\')){
 
-        *out = in;
-        *outLen = 1U;
+            bool escape = (c == '\\') ? true : false;
 
-        (*read)++;
+            if(escape){
 
-        if(escape){
+                if(BLINK_Stream_read(in, &c, 1U) && isFirstNameChar(c)){
 
-            if((*read < inLen) && isFirstNameChar(in[*read])){
+                    if(outMax > 0U){
 
-                *out = &in[*read];
-                retval = true;
-                (*read)++;
-            }
-        }
-        else{
+                        out[pos] = c;
+                        pos++;
+                        retval = true;
+                    }
+                    else{
 
-            retval = true;
-        }
-
-        while(retval && (*read < inLen)){
-
-            if(isNameChar(in[*read])){
-
-                (*read)++;
-                (*outLen)++;
-            }
-            else{
-
-                break;
-            }
-        }
-    }
-
-    return retval;
-}
-
-static bool isCName(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
-{
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL)
-    BLINK_ASSERT(outLen != NULL)
-
-    bool retval = false;
-    *read = 0U;
-
-    if((*read < inLen) && isFirstNameChar(*in)){
-        
-        *out = in;
-        *outLen = 1U;
-        (*read)++;
-
-        while(*read < inLen){
-
-            if(isNameChar(in[*read])){
-
-                (*read)++;
-                (*outLen)++;
-            }
-            else if(in[*read] == ':'){
-
-                (*read)++;
-                (*outLen)++;
-
-                if((*read < inLen) && isNameChar(in[*read])){
-
-                    (*read)++;
-                    (*outLen)++;
-
-                    retval = true;
-                    
-                    while((*read < inLen) && isNameChar(in[*read])){
-
-                        (*read)++;
-                        (*outLen)++;
+                        *enomem = true;
                     }
                 }
-
-                break;            
-            }
-            else{
-                
-                break;
-            }
-        }
-    }
-
-    return retval;
-}
-    
-static bool isUnsignedNumber(const char *in, size_t inLen, size_t *read, uint64_t *out)
-{
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL)
-
-    bool retval = false;
-    *read = 0U;
-    uint8_t digit = 0U;
-
-    
-    if((*read < inLen) && isInteger(*in, &digit)){  /*lint !e9007 side effect is digit may be initialised */
-
-        retval = true;
-        *out = (uint64_t)digit;
-        (*read)++;
-
-        while(retval && (*read < inLen)){
-            
-            if(isInteger(in[*read], &digit)){
-
-                /* todo: overflow protect */
-                *out *= 10;                
-                *out += digit;
-                (*read)++;
-                
             }
             else{
 
-                break;
-            } 
-        }
-    }
-    
-    return retval;
-}
+                if(outMax > 0U){
 
-static bool isSignedNumber(const char *in, size_t inLen, size_t *read, int64_t *out)
-{
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL)
+                    out[pos] = c;
+                    pos++;
+                    retval = true;
+                }
+                else{
 
-    bool retval = false;
-    *read = 0U;
-    uint8_t digit = 0U;
-    
-    if((*read < inLen) && ((*in == '-') || isInteger(*in, &digit))){    /*lint !e9007 side effect is digit may be initialised */
-
-        bool negative = (*in == '-') ? true : false;
-
-        (*read)++;
-
-        if(negative){
-
-            if((*read < inLen) && isInteger(in[*read], &digit)){    /*lint !e9007 side effect is digit may be initialised*/
-
-                *out = (int64_t)digit;
-                (*read)++;
-                retval = true;
-            }                
-        }
-        else{
-
-            *out = (int64_t)digit;
-            retval = true;
-        }            
-
-        while(retval && (*read < inLen)){
-            
-            if(isInteger(in[*read], &digit)){
-                
-                /* todo: overflow protect */
-                *out *= 10;                
-                *out += digit;
-                (*read)++;                               
+                    *enomem = true;
+                }
             }
-            else{
 
-                break;
-            } 
-        }
+            if(retval){
 
-        if(retval){
+                while(BLINK_Stream_peek(in, &c)){
 
-            *out = 0 - *out;
-        }
-    }    
+                    if(isNameChar(c)){
 
-    return retval;
-}
+                        (void)BLINK_Stream_seekCur(in, sizeof(c));
 
-static bool isHexNumber(const char *in, size_t inLen, size_t *read, uint64_t *out)
-{
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(out != NULL)
+                        if(pos < outMax){
 
-    bool retval = false;
-    *read = 0U;
-    uint8_t digits = 1U;
-    uint8_t digit = 0U;
-    
-    if((*read < inLen) && (*in == '0')){
-
-        (*read)++;
-
-        if((*read < inLen) && (in[*read] == 'x')){
-
-            (*read)++;    
-
-            
-            if((*read < inLen) && isHexInteger(in[*read], &digit)){ /*lint !e9007 side effect is digit may be initialised */
-
-                (*read)++;
-
-                *out = (uint64_t)digit;
-
-                retval = true;
-
-                while(retval && (*read < inLen)){
-
-                    if(isHexInteger(in[*read], &digit)){
-
-                        (*read)++;
-
-                        if(digits <= 16U){
-
-                            *out <<= 4;
-                            *out |= digit;
-                            digits++;
+                            out[pos] = c;
+                            pos++;
                         }
                         else{
-                            
+
+                            BLINK_ERROR("buffer overrun")
+                            *enomem = true;
                             retval = false;
+                            break;
                         }
                     }
                     else{
 
+                        *outLen = pos;                        
                         break;
                     }
                 }
             }
         }
     }
+    
+    return retval;
+}
+
+static bool isCName(blink_stream_t in, bool *enomem, char *out, size_t outMax, size_t *outLen)
+{
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(out != NULL)
+    BLINK_ASSERT(outLen != NULL)
+
+    char c;
+    size_t pos = 0U;
+    bool retval = false;
+
+    *enomem = false;
+
+    if(BLINK_Stream_peek(in, &c) && isFirstNameChar(c)){
+        
+        while(BLINK_Stream_read(in, &c, sizeof(c))){
+
+            if(isNameChar(c)){
+
+                if(pos < outMax){
+                
+                    out[pos] = c;
+                    pos++;
+                }
+                else{
+
+                    *enomem = true;
+                    break;
+                }
+            }
+            else if(c == ':'){
+
+                if(pos < outMax){
+            
+                    out[pos] = c;
+                    pos++;
+
+                    if(BLINK_Stream_read(in, &c, sizeof(c)) && isNameChar(c)){
+
+                        if(pos < outMax){
+        
+                            out[pos] = c;
+                            pos++;
+    
+                            retval = true;
+                            
+                            while(BLINK_Stream_peek(in, &c) && isNameChar(c)){
+
+                                (void)BLINK_Stream_seekCur(in, sizeof(c));
+
+                                if(pos < outMax){
+
+                                    out[pos] = c;
+                                    pos++;
+                                }
+                                else{
+
+                                    *enomem = true;
+                                    retval = false;
+                                    break;
+                                }
+                            }
+
+                            *outLen = pos;
+                        }
+                        else{
+
+                            *enomem = true;
+                        }
+                    }
+                }
+                else{
+
+                    *enomem = true;
+                }
+
+                break;            
+            }
+            else{
+
+                break;
+            }
+        }
+    }
+
+    return retval;
+}
+    
+static bool isUnsignedNumber(blink_stream_t in, uint64_t *out)
+{
+    BLINK_ASSERT(in != NULL)    
+    BLINK_ASSERT(out != NULL)
+
+    bool retval = false;
+    uint8_t digit = 0U;
+    char c;
+
+    if(BLINK_Stream_read(in, &c, sizeof(c))){
+
+        if(isInteger(c, &digit)){
+    
+            retval = true;
+            *out = (uint64_t)digit;
+            
+            while(retval && BLINK_Stream_peek(in, &c)){
+                
+                if(isInteger(c, &digit)){
+
+                    /* todo: overflow protect */
+                    *out *= 10;                
+                    *out += digit;
+                    (void)BLINK_Stream_seekCur(in, sizeof(c));
+                }
+                else{
+
+                    break;
+                } 
+            }
+        }
+    }
+    
+    return retval;
+}
+
+static bool isSignedNumber(blink_stream_t in, int64_t *out)
+{
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(out != NULL)
+
+    bool retval = false;    
+    uint8_t digit = 0U;
+    char c;
+    
+    if(BLINK_Stream_read(in, &c, sizeof(c))){
+
+        if(isInteger(c, &digit) || (c == '-')){
+
+            bool negative = (c == '-') ? true : false;
+
+            if(negative){
+
+                if(BLINK_Stream_peek(in, &c)){
+
+                    if(isInteger(c, &digit)){
+
+                        *out = (int64_t)digit;
+                        (void)BLINK_Stream_seekCur(in, sizeof(c));
+                        retval = true;
+                    }
+                }                
+            }
+            else{
+
+                *out = (int64_t)digit;
+                retval = true;
+            }            
+
+            if(retval){
+
+                while(BLINK_Stream_peek(in, &c)){
+                    
+                    if(isInteger(c, &digit)){
+                        
+                        /* todo: overflow protect */
+                        *out *= 10;                
+                        *out += digit;
+                        (void)BLINK_Stream_seekCur(in, sizeof(c));
+                    }
+                    else{
+
+                        break;
+                    } 
+                }
+
+                *out = 0 - *out;
+            }
+        }
+    }    
 
     return retval;
 }
 
-static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **out, size_t *outLen)
+static bool isHexNumber(blink_stream_t in, uint64_t *out)
 {
     BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
+    BLINK_ASSERT(out != NULL)
+
+    bool retval = false;
+    uint8_t digits = 1U;
+    uint8_t digit = 0U;
+    char c;
+    
+    if(BLINK_Stream_read(in, &c, sizeof(c)) && (c == '0')){
+
+        if(BLINK_Stream_read(in, &c, sizeof(c)) && (c == 'x')){
+
+            if(BLINK_Stream_read(in, &c, sizeof(c))){
+
+                if(isHexInteger(c, &digit)){
+
+                    *out = (uint64_t)digit;
+
+                    retval = true;
+
+                    while(BLINK_Stream_peek(in, &c) && retval){
+
+                        if(isHexInteger(c, &digit)){
+
+                            (void)BLINK_Stream_seekCur(in, sizeof(c));
+
+                            if(digits <= 16U){
+
+                                *out <<= 4;
+                                *out |= digit;
+                                digits++;
+                            }
+                            else{
+                                
+                                retval = false;
+                            }
+                        }
+                        else{
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return retval;
+}
+
+static bool isLiteral(blink_stream_t in, bool *enomem, char *out, size_t outMax, size_t *outLen)
+{
+    BLINK_ASSERT(in != NULL)
+    BLINK_ASSERT(enomem != NULL)
     BLINK_ASSERT(out != NULL)
     BLINK_ASSERT(outLen != NULL)
 
     bool retval = false;
     char mark;
+    char c;
+    size_t pos = 0U;
     
-    *read = 0U;
+    *enomem = false;    
 
-    if((*read < inLen) && ((*in == '"') || (*in == '\''))){
+    if(BLINK_Stream_read(in, &c, sizeof(c)) && ((c == '"') || (c == '\''))){
 
-        mark = *in;
-        (*read)++;
-        *out = &in[*read];
-        *outLen = 0U;
-
-        while(*read < inLen){
-
-            char c = in[*read];
-            (*read)++;
+        mark = c;
+        
+        while(BLINK_Stream_read(in, &c, sizeof(c))){
 
             if(c == mark){
-                
+
+                *outLen = pos;
                 retval = true;
                 break;
             }
@@ -611,9 +708,15 @@ static bool isLiteral(const char *in, size_t inLen, size_t *read, const char **o
 
                 break;
             }
+            else if(pos == outMax){
+
+                *enomem = true;
+                break;
+            }
             else{
 
-                (*outLen)++;
+                out[pos] = c;
+                pos++;
             }
         }
     }

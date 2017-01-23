@@ -51,7 +51,10 @@ static bool newSchema(const char *fileName, blink_schema_t *schema)
             (void)fread(buffer, size, 1, f);
             (void)BLINK_Pool_init(&pool, poolBuffer, poolBufferSize);
 
-            *schema = BLINK_Schema_new(&pool, buffer, size);
+            struct blink_stream stream;
+            (void)BLINK_Stream_initBufferReadOnly(&stream, (uint8_t *)buffer, (size_t)size);
+
+            *schema = BLINK_Schema_new(&pool, &stream);
             retval = true;     
         }
         else{

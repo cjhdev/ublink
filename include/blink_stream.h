@@ -45,8 +45,8 @@ extern "C" {
 
 /* types **************************************************************/
 
-typedef bool (*blink_stream_read_t)(void *state, uint8_t *out, size_t bytesToRead);
-typedef bool (*blink_stream_write_t)(void *state, const uint8_t *in, size_t bytesToWrite);
+typedef bool (*blink_stream_read_t)(void *state, void *out, size_t bytesToRead);
+typedef bool (*blink_stream_write_t)(void *state, const void *in, size_t bytesToWrite);
 
 struct blink_stream {
     enum blink_stream_type {
@@ -85,7 +85,7 @@ typedef struct blink_stream * blink_stream_t;
  * @retval false
  *
  * */
-bool BLINK_Stream_write(blink_stream_t self, const uint8_t *in, size_t bytesToWrite);
+bool BLINK_Stream_write(blink_stream_t self, const void *in, size_t bytesToWrite);
 
 /** Read from an input stream
  *
@@ -98,7 +98,9 @@ bool BLINK_Stream_write(blink_stream_t self, const uint8_t *in, size_t bytesToWr
  * @retval false
  *
  * */
-bool BLINK_Stream_read(blink_stream_t self, uint8_t *out, size_t bytesToRead);
+bool BLINK_Stream_read(blink_stream_t self, void *out, size_t bytesToRead);
+
+bool BLINK_Stream_peek(blink_stream_t self, void *out);
 
 /** Init a read only buffer
  *

@@ -9,598 +9,733 @@
 
 #include "cmocka.h"
 #include "blink_lexer.h"
+#include "blink_stream.h"
 #include <string.h>
 
-void test_BLINK_Lexer_getToken_name(void **user)
+static char buffer[50U];    
+
+static void test_BLINK_Lexer_getToken_name(void **user)
 {
-    size_t read;
     const char input[] = "test";
+    
     union blink_token_value value;
     enum blink_token expected = TOK_NAME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
     assert_int_equal(strlen(input), value.literal.len);
     assert_memory_equal(input, value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_name_leadingWS(void **user)
+static void test_BLINK_Lexer_getToken_name_leadingWS(void **user)
 {
-    size_t read;
     const char input[] = " test";
     union blink_token_value value;
     enum blink_token expected = TOK_NAME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(" test"), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
     assert_int_equal(strlen("test"), value.literal.len);
     assert_memory_equal("test", value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_name_leadingWS_trailingWS(void **user)
+static void test_BLINK_Lexer_getToken_name_leadingWS_trailingWS(void **user)
 {
-    size_t read;
     const char input[] = " test ";
     union blink_token_value value;
     enum blink_token expected = TOK_NAME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(" test"), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
     assert_int_equal(strlen("test"), value.literal.len);
     assert_memory_equal("test", value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_double_name(void **user)
+static void test_BLINK_Lexer_getToken_double_name(void **user)
 {
-    size_t read;
-    size_t readAgain;
     const char input[] = "test again";
     union blink_token_value value;
     enum blink_token expected = TOK_NAME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 
-    assert_int_equal(strlen("test"), read);
     assert_int_equal(strlen("test"), value.literal.len);
     assert_memory_equal("test", value.literal.ptr, value.literal.len);
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(&input[read], sizeof(input) - read, &readAgain, &value, NULL));
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 
-    assert_int_equal(strlen(" again"), readAgain);
     assert_int_equal(strlen("again"), value.literal.len);
     assert_memory_equal("again", value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_escaped_name(void **user)
+static void test_BLINK_Lexer_getToken_escaped_name(void **user)
 {
-    size_t read;
     const char input[] = "\\u8";
     union blink_token_value value;
     enum blink_token expected = TOK_NAME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
     assert_int_equal(strlen(input)-1, value.literal.len);
     assert_memory_equal(&input[1], value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_namespace(void **user)
+static void test_BLINK_Lexer_getToken_name_tooBig(void **user)
 {
-    size_t read;
+    const char input[] =
+        "a123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0";
+        
+    union blink_token_value value;
+    enum blink_token expected = TOK_ENOMEM;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));    
+}
+
+static void test_BLINK_Lexer_getToken_cname(void **user)
+{
+    const char input[] = "u8:u";
+    union blink_token_value value;
+    enum blink_token expected = TOK_CNAME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    assert_int_equal(strlen(input), value.literal.len);
+    assert_memory_equal(input, value.literal.ptr, value.literal.len);
+}
+
+static void test_BLINK_Lexer_getToken_cname_tooBig_beforeColon(void **user)
+{
+    const char input[] =
+        "a123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0";
+        
+    union blink_token_value value;
+    enum blink_token expected = TOK_ENOMEM;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));    
+}
+
+static void test_BLINK_Lexer_getToken_cname_tooBig_afterColon(void **user)
+{
+    const char input[] =
+        "a:123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0";
+        
+    union blink_token_value value;
+    enum blink_token expected = TOK_ENOMEM;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));    
+}
+
+static void test_BLINK_Lexer_getToken_namespace(void **user)
+{
     const char input[] = "namespace";
     union blink_token_value value;
     enum blink_token expected = TOK_NAMESPACE;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_u8(void **user)
+static void test_BLINK_Lexer_getToken_u8(void **user)
 {
-    size_t read;
     const char input[] = "u8";
     union blink_token_value value;
     enum blink_token expected = TOK_U8;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_u16(void **user)
+static void test_BLINK_Lexer_getToken_u16(void **user)
 {
-    size_t read;
     const char input[] = "u16";
     union blink_token_value value;
     enum blink_token expected = TOK_U16;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_u32(void **user)
+static void test_BLINK_Lexer_getToken_u32(void **user)
 {
-    size_t read;
     const char input[] = "u32";
     union blink_token_value value;
     enum blink_token expected = TOK_U32;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_u64(void **user)
+static void test_BLINK_Lexer_getToken_u64(void **user)
 {
-    size_t read;
     const char input[] = "u64";
     union blink_token_value value;
     enum blink_token expected = TOK_U64;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_i8(void **user)
+static void test_BLINK_Lexer_getToken_i8(void **user)
 {
-    size_t read;
     const char input[] = "i8";
     union blink_token_value value;
     enum blink_token expected = TOK_I8;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_i16(void **user)
+static void test_BLINK_Lexer_getToken_i16(void **user)
 {
-    size_t read;
     const char input[] = "i16";
     union blink_token_value value;
     enum blink_token expected = TOK_I16;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_i32(void **user)
+static void test_BLINK_Lexer_getToken_i32(void **user)
 {
-    size_t read;
     const char input[] = "i32";
     union blink_token_value value;
     enum blink_token expected = TOK_I32;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_i64(void **user)
+static void test_BLINK_Lexer_getToken_i64(void **user)
 {
-    size_t read;
     const char input[] = "i64";
     union blink_token_value value;
     enum blink_token expected = TOK_I64;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_f64(void **user)
+static void test_BLINK_Lexer_getToken_f64(void **user)
 {
-    size_t read;
     const char input[] = "f64";
     union blink_token_value value;
     enum blink_token expected = TOK_F64;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_string(void **user)
+static void test_BLINK_Lexer_getToken_string(void **user)
 {
-    size_t read;
     const char input[] = "string";
     union blink_token_value value;
     enum blink_token expected = TOK_STRING;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_binary(void **user)
+static void test_BLINK_Lexer_getToken_binary(void **user)
 {
-    size_t read;
     const char input[] = "binary";
     union blink_token_value value;
     enum blink_token expected = TOK_BINARY;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_fixed(void **user)
+static void test_BLINK_Lexer_getToken_fixed(void **user)
 {
-    size_t read;
     const char input[] = "fixed";
     union blink_token_value value;
     enum blink_token expected = TOK_FIXED;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_decimal(void **user)
+static void test_BLINK_Lexer_getToken_decimal(void **user)
 {
-    size_t read;
     const char input[] = "decimal";
     union blink_token_value value;
     enum blink_token expected = TOK_DECIMAL;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_date(void **user)
+static void test_BLINK_Lexer_getToken_date(void **user)
 {
-    size_t read;
     const char input[] = "date";
     union blink_token_value value;
     enum blink_token expected = TOK_DATE;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_millitime(void **user)
+static void test_BLINK_Lexer_getToken_millitime(void **user)
 {
-    size_t read;
     const char input[] = "millitime";
     union blink_token_value value;
     enum blink_token expected = TOK_MILLI_TIME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_nanotime(void **user)
+static void test_BLINK_Lexer_getToken_nanotime(void **user)
 {
-    size_t read;
     const char input[] = "nanotime";
     union blink_token_value value;
     enum blink_token expected = TOK_NANO_TIME;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_timeOfDayMilli(void **user)
+static void test_BLINK_Lexer_getToken_timeOfDayMilli(void **user)
 {
-    size_t read;
     const char input[] = "timeOfDayMilli";
     union blink_token_value value;
     enum blink_token expected = TOK_TIME_OF_DAY_MILLI;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_timeOfDayNano(void **user)
+static void test_BLINK_Lexer_getToken_timeOfDayNano(void **user)
 {
-    size_t read;
     const char input[] = "timeOfDayNano";
     union blink_token_value value;
     enum blink_token expected = TOK_TIME_OF_DAY_NANO;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_schema(void **user)
+static void test_BLINK_Lexer_getToken_schema(void **user)
 {
-    size_t read;
     const char input[] = "schema";
     union blink_token_value value;
     enum blink_token expected = TOK_SCHEMA;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_type(void **user)
+static void test_BLINK_Lexer_getToken_type(void **user)
 {
-    size_t read;
     const char input[] = "type";
     union blink_token_value value;
     enum blink_token expected = TOK_TYPE;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_rarrow(void **user)
+static void test_BLINK_Lexer_getToken_rarrow(void **user)
 {
-    size_t read;
     const char input[] = "->";
     union blink_token_value value;
     enum blink_token expected = TOK_RARROW;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_larrow(void **user)
+static void test_BLINK_Lexer_getToken_larrow(void **user)
 {
-    size_t read;
     const char input[] = "<-";
     union blink_token_value value;
     enum blink_token expected = TOK_LARROW;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_bool(void **user)
+static void test_BLINK_Lexer_getToken_bool(void **user)
 {
-    size_t read;
     const char input[] = "bool";
     union blink_token_value value;
     enum blink_token expected = TOK_BOOL;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_star(void **user)
+static void test_BLINK_Lexer_getToken_star(void **user)
 {
-    size_t read;
+    
     const char input[] = "*";
     union blink_token_value value;
     enum blink_token expected = TOK_STAR;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_equal(void **user)
+static void test_BLINK_Lexer_getToken_equal(void **user)
 {
-    size_t read;
+    
     const char input[] = "=";
     union blink_token_value value;
     enum blink_token expected = TOK_EQUAL;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_period(void **user)
+static void test_BLINK_Lexer_getToken_period(void **user)
 {
-    size_t read;
+    
     const char input[] = ".";
     union blink_token_value value;
     enum blink_token expected = TOK_PERIOD;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_comma(void **user)
+static void test_BLINK_Lexer_getToken_comma(void **user)
 {
-    size_t read;
+    
     const char input[] = ",";
     union blink_token_value value;
     enum blink_token expected = TOK_COMMA;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_lbracket(void **user)
+static void test_BLINK_Lexer_getToken_lbracket(void **user)
 {
-    size_t read;
+    
     const char input[] = "[";
     union blink_token_value value;
     enum blink_token expected = TOK_LBRACKET;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_rbracket(void **user)
+static void test_BLINK_Lexer_getToken_rbracket(void **user)
 {
-    size_t read;
+    
     const char input[] = "]";
     union blink_token_value value;
     enum blink_token expected = TOK_RBRACKET;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_lparen(void **user)
+static void test_BLINK_Lexer_getToken_lparen(void **user)
 {
-    size_t read;
+    
     const char input[] = "(";
     union blink_token_value value;
     enum blink_token expected = TOK_LPAREN;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_rparen(void **user)
+static void test_BLINK_Lexer_getToken_rparen(void **user)
 {
-    size_t read;
+    
     const char input[] = ")";
     union blink_token_value value;
     enum blink_token expected = TOK_RPAREN;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_colon(void **user)
+static void test_BLINK_Lexer_getToken_colon(void **user)
 {
-    size_t read;
+    
     const char input[] = ":";
     union blink_token_value value;
     enum blink_token expected = TOK_COLON;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_slash(void **user)
+static void test_BLINK_Lexer_getToken_slash(void **user)
 {
-    size_t read;
+    
     const char input[] = "/";
     union blink_token_value value;
     enum blink_token expected = TOK_SLASH;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_question(void **user)
+static void test_BLINK_Lexer_getToken_question(void **user)
 {
-    size_t read;
+    
     const char input[] = "?";
     union blink_token_value value;
     enum blink_token expected = TOK_QUESTION;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_at(void **user)
+static void test_BLINK_Lexer_getToken_at(void **user)
 {
-    size_t read;
+    
     const char input[] = "@";
     union blink_token_value value;
     enum blink_token expected = TOK_AT;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_bar(void **user)
+static void test_BLINK_Lexer_getToken_bar(void **user)
 {
-    size_t read;
+    
     const char input[] = "|";
     union blink_token_value value;
     enum blink_token expected = TOK_BAR;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
 }
 
-void test_BLINK_Lexer_getToken_unsigned_number(void **user)
+static void test_BLINK_Lexer_getToken_unsigned_number(void **user)
 {
-    size_t read;
+    
     const char input[] = "42";
     union blink_token_value value;
     enum blink_token expected = TOK_UINT;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
     assert_int_equal(42, value.number);
 }
 
-void test_BLINK_Lexer_getToken_signed_number(void **user)
+static void test_BLINK_Lexer_getToken_signed_number(void **user)
 {
-    size_t read;
+    
     const char input[] = "-42";
     union blink_token_value value;
     enum blink_token expected = TOK_INT;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
     assert_int_equal(-42, value.signedNumber);
 }
 
-void test_BLINK_Lexer_getToken_hex_number(void **user)
+static void test_BLINK_Lexer_getToken_hex_number(void **user)
 {
-    size_t read;
+    
     const char input[] = "0x2A";
     union blink_token_value value;
     enum blink_token expected = TOK_UINT;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
     assert_int_equal(42, value.number);
 }
 
-void test_BLINK_Lexer_getToken_hex_number_too_big(void **user)
+static void test_BLINK_Lexer_getToken_hex_number_too_big(void **user)
 {
-    size_t read;
+    
     const char input[] = "0x10000000000000000";
     union blink_token_value value;
     enum blink_token expected = TOK_UNKNOWN;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_comment_eof(void **user)
+static void test_BLINK_Lexer_getToken_comment_eof(void **user)
 {
-    size_t read;
+    
     const char input[] = "# this is a comment";
     union blink_token_value value;
     enum blink_token expected = TOK_EOF;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_comment_u8(void **user)
+static void test_BLINK_Lexer_getToken_comment_u8(void **user)
 {
-    size_t read;
+    
     const char input[] = "# this is a comment\nu8";
     union blink_token_value value;
     enum blink_token expected = TOK_U8;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
 }
 
-void test_BLINK_Lexer_getToken_literal_doubleQuote(void **user)
+static void test_BLINK_Lexer_getToken_literal_doubleQuote(void **user)
 {
-    size_t read;
+    
     const char input[] = "\"this is a literal\"";
     union blink_token_value value;
     enum blink_token expected = TOK_LITERAL;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
     assert_int_equal(strlen("this is a literal"), value.literal.len);
     assert_memory_equal("this is a literal", value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_literal_singleQuote(void **user)
+static void test_BLINK_Lexer_getToken_literal_singleQuote(void **user)
 {
-    size_t read;
+    
     const char input[] = "'this is a literal'";
     union blink_token_value value;
     enum blink_token expected = TOK_LITERAL;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));
-    assert_int_equal(strlen(input), read);
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));
+    
     assert_int_equal(strlen("this is a literal"), value.literal.len);
     assert_memory_equal("this is a literal", value.literal.ptr, value.literal.len);
 }
 
-void test_BLINK_Lexer_getToken_literal_mixedQuote(void **user)
+static void test_BLINK_Lexer_getToken_literal_mixedQuote(void **user)
 {
-    size_t read;
+    
     const char input[] = "'this is a literal\"";
     union blink_token_value value;
     enum blink_token expected = TOK_UNKNOWN;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));    
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));    
 }
 
-void test_BLINK_Lexer_getToken_literal_newline(void **user)
+static void test_BLINK_Lexer_getToken_literal_newline(void **user)
 {
-    size_t read;
+    
     const char input[] = "'this is a\nliteral'";
     union blink_token_value value;
     enum blink_token expected = TOK_UNKNOWN;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
 
-    assert_int_equal(expected, BLINK_Lexer_getToken(input, sizeof(input), &read, &value, NULL));    
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));    
+}
+
+static void test_BLINK_Lexer_getToken_literal_tooBig(void **user)
+{
+    
+    const char input[] =
+        "'0123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0123456789"
+        "0"
+        ;
+    union blink_token_value value;
+    enum blink_token expected = TOK_ENOMEM;
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+
+    assert_int_equal(expected, BLINK_Lexer_getToken(&stream, buffer, sizeof(buffer), &value, NULL));    
 }
 
 int main(void)
@@ -611,6 +746,12 @@ int main(void)
         cmocka_unit_test(test_BLINK_Lexer_getToken_name_leadingWS_trailingWS),
         cmocka_unit_test(test_BLINK_Lexer_getToken_double_name),
         cmocka_unit_test(test_BLINK_Lexer_getToken_escaped_name),
+        cmocka_unit_test(test_BLINK_Lexer_getToken_name_tooBig),
+
+        cmocka_unit_test(test_BLINK_Lexer_getToken_cname),
+        cmocka_unit_test(test_BLINK_Lexer_getToken_cname_tooBig_beforeColon),
+        cmocka_unit_test(test_BLINK_Lexer_getToken_cname_tooBig_afterColon),
+        
         cmocka_unit_test(test_BLINK_Lexer_getToken_namespace),
         cmocka_unit_test(test_BLINK_Lexer_getToken_u8),
         cmocka_unit_test(test_BLINK_Lexer_getToken_u16),
@@ -657,7 +798,8 @@ int main(void)
         cmocka_unit_test(test_BLINK_Lexer_getToken_literal_doubleQuote),
         cmocka_unit_test(test_BLINK_Lexer_getToken_literal_singleQuote),
         cmocka_unit_test(test_BLINK_Lexer_getToken_literal_mixedQuote),
-        cmocka_unit_test(test_BLINK_Lexer_getToken_literal_newline)
+        cmocka_unit_test(test_BLINK_Lexer_getToken_literal_newline),
+        cmocka_unit_test(test_BLINK_Lexer_getToken_literal_tooBig)
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

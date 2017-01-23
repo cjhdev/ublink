@@ -1,7 +1,7 @@
 #ifndef GENERATE_H
 #define GENERATE_H
 
-#include "blink_schema.h"
+#include "ublink.h"
 
 struct arguments {
 

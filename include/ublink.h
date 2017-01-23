@@ -30,8 +30,8 @@
  * 
  * */
 
-#include "blink_compact_form.h"
-#include "blink_parser.h"
+#include "blink_compact.h"
+#include "blink_schema.h"
 #include "blink_pool.h"
 #include "blink_stream.h"
 

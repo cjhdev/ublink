@@ -35,14 +35,18 @@
     #define BLINK_LINK_DEPTH    10U
 #endif
 
+#ifndef BLINK_TOKEN_MAX_SIZE
+    #define BLINK_TOKEN_MAX_SIZE 100U
+#endif
+
+
 /* static prototypes **************************************************/
 
-static struct blink_schema_base *parseSchema(struct blink_schema_base *self, const char *in, size_t inLen);
-static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_schema_type *type);
-static bool parseAnnote(struct blink_schema_base *self, const char *in, size_t inLen, size_t *read, struct blink_schema_annote *annote);
-static bool parseAnnotes(struct blink_schema_base *self, const char *in, size_t inLen, size_t *read, struct blink_schema **annotes);
+static bool parseSchema(struct blink_schema_base *self, const struct blink_syntax *in);
 
 static struct blink_schema *newListElement(blink_pool_t pool, struct blink_schema **head, enum blink_schema_subclass type);
+
+static bool tokenToIType(enum blink_token tok, enum blink_itype_tag *type);
 
 static struct blink_schema *searchListByName(struct blink_schema *head, const char *name, size_t nameLen);
 
@@ -69,32 +73,37 @@ static struct blink_schema_group *castGroup(struct blink_schema *self);
 static struct blink_schema_namespace *castNamespace(struct blink_schema *self);
 static struct blink_schema_type_def *castTypeDef(struct blink_schema *self);
 static struct blink_schema_annote *castAnnote(struct blink_schema *self);
-static struct blink_schema_incr_annote *castIncrAnnote(struct blink_schema *self);
+//static struct blink_schema_incr_annote *castIncrAnnote(struct blink_schema *self);
 static struct blink_schema_base *castSchema(struct blink_schema *self);
 
-static const char *allocateString(blink_pool_t pool, const char *a, size_t aLen, const char *b, size_t bLen);
+static const char *newString(blink_pool_t pool, const char *ptr, size_t len);
+
+static blink_schema_t takeAnnotes(blink_schema_t *annotes);
 
 /* functions **********************************************************/
 
-blink_schema_t BLINK_Schema_new(blink_pool_t pool, const char *in, size_t inLen)
+blink_schema_t BLINK_Schema_new(blink_pool_t pool, blink_stream_t in)
 {
     BLINK_ASSERT(pool != NULL)
-    BLINK_ASSERT(in != NULL)
-
+    
     blink_schema_t retval = NULL;
     struct blink_schema_base *self = BLINK_Pool_calloc(pool, sizeof(struct blink_schema_base));
     
     if(self != NULL){
 
         self->pool = pool;
-    
-        if(parseSchema(self, in, inLen) == self){
+
+        struct blink_syntax ctxt = {
+            .name = NULL,
+            .in = in
+        };
+
+        if(parseSchema(self, &ctxt)){
 
             if(resolveDefinitions(self)){
 
                 if(testConstraints(self)){
 
-                    self->finalised = true;
                     retval = (blink_schema_t)self;
                 }
             }
@@ -126,12 +135,12 @@ blink_schema_t BLINK_Schema_getGroupByName(blink_schema_t self, const char *name
     return (ns == NULL) ? NULL : (blink_schema_t)castGroup(searchListByName(ns->defs, lName, lNameLen));
 }
 
-blink_schema_t BLINK_Schema_getGroupByID(blink_schema_t self, uint64_t id)
+blink_schema_t BLINK_Schema_getGroupByID(blink_schema_t schema, uint64_t id)
 {
-    BLINK_ASSERT(self != NULL)
+    BLINK_ASSERT(schema != NULL)
 
     blink_schema_t retval = NULL;
-    struct blink_group_iterator iter = initDefinitionIterator(castSchema(self)->ns);
+    struct blink_group_iterator iter = initDefinitionIterator(castSchema(schema)->ns);
     blink_schema_t defPtr = peekDefinition(&iter);
 
     while((retval == NULL) && (defPtr != NULL)){
@@ -486,595 +495,1201 @@ blink_schema_t BLINK_GroupIterator_next(struct blink_group_iterator *iter)
 
 /* static functions ***************************************************/
 
-static struct blink_schema_base *parseSchema(struct blink_schema_base *self, const char *in, size_t inLen)
+static struct blink_schema_namespace *getNamespace(struct blink_schema_base *self, const char *name, size_t nameLen)
+{
+    struct blink_schema_namespace *retval = castNamespace(searchListByName(self->ns, name, nameLen));
+
+    if(retval == NULL){
+
+        retval = castNamespace(newListElement(self->pool, &self->ns, BLINK_SCHEMA_NS));
+
+        if(retval != NULL){
+
+            retval->super.name = newString(self->pool, name, nameLen);
+            retval->super.nameLen = nameLen;
+            
+            if(retval->super.name == NULL){
+
+                BLINK_ERROR("calloc()")
+                retval = NULL;
+            }
+        }
+    }
+
+    return retval;
+}
+
+static blink_schema_t takeAnnotes(blink_schema_t *annotes)
+{
+    BLINK_ASSERT(annotes != NULL)
+    BLINK_ASSERT((*annotes == NULL) || ((*annotes)->type == BLINK_SCHEMA_ANNOTE))
+
+    blink_schema_t retval = *annotes;
+
+    *annotes = NULL;
+
+    return retval;
+}
+
+static bool parseSchema(struct blink_schema_base *self, const struct blink_syntax *in)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(in != NULL)
-    
-    size_t pos = 0U;
-    struct blink_schema_namespace *ns;    
-    struct blink_schema *element;
-    struct blink_schema *defAnnotes;
+
+    bool retval = true;
 
     enum blink_token tok;
     union blink_token_value value;
-    size_t read;
-    enum blink_token nextTok;
-    union blink_token_value nextValue;
-    size_t nextRead;
-
-    /* specific namespace */
-    if(BLINK_Lexer_getToken(in, inLen, &read, &value, NULL) == TOK_NAMESPACE){
-
-        pos += read;
-
-        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
-
-            BLINK_ERROR("expecting a namespace name")
-            return NULL;
-        }
-        
-        pos += read;
-    }
-    else{
-
-        (void)memset(&value, 0, sizeof(value));
-    }
-
-    element = searchListByName(self->ns, value.literal.ptr, value.literal.len);
-
-    /* namespace not yet defined */
-    if(element == NULL){
-
-        ns = castNamespace(newListElement(self->pool, &self->ns, BLINK_SCHEMA_NS));
-
-        if(ns == NULL){
-            return NULL;
-        }
-
-        ns->super.name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
-        ns->super.nameLen = value.literal.len;
-        
-        if(ns->super.name == NULL){
-
-            BLINK_ERROR("calloc()")
-            return NULL;
-        }    
-    }
-    else{
-
-        ns = castNamespace(element);
-    }
-
-    /* parse all definitions */
-    while(BLINK_Lexer_getToken(&in[pos], inLen-pos, &read, &value, NULL) != TOK_EOF){
-
-        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &defAnnotes)){
-            return NULL;
-        }
-
-        tok = BLINK_Lexer_getToken(&in[pos], inLen-pos, &read, &value, NULL);
-        nextTok = BLINK_Lexer_getToken(&in[pos+read], inLen-pos-read, &nextRead, &nextValue, NULL);
-
-        /* incremental annote */
-        if((tok == TOK_SCHEMA) || (tok == TOK_CNAME) || ((tok == TOK_NAME) && ((nextTok == TOK_PERIOD) || (nextTok == TOK_LARROW)))){
-
-            pos += read;
-            
-            if(defAnnotes != NULL){
-
-                BLINK_ERROR("expecting a group, type, or enum definition")
-                return NULL;
-            }
-
-            struct blink_schema_incr_annote *ia = castIncrAnnote(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_INCR_ANNOTE));
-
-            if(ia == NULL){
-                return NULL;
-            }
-
-            if(tok == TOK_SCHEMA){
-
-                if(nextTok != TOK_LARROW){
+    bool shift;
     
-                    BLINK_ERROR("expecting '<-'")
-                    return NULL;
+    enum parse_state {
+        P_START,
+        P_NS,
+        P_ANY,
+        P_DEF_OR_ANNOTE,
+
+        P_DEF_ANNOTE,
+        P_TYPEDEF_ANNOTE,
+        P_TYPE_ANNOTE,
+        P_NAME_ANNOTE,
+        P_SYMBOL_ANNOTE,
+        
+        P_DEF_ANNOTE_VALUE,
+        P_TYPEDEF_ANNOTE_VALUE,
+        P_TYPE_ANNOTE_VALUE,
+        P_NAME_ANNOTE_VALUE,
+        P_SYMBOL_ANNOTE_VALUE,
+        
+        P_DEF,
+        P_DEF_NAME,
+        P_DEF_TYPE,
+
+        P_GROUP_ID,
+        P_GROUP_SUPER,
+        P_GROUP_RARROW,
+
+        P_FIELD_OR_ANY,
+        P_SUPER_OR_FIELD_OR_ANY,
+        
+        P_FIELD,
+        P_FIELD_TYPE,
+        P_FIELD_TYPE_LPAREN,
+        P_FIELD_TYPE_LPAREN_OPTIONAL,
+        P_FIELD_TYPE_SIZE,
+        P_FIELD_TYPE_RPAREN,
+        P_FIELD_TYPE_LBRACKET,
+        P_FIELD_TYPE_RBRACKET,
+        P_FIELD_TYPE_DYNAMIC,        
+        P_FIELD_NAME_ANNOTES,        
+        P_FIELD_NAME,
+        P_FIELD_NAME_SLASH,
+        P_FIELD_NAME_ID,
+        P_FIELD_OPTIONAL,
+        P_FIELD_NEXT,
+        
+        P_TYPEDEF,
+        P_TYPEDEF_TYPE_LPAREN,
+        P_TYPEDEF_TYPE_LPAREN_OPTIONAL,
+        P_TYPEDEF_TYPE_SIZE,
+        P_TYPEDEF_TYPE_RPAREN,
+        P_TYPEDEF_TYPE_LBRACKET,
+        P_TYPEDEF_TYPE_RBRACKET,
+        P_TYPEDEF_TYPE_DYNAMIC,
+
+        P_ENUM,
+        P_ENUM_SINGLETON,
+
+        P_ENUM_OR_TYPEDEF,
+        
+        P_SYMBOL,
+        P_SYMBOL_ANNOTES,
+        P_SYMBOL_NAME,
+        P_SYMBOL_SLASH,
+        P_SYMBOL_VALUE,
+        P_SYMBOL_NEXT,
+
+        P_SYMBOL_OR_REF
+        
+        
+    } state = P_START;
+
+    const char *name = NULL;
+    size_t nameLen = 0U;
+
+    struct blink_schema_group *g = NULL;
+    struct blink_schema_field *f = NULL;
+    struct blink_schema_enum *e = NULL;
+    struct blink_schema_symbol *s = NULL;
+    struct blink_schema_namespace *ns = NULL;
+    blink_schema_t annotes = NULL;
+    struct blink_schema_annote *annote = NULL;
+    struct blink_schema_type *type = NULL;
+
+    /* we need the following lookahead set to deal with the difference
+     * between an enum and a type definition */
+    const char *laName = NULL;
+    size_t laNameLen = 0U;
+    enum blink_itype_tag laIType = BLINK_ITYPE_REF;
+    blink_schema_t laAnnotes = NULL;    
+
+    char buffer[BLINK_TOKEN_MAX_SIZE];
+
+    do{
+
+        tok = BLINK_Lexer_getToken(in->in, buffer, sizeof(buffer), &value, NULL);
+        
+        if(tok == TOK_ENOMEM){
+
+            BLINK_ERROR("token is too large to buffer")
+            retval = false;
+            break;
+        }
+
+        do{
+
+            shift = true;   /* shift the token unless told otherwise */
+
+            switch(state){
+            default:
+            case P_START:
+
+                if(tok == TOK_NAMESPACE){
+
+                    state = P_NS;
                 }
-            }
-            else{
+                else{
 
-                ia->super.name = value.literal.ptr;
-                ia->super.nameLen = value.literal.len;
-            }
+                    ns = getNamespace(self, NULL, 0U);
 
-            if(nextTok == TOK_PERIOD){
+                    if(ns == NULL){
 
-                pos += nextRead;
+                        retval = false;
+                    }
+                    else{
 
-                tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL);
+                        state = P_ANY;
+                        shift = false;
+                    }
+                }
+                break;
 
-                pos += read;
+            case P_NS:
 
                 if(tok == TOK_NAME){
 
-                    ia->fieldName = value.literal.ptr;
-                    ia->fieldNameLen = value.literal.len;
+                    ns = getNamespace(self, value.literal.ptr, value.literal.len);
 
-                    tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL);
-
-                    if(tok == TOK_PERIOD){
-
-                        pos += read;
-
-                        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_TYPE){
-                            BLINK_ERROR("expecting 'type'")
-                            return NULL;
-                        }
-
-                        pos += read;
-
-                        ia->type = true;
+                    if(ns == NULL){
+                        
+                        retval = false;
                     }
-                }
-                else if (tok == TOK_TYPE){
+                    else{
 
-                    ia->type = true;
+                        state = P_ANY;
+                    }
                 }
                 else{
-                
-                    BLINK_ERROR("expecting <name> or 'type'")
-                    return NULL;
+
+                    BLINK_ERROR("expecting <name>")
+                    retval = false;
                 }
-            }
+                break;
 
-            if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_LARROW){
-                BLINK_ERROR("expecting '<-'")
-                return NULL;                 
-            }
+            case P_ANY:
 
-            read = 0U;
+                switch(tok){
+                case TOK_NAMESPACE:
+                    state = P_NS;
+                    break;
+                case TOK_AT:
+                case TOK_NAME:
+                case TOK_CNAME:
+                    state = P_DEF_OR_ANNOTE;
+                    shift = false;
+                    break;
+                case TOK_EOF:
+                    break;
+                default:
+                    BLINK_ERROR("got '%s' but expecting 'namespace', '@', <name>, or <cname>", BLINK_Lexer_tokenToString(tok))
+                    retval = false;
+                    break;
+                }
+                break;
 
-            do{
+            case P_DEF_OR_ANNOTE:
 
-                pos += read;
+                switch(tok){
+                case TOK_AT:
+                    state = P_DEF_ANNOTE;
+                    break;
+                case TOK_NAME:                    
+                    name = newString(self->pool, value.literal.ptr, value.literal.len);
+                    nameLen = value.literal.len;
+                    if(name == NULL){
 
-                tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL);
-
-                pos += read;
-
-                struct blink_schema_annote *annote = NULL;
-
-                if(tok == TOK_AT){
-
-                    struct blink_schema_annote a;
-
-                    if(!parseAnnote(self, &in[pos], inLen - pos, &read, &a)){
-                        return NULL;
+                        retval = false;
                     }
+                    else{
 
-                    pos += read;
-                    
-                    annote = castAnnote(searchListByName(ia->a, a.super.name, a.super.nameLen));
+                        state = P_DEF_TYPE;
+                    }                
+                    break;                        
+                case TOK_CNAME:
+                    BLINK_ERROR("not handling");
+                    retval = false;
+                    break;
+                default:
+                    BLINK_ERROR("expecting '@', <name>, or <cname>")
+                    retval = false;
+                }
+                break;
+
+            case P_DEF_ANNOTE:          /* annotes before a definition */
+            case P_TYPEDEF_ANNOTE:      /* annotes before a typedef */
+            case P_SYMBOL_ANNOTE:       /* annotes before a symbol */
+            case P_TYPE_ANNOTE:         /* annotes before a field type */
+            case P_NAME_ANNOTE:         /* annotes before a field name */
+
+                switch(tok){
+                case TOK_NAME:
+                case TOK_CNAME:
+
+                    annote = castAnnote(searchListByName(annotes, value.literal.ptr, value.literal.len)); 
 
                     if(annote == NULL){
 
-                        annote = castAnnote(newListElement(self->pool, &ia->a, BLINK_SCHEMA_ANNOTE));
+                        annote = castAnnote(newListElement(self->pool, (state == P_TYPEDEF_ANNOTE) ? &laAnnotes : &annotes, BLINK_SCHEMA_ANNOTE));
 
                         if(annote == NULL){
-                            return NULL;
+
+                            retval = false;
+                        }
+                        else{
+
+                            annote->super.name = newString(self->pool, value.literal.ptr, value.literal.len);
+                            annote->super.nameLen = value.literal.len;
+
+                            if(annote->super.name == NULL){
+                                
+                                retval = false;
+                            }
                         }
                     }
 
-                    *annote = a;    /*copy*/
-                }
-                else if(tok == TOK_UINT){
+                    if(retval){
 
-                    struct blink_schema *ptr = ia->a;
-
-                    /* overwrite existing number */
-                    while(ptr != NULL){
-
-                        annote = castAnnote(ptr);
-                        
-                        if(annote->super.name == NULL){
+                        switch(state){
+                        default:
+                        case P_DEF_ANNOTE:
+                            state = P_DEF_ANNOTE_VALUE;
+                            break;
+                        case P_TYPEDEF_ANNOTE:
+                            state = P_TYPEDEF_ANNOTE_VALUE;
+                            break;
+                        case P_TYPE_ANNOTE:
+                            state = P_TYPE_ANNOTE_VALUE;
+                            break;
+                        case P_NAME_ANNOTE:
+                            state = P_NAME_ANNOTE_VALUE;
+                            break;
+                        case P_SYMBOL_ANNOTE:
+                            state = P_SYMBOL_ANNOTE_VALUE;
                             break;
                         }
-                        ptr = ptr->next;
                     }
-
-                    if(ptr == NULL){
-                                  
-                        annote = castAnnote(newListElement(self->pool, &ia->a, BLINK_SCHEMA_ANNOTE));
-                        if(annote == NULL){
-                            return NULL;
-                        }                                
-                    }
-
-                    annote->number = value.number;
-                }
-                else{
-
-                    BLINK_ERROR("expecting <number> or '@'")
-                    return NULL;
-                }                
-            }
-            while(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_LARROW);                
-        }
-        /* definition */
-        else if(tok == TOK_NAME){
+                    break;
                     
-            pos += read;
+                default:
+                    BLINK_ERROR("got '%s' but expecting <name> or <cname>", BLINK_Lexer_tokenToString(tok))
+                    retval = false;
+                    break;
+                }
+                break;
 
-            const char *name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
-            size_t nameLen = value.literal.len;
+            case P_DEF_ANNOTE_VALUE:
+            case P_TYPEDEF_ANNOTE_VALUE:
+            case P_SYMBOL_ANNOTE_VALUE:
+            case P_TYPE_ANNOTE_VALUE:
+            case P_NAME_ANNOTE_VALUE:
             
-            if(name == NULL){
+                switch(tok){
+                case TOK_LITERAL:
 
-                BLINK_ERROR("calloc()")
-                return NULL;
-            }
-            
-            if(searchListByName(ns->defs, name, nameLen) != NULL){
+                    annote->value = newString(self->pool, value.literal.ptr, value.literal.len);
+                    annote->valueLen = value.literal.len;
+                    if(annote->value == NULL){
 
-                BLINK_ERROR("duplicate definition name")
-                return NULL;
-            }
-            
-            /* type or enum */
-            if(nextTok == TOK_EQUAL){
+                        retval = false;
+                    }
+                    else{
 
-                pos += nextRead;
+                        switch(state){
+                        default:
+                        case P_DEF_ANNOTE_VALUE:                    
+                            state = P_DEF_OR_ANNOTE;
+                            break;
+                        case P_TYPEDEF_ANNOTE_VALUE:
+                            state = P_ENUM_OR_TYPEDEF;
+                            break;
+                        case P_TYPE_ANNOTE_VALUE:
+                            state = P_FIELD_TYPE;
+                            break;
+                        case P_NAME_ANNOTE_VALUE:
+                            state = P_FIELD_NAME;
+                            break;
+                        case P_SYMBOL_ANNOTE_VALUE:
+                            state = P_SYMBOL_NAME;
+                            break;
+                        }
+                    }
+                    break;
+                    
+                default:
+                    BLINK_ERROR("expecting <literal>")
+                    retval = false;
+                    break;
+                }
+                break;
+                    
+            case P_DEF_TYPE:
 
-                bool singleton;
-                struct blink_schema *typeAnnotes;
+                switch(tok){
+                /* create a group */
+                case TOK_SLASH:
+                case TOK_COLON:
+                case TOK_RARROW:
+                case TOK_NAME:
+                case TOK_CNAME:
+                case TOK_AT:
+                case TOK_NAMESPACE:
+                case TOK_EOF:
 
-                if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR){
+                    if(searchListByName(ns->defs, name, nameLen) != NULL){
 
-                    singleton = true;
-                    pos += read;
+                        BLINK_ERROR("duplicate definition name")
+                        retval = false;
+                    }
+                    else{
+
+                        g = castGroup(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_GROUP));
+
+                        if(g == NULL){
+
+                            retval = false;
+                        }
+                        else{
+        
+                            g->super.name = name;
+                            g->super.nameLen = nameLen;
+                            g->ns = ns;
+                            g->a = takeAnnotes(&annotes);
+                            
+                            switch(tok){
+                            case TOK_SLASH:                        
+                                state = P_GROUP_ID;
+                                break;
+                            case TOK_COLON:
+                                state = P_GROUP_SUPER;
+                                break;
+                            case TOK_RARROW:
+                                state = P_FIELD;
+                                break;
+                            default:
+                                state = P_ANY;
+                                shift = false;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+
+                case TOK_LARROW:
+                    BLINK_ERROR("not handling <-")
+                    retval = false;
+                    break;
+
+                case TOK_EQUAL:
+
+                    if(searchListByName(ns->defs, name, nameLen) != NULL){
+                
+                        BLINK_ERROR("duplicate definition name")
+                        retval = false;
+                    }
+                    else{
+
+                        state = P_ENUM_OR_TYPEDEF;
+                    }
+                    break;
+                
+                default:
+                    BLINK_ERROR("expecting 'namespace', '@', <cname>, <name>, '/', '=', ':', or '->'")
+                    retval = false;
+                    break;
+                }
+                break;
+
+            case P_ENUM_OR_TYPEDEF:
+
+                switch(tok){
+                /* <annotes> <name> = | ... */
+                case TOK_BAR:
+                    state = P_ENUM_SINGLETON;                
+                    break;
+                /* <annotes> <name> = <laAnnotes> ... */
+                case TOK_AT:                    
+                    state = P_TYPEDEF_ANNOTE;
+                    break;
+                /* <annotes> <name> = <laAnnotes> <laName> ... */
+                case TOK_NAME:
+                    state = P_SYMBOL_OR_REF;                
+                    laName = newString(self->pool, value.literal.ptr, value.literal.len);
+                    laNameLen = value.literal.len;
+                    laIType = BLINK_ITYPE_REF;                    
+                    if(laName == NULL){
+
+                        retval = false;
+                    }
+                    break;
+                /* <name> = <laAnnotes> <laIType> */
+                default:
+                    
+                    if(tokenToIType(tok, &laIType)){
+
+                        state = P_TYPEDEF;
+                    }
+                    else{
+
+                        BLINK_ERROR("expecting <type>")
+                        retval = false;
+                    }
+                    break;
+                }
+                break;
+
+            case P_SYMBOL_OR_REF:
+
+                switch(tok){
+                /* <annotes> <name> = <laAnnotes> <laName> '|' */
+                case TOK_BAR:
+                /* <annotes> <name> = <laAnnotes> <laName> '/' */
+                case TOK_SLASH:
+                    state = P_ENUM;
+                    shift = false;
+                    break;
+                /* <annotes> <name> = <laAnnotes> <laName> ... */
+                default:
+                    state = P_TYPEDEF;
+                    shift = false;
+                    break;
+                }
+                break;
+
+            case P_TYPEDEF:
+            {
+                struct blink_schema_type_def *t = castTypeDef(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_TYPE_DEF));
+
+                if(t == NULL){
+
+                    retval = false;
                 }
                 else{
 
-                    singleton = false;
-                }
+                    t->a = takeAnnotes(&annotes);
 
-                if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &typeAnnotes)){
-                    return NULL;
-                }
+                    t->super.name = name;
+                    t->super.nameLen = nameLen;
 
-                pos += read;
+                    type = &t->type;
 
-                tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL);
-                nextTok = BLINK_Lexer_getToken(&in[pos+read], inLen-pos-read, &nextRead, &nextValue, NULL);
-                
-                /* enum */
-                if(singleton || ((tok == TOK_NAME) && ((nextTok == TOK_SLASH) || nextTok == TOK_BAR))){
+                    type->a = takeAnnotes(&laAnnotes);
+                    type->tag = laIType;
 
-                    struct blink_schema_enum *e = castEnum(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_ENUM));
-
-                    if(e == NULL){
-                        return NULL;
+                    switch(laIType){
+                    case BLINK_ITYPE_REF:
+                        type->name = laName;
+                        type->nameLen = laNameLen;
+                        state = P_TYPEDEF_TYPE_DYNAMIC;
+                        break;
+                    
+                    default:
+                        state = P_TYPEDEF_TYPE_LBRACKET;
+                        break;
                     }
 
+                    shift = false;                 
+                }
+            }
+                break;
+            case P_ENUM_SINGLETON:
+            case P_ENUM:
+
+                e = castEnum(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_ENUM));
+
+                if(e == NULL){
+
+                    retval = false;                    
+                }
+                else{
+
+                    e->a = takeAnnotes(&annotes);
+                    
                     e->super.name = name;
                     e->super.nameLen = nameLen;
-                    e->a = defAnnotes;
 
-                    read = 0U;
-                    bool first = true;
+                    shift = false;
 
-                    do{
+                    switch(state){
+                    default:
+                    case P_ENUM_SINGLETON:
+                        state = P_SYMBOL_ANNOTES;                        
+                        break;
+                    case P_ENUM:
+                        name = laName;
+                        nameLen = laNameLen;
+                        annotes = laAnnotes;
+                        laAnnotes = NULL;
+                        state = P_SYMBOL;
+                        break;
+                    }
+                }
+                break;
 
-                        pos += read;
+            case P_SYMBOL_ANNOTES:
 
-                        struct blink_schema_symbol *s = castSymbol(newListElement(self->pool, &e->s, BLINK_SCHEMA_SYMBOL));
+                if(tok == TOK_AT){
 
-                        if(s == NULL){
-                            return NULL;
-                        }
+                    state = P_SYMBOL_ANNOTE;
+                }
+                else{
 
-                        /* a kludge because we already parse the annotes for the first
-                         * symbol in sequence */
-                        if(first){
+                    shift = false;
+                    state = P_SYMBOL_NAME;
+                }
+                break;                
 
-                            s->a = typeAnnotes;
-                            first = false;
-                        }
-                        else{
+            case P_SYMBOL_NAME:
 
-                            if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &s->a)){
-                                return NULL;
-                            }
-                            pos += read;     
-                        }
+                if(tok == TOK_NAME){
+
+                    name = newString(self->pool, value.literal.ptr, value.literal.len);
+                    nameLen = value.literal.len;
+                    if(name == NULL){
+
+                        retval = false;
+                    }
+                    else{
+                    
+                        state = P_SYMBOL;
+                    }
+                }
+                else{
+
+                    BLINK_ERROR("expecting <name>")
+                    retval = false;
+                }
+                break;
+
+            case P_SYMBOL:
+
+                if(searchListByName(e->s, name, nameLen) != NULL){
+                            
+                    BLINK_ERROR("duplicate enum symbol name")
+                    retval = false;
+                }
+                else{
+
+                    s = castSymbol(newListElement(self->pool, &e->s, BLINK_SCHEMA_SYMBOL));
+
+                    if(s == NULL){
+
+                        retval = false;
+                    }
+                    else{
+
+                        s->a = takeAnnotes(&annotes);
                         
-                        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
+                        s->super.name = name;
+                        s->super.nameLen = nameLen;
 
-                            BLINK_ERROR("expecting enum symbol name")
-                            return NULL;
+                        state = P_SYMBOL_SLASH;
+                        shift = false;                                            
+                    }
+                }                                    
+                break;
+
+            case P_SYMBOL_SLASH:
+
+                if(tok == TOK_SLASH){
+
+                    state = P_SYMBOL_VALUE;
+                }
+                else{
+
+                    s->implicitValue = true;
+
+                    if(castSymbol(e->s) != s){
+
+                        struct blink_schema *ptr = e->s;
+                        while(castSymbol(ptr->next) != s){
+                            ptr = ptr->next;
                         }
 
-                        pos += read;
+                        if(castSymbol(ptr)->value == INT32_MAX){
 
-                        if(searchListByName(e->s, value.literal.ptr, value.literal.len) != NULL){
+                            BLINK_ERROR("no next implicit enum value possible")
+                            retval = false;
+                        }
+                        else{
+
+                            s->value = castSymbol(ptr)->value + 1;
+                        }
+                    }
+
+                    state = P_SYMBOL_NEXT;
+                    shift = false;
+                }
+                break;
+
+            case P_SYMBOL_VALUE:
+
+                if((tok == TOK_UINT) || (tok == TOK_INT)){
+
+                    if(tok == TOK_UINT){
+
+                        if(value.number > (uint64_t)INT32_MAX){
+
+                            BLINK_ERROR("enum symbol value out of range")
+                            retval = false;
+                        }
+                        else{
                             
-                            BLINK_ERROR("duplicate enum symbol name")
-                            return NULL;
+                            s->value = (int32_t)value.number;
                         }
-
-                        s->super.name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
-                        s->super.nameLen = value.literal.len;
+                    }
+                    else{
                         
-                        if(s->super.name == NULL){
+                        if((value.signedNumber > (int64_t)INT32_MAX) || (value.signedNumber < (int64_t)INT32_MIN)){
 
-                            BLINK_ERROR("calloc()")
-                            return NULL;
-                        }
-
-                        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
-
-                            pos += read;
-
-                            tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL);
-
-                            pos += read;
-
-                            if(tok == TOK_UINT){
-
-                                if(value.number > (uint64_t)INT32_MAX){
-
-                                    BLINK_ERROR("enum symbol value out of range")
-                                    return NULL;
-                                }
-                                s->value = (int32_t)value.number;
-                            }
-                            else if(tok == TOK_INT){
-                            
-                                if((value.signedNumber > (int64_t)INT32_MAX) || (value.signedNumber < (int64_t)INT32_MIN)){
-
-                                    BLINK_ERROR("enum symbol value out of range")
-                                    return NULL;
-                                }
-
-                                s->value = (int32_t)value.signedNumber;
-                            }
-                            else{
-                                
-                                BLINK_ERROR("expecting enum symbol value")
-                                return NULL;
-                            }
-                            
-                            s->implicitValue = false;                                
+                            BLINK_ERROR("enum symbol value out of range")
+                            retval = false;
                         }
                         else{
 
-                            s->implicitValue = true;
+                            s->value = (int32_t)value.signedNumber;                            
                         }
+                    }
 
-                        if(castSymbol(e->s) == s){
+                    if(retval != false){
 
-                            if(s->implicitValue){
-                                s->value = 0;
-                            }
-                        }
-                        else{
+                        if(castSymbol(e->s) != s){
 
                             struct blink_schema *ptr = e->s;
                             while(castSymbol(ptr->next) != s){
                                 ptr = ptr->next;
                             }
-                            
-                            if(s->implicitValue){
+                        
 
-                                if(castSymbol(ptr)->value == INT32_MAX){
+                            if(s->value <= castSymbol(ptr)->value){
 
-                                    BLINK_ERROR("no next implicit enum value possible")
-                                    return NULL;
-                                }
-                                s->value = castSymbol(ptr)->value + 1;
+                                BLINK_ERROR("enum value is ambiguous")
+                                retval = false;
                             }
-                            else{
-                                
-                                if(s->value <= castSymbol(ptr)->value){
-
-                                    BLINK_ERROR("enum value is ambiguous")
-                                    return NULL;
-                                }
-                            }                            
                         }
-
-                        if(singleton){
-
-                            break;
-                        }           
+                        
+                        state = P_SYMBOL_NEXT;
                     }
-                    while(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_BAR);
                 }
-                /* type */
                 else{
 
-                    struct blink_schema_type_def *t = castTypeDef(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_TYPE_DEF));
-
-                    if(t == NULL){
-                        return NULL;
-                    }
-
-                    t->super.name = name;
-                    t->super.nameLen = nameLen;
-                
-                    t->a = defAnnotes;
-                    t->type.a = typeAnnotes;
-
-                    if(!parseType(&in[pos], inLen - pos, &read, &t->type)){                                                
-                        return NULL;
-                    }
-                
-                    pos += read;
+                    BLINK_ERROR("expecting <uint> or <int>")
+                    retval = false;
                 }
-            }
-            /* group */
-            else{
+                break;
 
-                struct blink_schema_group *g = castGroup(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_GROUP));
+            case P_SYMBOL_NEXT:
 
-                if(g == NULL){
-                    return NULL;
+                if(tok == TOK_BAR){
+            
+                    state = P_SYMBOL_ANNOTES;
                 }
+                else{
 
-                g->ns = ns;
-                g->super.name = name;
-                g->super.nameLen = nameLen;
-                g->a = defAnnotes;
+                    state = P_ANY;
+                    shift = false;
+                }
+                break;
 
-                /* id field */
-                if(nextTok == TOK_SLASH){
+            case P_SUPER_OR_FIELD_OR_ANY:
 
-                    pos += nextRead;
+                switch(tok){
+                case TOK_COLON:
+                    state = P_GROUP_SUPER;
+                    break;
+                case TOK_RARROW:
+                    state = P_FIELD;
+                    break;
+                case TOK_AT:
+                case TOK_NAMESPACE:
+                case TOK_NAME:
+                case TOK_CNAME:
+                case TOK_EOF:
+                    state = P_ANY;
+                    shift = false;
+                    break;
+                default:
+                    BLINK_ERROR("expecting ':', '->', 'namespace', '@', <name>, or <cname>")
+                    retval = false;
+                    break;
+                }
+                break;
 
-                    if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_UINT){
-                        BLINK_ERROR("error: expecting integer or hexnum")
-                        return NULL;
-                    }
+            case P_FIELD_OR_ANY:
 
-                    pos += read;
+                switch(tok){
+                case TOK_RARROW:
+                    state = P_FIELD;
+                    break;
+                case TOK_AT:
+                case TOK_NAMESPACE:
+                case TOK_NAME:
+                case TOK_CNAME:
+                case TOK_EOF:
+                    state = P_ANY;
+                    shift = false;
+                    break;
+                default:
+                    BLINK_ERROR("expecting '->', 'namespace', '@', <name>, or <cname>")
+                    retval = false;
+                    break;
+                }
+                break;
+
+            case P_GROUP_ID:
+
+                if(tok == TOK_UINT){
 
                     g->hasID = true;
-                    g->id = value.number;                        
+                    g->id = value.number;
+                    state = P_SUPER_OR_FIELD_OR_ANY;
                 }
+                else{
 
-                /* supergroup */
-                if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COLON){
-
-                    pos += read;
-
-                    tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL);
-
-                    if((tok != TOK_CNAME) && (tok != TOK_NAME)){
-                        BLINK_ERROR("expecting super class name (qname)")
-                        return NULL;
-                    }
-
-                    pos += read;
-
-                    g->superGroup = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
-                    g->superGroupLen = value.literal.len;
+                    BLINK_ERROR("expecting <uint>")
+                    retval = false;
+                }
+                break;
                     
+            case P_GROUP_SUPER:
+
+                switch(tok){
+                case TOK_CNAME:
+                case TOK_NAME:
+
+                    g->superGroup = newString(self->pool, value.literal.ptr, value.literal.len);
+                    g->superGroupLen = value.literal.len;
                     if(g->superGroup == NULL){
 
-                        BLINK_ERROR("calloc()")
-                        return NULL;
-                    }                        
+                        retval = false;
+                    }
+                    else{
+
+                        state = P_FIELD_OR_ANY;
+                    }
+                    break;
+                    
+                default:
+                    BLINK_ERROR("expecting <name> or <cname> of supergroup")
+                    retval = false;
+                    break;
                 }
+                break;
 
-                read = 0U;
+            case P_GROUP_RARROW:
 
-                /* fields */
-                if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_RARROW){
+                if(tok == TOK_RARROW){
 
-                    do{
+                    state = P_FIELD;
+                }
+                else{
 
-                        pos += read;
+                    BLINK_ERROR("expecting '->'")
+                    retval = false;
+                }
+                break;
+            
+            case P_FIELD:
 
-                        struct blink_schema_field *f = castField(newListElement(self->pool, &g->f, BLINK_SCHEMA_FIELD));
+                f = castField(newListElement(self->pool, &g->f, BLINK_SCHEMA_FIELD));
 
-                        if(f == NULL){
-                            return NULL;
-                        }
+                if(f == NULL){
+
+                    retval = false;
+                }
+                else{
+
+                    type = &f->type;
+
+                    switch(tok){                    
+                    case TOK_AT:
+                        state = P_TYPE_ANNOTE;
+                        break;
+                    default:
+                        state = P_FIELD_TYPE;
+                        break;
+                    }
+
+                    shift = false;
+                }
+                break;
+
+            case P_FIELD_TYPE:
+
+                type->a = takeAnnotes(&annotes);
+
+                if(tokenToIType(tok, &type->tag)){
+
+                    switch(tok){
+                    case TOK_STRING:
+                    case TOK_BINARY:
+
+                        state = P_FIELD_TYPE_LPAREN_OPTIONAL;
+                        break;
                         
-                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->type.a)){
-                            return NULL;
+                    case TOK_FIXED:
+
+                        state = P_FIELD_TYPE_LPAREN;
+                        break;
+                    
+                    default:
+
+                        state = P_FIELD_NAME_ANNOTES;
+                        break;
+                    }
+                }
+                else{
+
+                    switch(tok){
+                    case TOK_NAME:
+                    case TOK_CNAME:
+
+                        type->name = newString(self->pool, value.literal.ptr, value.literal.len);
+                        type->nameLen = value.literal.len;
+                        if(type->name == NULL){
+
+                            retval = false;
                         }
-
-                        pos += read;
-                        
-                        if(!parseType(&in[pos], inLen - pos, &read, &f->type)){
-                            return NULL;
+                        else{
+                            
+                            type->tag = BLINK_ITYPE_REF;
+                            state = P_FIELD_TYPE_DYNAMIC;
                         }
-                        
-                        pos += read;
+                        break;
+                    default:
+                        BLINK_ERROR("unexpected token")
+                        retval = false;
+                        break;
+                    }
+                }
+                break;
 
-                        if(!parseAnnotes(self, &in[pos], inLen - pos, &read, &f->a)){
-                            return NULL;
+            case P_FIELD_TYPE_DYNAMIC:
+            case P_TYPEDEF_TYPE_DYNAMIC:
+
+                if(tok == TOK_STAR){
+
+                    type->isDynamic = true;
+                }
+                else{
+
+                    shift = false;
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_DYNAMIC:
+                        state = P_FIELD_TYPE_LBRACKET;
+                        break;
+                    case P_TYPEDEF_TYPE_DYNAMIC:
+                        state = P_TYPEDEF_TYPE_LBRACKET;
+                        break;
+                    }
+                }
+                break;
+
+            case P_FIELD_TYPE_LBRACKET:
+            case P_TYPEDEF_TYPE_LBRACKET:
+
+                if(tok == TOK_LBRACKET){
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_LBRACKET:
+                        state = P_FIELD_TYPE_RBRACKET;
+                        break;
+                    case P_TYPEDEF_TYPE_LBRACKET:
+                        state = P_TYPEDEF_TYPE_RBRACKET;
+                        break;
+                    }
+                }
+                else{
+
+                    shift = false;
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_LBRACKET:
+                        state = P_FIELD_NAME_ANNOTES;
+                        break;
+                    case P_TYPEDEF_TYPE_LBRACKET:
+                        state = P_ANY;
+                        break;
+                    }
+                }
+                break;
+
+            case P_FIELD_TYPE_RBRACKET:
+            case P_TYPEDEF_TYPE_RBRACKET:
+
+                if(tok == TOK_RBRACKET){
+
+                    type->isSequence = true;
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_RBRACKET:
+                        state = P_FIELD_NAME_ANNOTES;
+                        break;
+                    case P_TYPEDEF_TYPE_RBRACKET:
+                        state = P_ANY;
+                        break;
+                    }
+                }
+                else{
+
+                    BLINK_ERROR("expecting ']'");
+                    retval = false;
+                }
+                break;
+
+            case P_FIELD_TYPE_LPAREN:
+            case P_TYPEDEF_TYPE_LPAREN:
+
+                if(tok == TOK_LPAREN){
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_LPAREN:
+                        state = P_FIELD_TYPE_SIZE;
+                        break;
+                    case P_TYPEDEF_TYPE_LPAREN:
+                        state = P_TYPEDEF_TYPE_SIZE;
+                        break;
+                    }
+                }
+                else{
+
+                    BLINK_ERROR("expecting '('")
+                    retval = false;
+                }
+                break;
+                
+            case P_FIELD_TYPE_LPAREN_OPTIONAL:
+            case P_TYPEDEF_TYPE_LPAREN_OPTIONAL:
+
+                if(tok == TOK_LPAREN){
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_LPAREN_OPTIONAL:
+                        state = P_FIELD_TYPE_SIZE;
+                        break;
+                    case P_TYPEDEF_TYPE_LPAREN_OPTIONAL:
+                        state = P_TYPEDEF_TYPE_SIZE;
+                        break;
+                    }
+                }
+                else{
+
+                    type->size = UINT32_MAX;
+                    shift = false;
+
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_LPAREN_OPTIONAL:
+                        state = P_FIELD_NAME_ANNOTES;
+                        break;
+                    case P_TYPEDEF_TYPE_LPAREN_OPTIONAL:
+                        state = P_ANY;
+                        break;
+                    }
+                }
+                break;
+                
+            case P_FIELD_TYPE_SIZE:
+            case P_TYPEDEF_TYPE_SIZE:
+
+                if(tok == TOK_UINT){
+
+                    if(value.number > 0xffffffffU){
+                        BLINK_ERROR("size decode but is out of range")
+                        retval = false;
+                    }
+                    else{
+
+                        type->size = value.number;
+
+                        switch(state){
+                        default:
+                        case P_FIELD_TYPE_SIZE:
+                            state = P_FIELD_NAME_ANNOTES;
+                            break;
+                        case P_TYPEDEF_TYPE_SIZE:
+                            state = P_ANY;
+                            break;
                         }
+                    }
+                }
+                else{
 
-                        pos += read;                        
+                    BLINK_ERROR("expecting <uint>")
+                    retval = false;
+                }
+                break;
+            
+            case P_FIELD_TYPE_RPAREN:
+            case P_TYPEDEF_TYPE_RPAREN:
+                
+                if(tok == TOK_RPAREN){
 
-                        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_NAME){
-                            BLINK_ERROR("expecting name")
-                            return NULL;
-                        }
+                    switch(state){
+                    default:
+                    case P_FIELD_TYPE_RPAREN:
+                        state = P_FIELD_NAME_ANNOTES;
+                        break;
+                    case P_TYPEDEF_TYPE_RPAREN:
+                        state = P_ANY;
+                        break;
+                    }
+                }
+                else{
 
-                        pos += read;
+                    BLINK_ERROR("expecting ')'")
+                    retval = false;
+                }
+                break;
 
-                        if(searchListByName(g->f, value.literal.ptr, value.literal.len) != NULL){
-                            BLINK_ERROR("duplicate field name")
-                            return NULL;
-                        }
+            case P_FIELD_NAME_ANNOTES:
 
-                        f->super.name = allocateString(self->pool, value.literal.ptr, value.literal.len, NULL, 0U);
+                if(tok == TOK_AT){
+
+                    state = P_NAME_ANNOTE;
+                }
+                else{
+
+                    shift = false;
+                    state = P_FIELD_NAME;
+                }
+                break;
+                
+            case P_FIELD_NAME:
+
+                f->a = takeAnnotes(&annotes);
+
+                if(tok == TOK_NAME){
+
+                    if(searchListByName(g->f, value.literal.ptr, value.literal.len) != NULL){
+
+                        BLINK_ERROR("duplicate field name")
+                        retval = false;
+                    }
+                    else{
+
+                        f->super.name = newString(self->pool, value.literal.ptr, value.literal.len);
                         f->super.nameLen = value.literal.len;
                         
                         if(f->super.name == NULL){
 
-                            BLINK_ERROR("calloc()")
-                            return NULL;
-                        }                        
-                        
-                        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_SLASH){
-
-                            pos += read;
-
-                            if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) != TOK_UINT){
-                                
-                                BLINK_ERROR("expecting a number")
-                                return NULL;
-                            }
-
-                            f->id = value.number;
-                            f->hasID = true;
-
-                            pos += read;
+                            retval = false;
                         }
-
-                        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_QUESTION){
-                            pos += read;
-                            f->isOptional = true;
+                        else{
+            
+                            state = P_FIELD_OPTIONAL;
                         }
                     }
-                    while(BLINK_Lexer_getToken(&in[pos], inLen - pos, &read, &value, NULL) == TOK_COMMA);                   
-                }                                    
+                }
+                else{
+
+                    BLINK_ERROR("expecting <name>")
+                    retval = false;
+                }
+                break;
+
+            case P_FIELD_NAME_SLASH:
+
+                if(tok == TOK_SLASH){
+                    
+                    state = P_FIELD_NAME_ID;
+                }
+                else{
+
+                    state = P_FIELD_OPTIONAL;
+                    shift = false;
+                }
+                break;
+
+            case P_FIELD_NAME_ID:
+
+                if(tok == TOK_UINT){
+
+                    state = P_FIELD_NAME_ID;                    
+                }
+                else{
+
+                    BLINK_ERROR("expecting <uint>")
+                    retval = false;
+                }
+                break;
+
+            case P_FIELD_OPTIONAL:
+
+                if(tok == TOK_QUESTION){
+
+                    f->isOptional = true;
+                }
+                else{
+    
+                    shift = false;
+                }
+
+                state = P_FIELD_NEXT;
+                break;
+
+            case P_FIELD_NEXT:
+
+                if(tok == TOK_COMMA){
+
+                    state = P_FIELD;
+                }
+                else{
+
+                    state = P_ANY;
+                    shift = false;
+                }
+                break;                
             }
         }
-        else if(tok == TOK_EOF){
-
-            if(defAnnotes != NULL){
-
-                BLINK_ERROR("expecting group, enum, or type definition")
-                return NULL;
-            }
-        }
-        else{
-
-            BLINK_ERROR("unexpected token");
-            return NULL;
-        }
+        while(retval && (shift == false));
+        
     }
+    while(retval && (tok != TOK_EOF));
 
-    return self; 
+    return retval;
 }
 
-static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_schema_type *type)
+static bool tokenToIType(enum blink_token tok, enum blink_itype_tag *type)
 {
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(type != NULL)
+   bool retval = false;
 
-    size_t pos = 0U;
-    size_t r;
-    union blink_token_value value;
-    enum blink_token tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL);
-
-    static const enum blink_itype_tag tokenToType[] = {
+    static const enum blink_itype_tag translate[] = {
         BLINK_ITYPE_STRING,
         BLINK_ITYPE_BINARY,
         BLINK_ITYPE_FIXED,
@@ -1097,205 +1712,13 @@ static bool parseType(const char *in, size_t inLen, size_t *read, struct blink_s
         BLINK_ITYPE_OBJECT
     };
 
-    if((size_t)tok < (sizeof(tokenToType)/sizeof(*tokenToType))){
+    if((size_t)tok < (sizeof(translate)/sizeof(*translate))){
     
-        type->tag = tokenToType[tok];   /*lint !e661 !e662 no way this is out of bounds */
-
-        pos += r;
-
-        if((tok == TOK_STRING) || (tok == TOK_BINARY) || (tok == TOK_FIXED)){
-
-            if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_LPAREN){
-
-                pos += r;
-
-                if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_UINT){
-
-                    pos += r;
-                }
-                else{
-
-                    BLINK_ERROR("expecting a size")
-                    return false;
-                }
-
-                if(value.number > 0xffffffffU){
-
-                    BLINK_ERROR("size decode but is out of range")
-                    return false;
-                }
-
-                type->size = (uint32_t)value.number;
-
-                if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_RPAREN){
-
-                    pos += r;
-                }   
-                else{
-
-                    BLINK_ERROR("expecting a ')'")
-                    return false;
-                }
-            }
-            else if(tok == TOK_FIXED){
-
-                BLINK_ERROR("expecting a '('")
-                return false;
-            }
-            else{
-
-                type->size = 0xffffffffU;
-            }
-        }
-    }
-    else if((tok == TOK_NAME) || (tok == TOK_CNAME)){
-        
-        pos += r;
-
-        type->name = value.literal.ptr;
-        type->nameLen = value.literal.len;
-        type->tag = BLINK_ITYPE_REF;
-
-        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_STAR){
-
-            pos += r;
-            type->isDynamic = true;            
-        }
-    }
-    else{
-
-        BLINK_ERROR("expecting a type")
-        return false;                                    
+        *type = translate[tok];
+        retval = true;
     }
 
-    /* sequence of type */
-    if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_LBRACKET){
-
-        pos += r;
-
-        if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_RBRACKET){
-            
-            pos += r;
-            type->isSequence = true;
-        }
-        else{
-
-            BLINK_ERROR("expecting ']' character")
-            return false;
-        }                        
-    }
-    else{
-
-        type->isSequence = false;
-    }
-
-    *read = pos;
-
-    return true;
-}
-
-static bool parseAnnote(struct blink_schema_base *self, const char *in, size_t inLen, size_t *read, struct blink_schema_annote *annote)
-{
-    BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(annote != NULL)
-    
-    size_t pos = 0U;
-    size_t r;
-    union blink_token_value value;
-    enum blink_token tok;
-    
-    tok = BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL);
-
-    pos += r;
-
-    switch(tok){
-    case TOK_CNAME:
-    case TOK_NAME:
-        annote->super.name = value.literal.ptr;
-        annote->super.nameLen = value.literal.len;
-        break;
-    case TOK_U8:
-    case TOK_U16:
-    case TOK_U32:
-    case TOK_U64:
-    case TOK_I8:
-    case TOK_I16:
-    case TOK_I32:
-    case TOK_I64:
-    case TOK_BOOL:
-    case TOK_BINARY:
-    case TOK_STRING:
-    case TOK_DATE:
-    case TOK_DECIMAL:
-        annote->super.name = BLINK_Lexer_tokenToString(tok);
-        annote->super.nameLen = strlen(annote->super.name);        
-        break;
-        
-    default:
-        BLINK_ERROR("unexpected token")
-        return false;
-    }    
-
-    if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) != TOK_EQUAL){
-
-        BLINK_ERROR("expecting '='")
-        return false;
-    }
-
-    pos += r;
-
-    if(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) != TOK_LITERAL){
-
-        BLINK_ERROR("expecting <literal>")
-        return false;
-    }
-
-    annote->value = value.literal.ptr;
-    annote->valueLen = value.literal.len;
-
-    *read = pos + r;
-
-    return true;
-}
-
-static bool parseAnnotes(struct blink_schema_base *self, const char *in, size_t inLen, size_t *read, struct blink_schema **annotes)
-{
-    BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(in != NULL)
-    BLINK_ASSERT(read != NULL)
-    BLINK_ASSERT(annotes != NULL)
-
-    size_t r;
-    size_t pos = 0U;
-    union blink_token_value value;
-    struct blink_schema_annote *annote;
-    struct blink_schema_annote a;
-
-    while(BLINK_Lexer_getToken(&in[pos], inLen - pos, &r, &value, NULL) == TOK_AT){
-
-        pos += r;
-
-        if(!parseAnnote(self, &in[pos], inLen - pos, &r, &a)){
-            return false;
-        }
-        
-        annote = castAnnote(searchListByName(*annotes, a.super.name, a.super.nameLen));
-
-        if(annote == NULL){
-
-            annote = castAnnote(newListElement(self->pool, annotes, BLINK_SCHEMA_ANNOTE));
-
-            if(annote == NULL){
-                return false;
-            }
-        }
-
-        *annote = a;    /*copy*/
-    }
-
-    *read = pos;
-
-    return true;
+    return retval;
 }
 
 static bool resolveDefinitions(struct blink_schema_base *self)
@@ -1664,36 +2087,21 @@ static struct blink_schema *newListElement(blink_pool_t pool, struct blink_schem
 
     if(type != BLINK_SCHEMA){
 
-        switch(type){    
-        case BLINK_SCHEMA_NS:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_namespace));
-            break;                    
-        case BLINK_SCHEMA_GROUP:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_group));
-            break;            
-        case BLINK_SCHEMA_FIELD:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_field));
-            break;            
-        case BLINK_SCHEMA_ENUM:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_enum));
-            break;            
-        case BLINK_SCHEMA_SYMBOL:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_symbol));
-            break;            
-        case BLINK_SCHEMA_TYPE_DEF:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_type_def));
-            break;            
-        case BLINK_SCHEMA_ANNOTE:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_annote));
-            break;            
-        case BLINK_SCHEMA_INCR_ANNOTE:
-            retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizeof(struct blink_schema_incr_annote));
-            break;
-        case BLINK_SCHEMA:        
-        default:
-            /*unused*/
-            break;
-        }
+        static const size_t sizes[] = {
+            sizeof(struct blink_schema_base),
+            sizeof(struct blink_schema_namespace),
+            sizeof(struct blink_schema_group),
+            sizeof(struct blink_schema_field),
+            sizeof(struct blink_schema_enum),
+            sizeof(struct blink_schema_symbol),
+            sizeof(struct blink_schema_type_def),
+            sizeof(struct blink_schema_annote),
+            sizeof(struct blink_schema_incr_annote),
+        };
+
+        BLINK_ASSERT(type < sizeof(sizes)/sizeof(*sizes))
+
+        retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizes[type]);
         
         if(retval == NULL){
 
@@ -1902,12 +2310,13 @@ static struct blink_schema_annote *castAnnote(struct blink_schema *self)
     BLINK_ASSERT((self == NULL) || (self->type == BLINK_SCHEMA_ANNOTE))
     return (struct blink_schema_annote *)self;
 }
-
+#if 0
 static struct blink_schema_incr_annote *castIncrAnnote(struct blink_schema *self)
 {
     BLINK_ASSERT((self == NULL) || (self->type == BLINK_SCHEMA_INCR_ANNOTE))
     return (struct blink_schema_incr_annote *)self;
 }
+#endif
 
 static struct blink_schema_base *castSchema(struct blink_schema *self)
 {
@@ -1915,19 +2324,13 @@ static struct blink_schema_base *castSchema(struct blink_schema *self)
     return (struct blink_schema_base *)self;
 }
 
-static const char *allocateString(blink_pool_t pool, const char *a, size_t aLen, const char *b, size_t bLen)
+static const char *newString(blink_pool_t pool, const char *ptr, size_t len)
 {
-    char *retval = NULL;
+    char *retval = BLINK_Pool_calloc(pool, (len + 1U));
 
-    if((aLen + bLen + 1U) > aLen){
+    if(retval != NULL){
 
-        retval = BLINK_Pool_calloc(pool, (aLen + bLen + 1U));
-
-        if(retval != NULL){
-
-            (void)memcpy(retval, a, aLen);
-            (void)memcpy(&retval[aLen], b, bLen);
-        }
+        (void)memcpy(retval, ptr, len);
     }
 
     return retval;

@@ -9,9 +9,11 @@
 
 #include "cmocka.h"
 #include "blink_schema.h"
+#include "blink_stream.h"
+#include "blink_pool.h"
 #include <string.h>
 
-int setup(void **user)
+static int setup(void **user)
 {
     static const char input[] =
         "InsertOrder/1 ->\n"
@@ -31,32 +33,34 @@ int setup(void **user)
     
     static uint8_t heap[2048U];
     static struct blink_pool pool;
-    *user = (void *)BLINK_Schema_new(BLINK_Pool_init(&pool, heap, sizeof(heap)), input, sizeof(input));
+    static struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    *user = (void *)BLINK_Schema_new(BLINK_Pool_init(&pool, heap, sizeof(heap)), &stream);
     return 0;
 }
 
-void test_BLINK_Schema_getGroupByName_insertOrder(void **user)
+static void test_BLINK_Schema_getGroupByName_insertOrder(void **user)
 {
     const char name[] = "InsertOrder";
     blink_schema_t g = BLINK_Schema_getGroupByName((blink_schema_t)(*user), name);
     assert_true(g != NULL);
 }
 
-void test_BLINK_Schema_getGroupByName_cancelOrder(void **user)
+static void test_BLINK_Schema_getGroupByName_cancelOrder(void **user)
 {
     const char name[] = "CancelOrder";
     blink_schema_t g = BLINK_Schema_getGroupByName((blink_schema_t)(*user), name);
     assert_true(g != NULL);
 }
 
-void test_BLINK_Schema_getGroupByName_orderInserted(void **user)
+static void test_BLINK_Schema_getGroupByName_orderInserted(void **user)
 {
     const char name[] = "OrderInserted";
     blink_schema_t g = BLINK_Schema_getGroupByName((blink_schema_t)(*user), name);
     assert_true(g != NULL);
 }
 
-void test_BLINK_Schema_getGroupByName_orderCanceled(void **user)
+static void test_BLINK_Schema_getGroupByName_orderCanceled(void **user)
 {
     const char name[] = "OrderCanceled";
     blink_schema_t g = BLINK_Schema_getGroupByName((blink_schema_t)(*user), name);

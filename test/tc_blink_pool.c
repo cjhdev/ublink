@@ -11,7 +11,7 @@
 #include "blink_pool.h"
 #include <string.h>
 
-int setup_pool(void **user)
+static int setup_pool(void **user)
 {
     static uint8_t heap[128U];
     static struct blink_pool pool;
@@ -19,21 +19,21 @@ int setup_pool(void **user)
     return 0;
 }
 
-void test_BLINK_Pool_init(void **user)
+static void test_BLINK_Pool_init(void **user)
 {
     struct blink_pool pool;
     uint8_t heap[128U];
     assert_true(BLINK_Pool_init(&pool, heap, sizeof(heap)) == &pool);    
 }
 
-void test_BLINK_Pool_calloc_zeroSize(void **user)
+static void test_BLINK_Pool_calloc_zeroSize(void **user)
 {
     uint8_t *ptr = (uint8_t *)BLINK_Pool_calloc((blink_pool_t)(*user), 0);
 
     assert_true(ptr == NULL);
 }
 
-void test_BLINK_Pool_calloc_all(void **user)
+static void test_BLINK_Pool_calloc_all(void **user)
 {
     uint8_t *first = (uint8_t *)BLINK_Pool_calloc((blink_pool_t)(*user), 128U);
     uint8_t *second = (uint8_t *)BLINK_Pool_calloc((blink_pool_t)(*user), 1U);
@@ -42,7 +42,7 @@ void test_BLINK_Pool_calloc_all(void **user)
     assert_true(second == NULL);
 }
 
-void test_BLINK_Pool_calloc_multi(void **user)
+static void test_BLINK_Pool_calloc_multi(void **user)
 {
     uint8_t *first = (uint8_t *)BLINK_Pool_calloc((blink_pool_t)(*user), sizeof(long));
     uint8_t *second = (uint8_t *)BLINK_Pool_calloc((blink_pool_t)(*user), sizeof(char));
@@ -61,7 +61,7 @@ void test_BLINK_Pool_calloc_multi(void **user)
     assert_ptr_not_equal(second, third);
 }
 
-void test_BLINK_Pool_getFreeSpace(void **user)
+static void test_BLINK_Pool_getFreeSpace(void **user)
 {
     size_t allSpace = BLINK_Pool_getFreeSpace((blink_pool_t)(*user));
 

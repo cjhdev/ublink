@@ -9,9 +9,10 @@
 
 #include "cmocka.h"
 #include "blink_schema.h"
+#include "blink_stream.h"
 #include <string.h>
 
-int setup(void **user)
+static int setup(void **user)
 {
     static uint8_t heap[1024U];
     static struct blink_pool pool;
@@ -19,203 +20,251 @@ int setup(void **user)
     return 0;
 }
 
-void test_BLINK_Schema_new_emptyGroup(void **user)
+static void test_BLINK_Schema_new_emptyGroup(void **user)
 {
     const char input[] = "empty";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    struct blink_stream stream;
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema != NULL);
 }
 
-void test_BLINK_Schema_new_emptySuperGroup(void **user)
+static void test_BLINK_Schema_new_emptySuperGroup(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "super\n"
         "empty : super";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+
+        
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema != NULL);    
 }
 
-void test_BLINK_Schema_new_undefinedSuperGroup(void **user)
+static void test_BLINK_Schema_new_undefinedSuperGroup(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "empty : super";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }
 
-void test_BLINK_Schema_new_groupIsSuperGroup(void **user)
+static void test_BLINK_Schema_new_groupIsSuperGroup(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "empty : empty";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }
 
-void test_BLINK_Schema_new_groupIsSuperGroupByIntermediate(void **user)
+static void test_BLINK_Schema_new_groupIsSuperGroupByIntermediate(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "intermediate = empty\n"
         "empty : intermediate";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }
 
-void test_BLINK_Schema_new_superGroupIsDynamic(void **user)
+static void test_BLINK_Schema_new_superGroupIsDynamic(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "super\n"
         "intermediate = super*\n"
         "empty : intermediate";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }
 
-void test_BLINK_Schema_new_superGroupIsSequence(void **user)
+static void test_BLINK_Schema_new_superGroupIsSequence(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "super\n"
         "intermediate = super []\n"
         "empty : intermediate";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }
 
-void test_BLINK_Schema_new_greeting(void **user)
+static void test_BLINK_Schema_new_greeting(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "Message/0 -> string Greeting";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
     
     assert_true(schema != NULL);    
 }
 
-void test_BLINK_Schema_new_namespace_emptyGroup(void **user)
+static void test_BLINK_Schema_new_namespace_emptyGroup(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "namespace test empty";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema != NULL);
 }
 
-void test_BLINK_Schema_new_enum_single(void **user)
+static void test_BLINK_Schema_new_enum_single(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "test = | lonely";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema != NULL);
 }
 
-void test_BLINK_Schema_new_circular_type_reference(void **user)
+static void test_BLINK_Schema_new_circular_type_reference(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "test = testTwo\n"
         "testTwo = test";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_duplicate_type_definition(void **user)
+static void test_BLINK_Schema_new_duplicate_type_definition(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "test = u8\n"
         "test = u16";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_duplicate_type_group_definition(void **user)
+static void test_BLINK_Schema_new_duplicate_type_group_definition(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "test = u8\n"
         "test -> u16 field";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_duplicate_group_definition(void **user)
+static void test_BLINK_Schema_new_duplicate_group_definition(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "test -> u8 field\n"
         "test -> u16 field";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_duplicate_enum_definition(void **user)
+static void test_BLINK_Schema_new_duplicate_enum_definition(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "test = | bla\n"
         "test = | bla";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_duplicate_enum_field(void **user)
+static void test_BLINK_Schema_new_duplicate_enum_field(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "test = bla | bla";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_ambiguous_enum_value(void **user)
+static void test_BLINK_Schema_new_ambiguous_enum_value(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "Month = Jan/1 | Feb | Mar/2";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_enum_value_upperLimit(void **user)
+static void test_BLINK_Schema_new_enum_value_upperLimit(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "Month = | Jan/2147483648";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));    
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_enum_value_lowerLimit(void **user)
+static void test_BLINK_Schema_new_enum_value_lowerLimit(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "Month = | Jan/-2147483649";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));    
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_duplicate_group_field(void **user)
+static void test_BLINK_Schema_new_duplicate_group_field(void **user)
 {
+    struct blink_stream stream;
     const char input[] = "test -> u8 bla, u8 bla";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);    
 }
 
-void test_BLINK_Schema_new_superGroupShadowField(void **user)
+static void test_BLINK_Schema_new_superGroupShadowField(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "super -> u8 field\n"
         "test : super -> u16 field";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));        
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }
 
-void test_BLINK_Schema_new_superSuperGroupShadowField(void **user)
+static void test_BLINK_Schema_new_superSuperGroupShadowField(void **user)
 {
+    struct blink_stream stream;
     const char input[] =
         "superSuper -> u8 field\n"
         "super : superSuper -> u8 different\n"
         "test : super -> u16 field";
-    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), input, sizeof(input));
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new((blink_pool_t)(*user), &stream);
 
     assert_true(schema == NULL);
 }

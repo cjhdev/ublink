@@ -11,7 +11,7 @@
 #include "blink_compact.h"
 #include "blink_stream.h"
 
-int setupSingleByteZero(void **user)
+static int setupSingleByteZero(void **user)
 {
     static const uint8_t in[] = {0x00U};
     static struct blink_stream s;
@@ -19,7 +19,7 @@ int setupSingleByteZero(void **user)
     return 0;
 }
 
-void test_BLINK_Compact_decodeU8(void **user)
+static void test_BLINK_Compact_decodeU8(void **user)
 {
     uint8_t out;
     bool isNull = true;
@@ -30,7 +30,7 @@ void test_BLINK_Compact_decodeU8(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU8_max(void **user)
+static void test_BLINK_Compact_decodeU8_max(void **user)
 {
     static const uint8_t in[] = {0xbf, 0x03};
     struct blink_stream stream;
@@ -44,7 +44,7 @@ void test_BLINK_Compact_decodeU8_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU16(void **user)
+static void test_BLINK_Compact_decodeU16(void **user)
 {
     uint16_t out;
     bool isNull = true;
@@ -55,7 +55,7 @@ void test_BLINK_Compact_decodeU16(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU16_max(void **user)
+static void test_BLINK_Compact_decodeU16_max(void **user)
 {
     static const uint8_t in[] = {0xc2,0xff,0xff};
     struct blink_stream stream;
@@ -69,7 +69,7 @@ void test_BLINK_Compact_decodeU16_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU32(void **user)
+static void test_BLINK_Compact_decodeU32(void **user)
 {
     uint32_t out;
     bool isNull = true;
@@ -80,7 +80,7 @@ void test_BLINK_Compact_decodeU32(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU32_max(void **user)
+static void test_BLINK_Compact_decodeU32_max(void **user)
 {
     static const uint8_t in[] = {0xc4,0xff,0xff,0xff,0xff};
     struct blink_stream stream;
@@ -94,7 +94,7 @@ void test_BLINK_Compact_decodeU32_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU64(void **user)
+static void test_BLINK_Compact_decodeU64(void **user)
 {
     uint64_t out;
     bool isNull = true;
@@ -105,7 +105,7 @@ void test_BLINK_Compact_decodeU64(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeU64_max(void **user)
+static void test_BLINK_Compact_decodeU64_max(void **user)
 {
     static const uint8_t in[] = {0xc8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     struct blink_stream stream;
@@ -119,7 +119,7 @@ void test_BLINK_Compact_decodeU64_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI8(void **user)
+static void test_BLINK_Compact_decodeI8(void **user)
 {
     int8_t out;
     bool isNull = true;
@@ -130,7 +130,7 @@ void test_BLINK_Compact_decodeI8(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI8_min(void **user)
+static void test_BLINK_Compact_decodeI8_min(void **user)
 {
     const uint8_t in[] = {0x80, 0xfe};
     struct blink_stream stream;
@@ -144,7 +144,7 @@ void test_BLINK_Compact_decodeI8_min(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI8_max(void **user)
+static void test_BLINK_Compact_decodeI8_max(void **user)
 {
     static const uint8_t in[] = {0xbf,0x01};
     struct blink_stream stream;
@@ -158,7 +158,7 @@ void test_BLINK_Compact_decodeI8_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI16(void **user)
+static void test_BLINK_Compact_decodeI16(void **user)
 {
     int16_t out;
     bool isNull = true;
@@ -169,7 +169,7 @@ void test_BLINK_Compact_decodeI16(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI16_min(void **user)
+static void test_BLINK_Compact_decodeI16_min(void **user)
 {
     const uint8_t in[] = {0xc2, 0x00, 0x80};
     struct blink_stream stream;
@@ -182,7 +182,7 @@ void test_BLINK_Compact_decodeI16_min(void **user)
     assert_int_equal(expectedOut, out);
     assert_false(isNull);
 }
-void test_BLINK_Compact_decodeI16_max(void **user)
+static void test_BLINK_Compact_decodeI16_max(void **user)
 {
     const uint8_t in[] = {0xc2, 0xff, 0x7f};
     struct blink_stream stream;
@@ -196,7 +196,7 @@ void test_BLINK_Compact_decodeI16_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI32(void **user)
+static void test_BLINK_Compact_decodeI32(void **user)
 {
     int32_t out;
     bool isNull = true;
@@ -207,7 +207,7 @@ void test_BLINK_Compact_decodeI32(void **user)
     assert_false(isNull);
 }    
 
-void test_BLINK_Compact_decodeI32_min(void **user)
+static void test_BLINK_Compact_decodeI32_min(void **user)
 {
     const uint8_t in[] = {0xc4, 0x00, 0x00, 0x00, 0x80};
     struct blink_stream stream;
@@ -221,7 +221,7 @@ void test_BLINK_Compact_decodeI32_min(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI32_max(void **user)
+static void test_BLINK_Compact_decodeI32_max(void **user)
 {
     const uint8_t in[] = {0xc4, 0xff,0xff,0xff,0x7f};
     struct blink_stream stream;
@@ -235,7 +235,7 @@ void test_BLINK_Compact_decodeI32_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI64(void **user)
+static void test_BLINK_Compact_decodeI64(void **user)
 {
     int64_t out;
     bool isNull = true;
@@ -246,7 +246,7 @@ void test_BLINK_Compact_decodeI64(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI64_min(void **user)
+static void test_BLINK_Compact_decodeI64_min(void **user)
 {
     const uint8_t in[] = {0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
     struct blink_stream stream;
@@ -260,7 +260,7 @@ void test_BLINK_Compact_decodeI64_min(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeI64_max(void **user)
+static void test_BLINK_Compact_decodeI64_max(void **user)
 {
     static const uint8_t in[] = {0xc8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
     struct blink_stream stream;
@@ -274,7 +274,7 @@ void test_BLINK_Compact_decodeI64_max(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeF64(void **user)
+static void test_BLINK_Compact_decodeF64(void **user)
 {
     double out;
     bool isNull = true;
@@ -285,7 +285,7 @@ void test_BLINK_Compact_decodeF64(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_decodeBool(void **user)
+static void test_BLINK_Compact_decodeBool(void **user)
 {
     bool out;
     bool isNull = true;
@@ -296,7 +296,7 @@ void test_BLINK_Compact_decodeBool(void **user)
     assert_false(isNull);
 }
 
-void test_BLINK_Compact_Decimal(void **user)
+static void test_BLINK_Compact_Decimal(void **user)
 {
     const uint8_t in[] = {0x00, 0x00};
     struct blink_stream stream;
@@ -312,7 +312,7 @@ void test_BLINK_Compact_Decimal(void **user)
     assert_int_equal(expectedExponent, exponent);        
 }
 
-void test_BLINK_Compact_Decimal_nullMantissa(void **user)
+static void test_BLINK_Compact_Decimal_nullMantissa(void **user)
 {
     const uint8_t in[] = {0x00, 0xc0};
     struct blink_stream stream;

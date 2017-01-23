@@ -87,13 +87,14 @@ enum blink_token {
     TOK_INT,                /**< <int> `[-][1-9][0-9]*` */
     TOK_LITERAL,            /**< <literal> a string within double or single quotation marks */
     TOK_UNKNOWN,            /**< <unknown> no match */
-    TOK_EOF                 /**< <eof> end of file */    
+    TOK_EOF,                /**< <eof> end of file */
+    TOK_ENOMEM              /**< inconclusive token due to not enough memory */
 };
 
 union blink_token_value {    
     struct {
-        const char *ptr;    /**< pointer to printable string */
-        size_t len;         /**< byte length of `ptr` */
+        char *ptr;
+        size_t len;
     } literal;
     /** Initialised for #TOK_UINT */
     uint64_t number;
@@ -106,29 +107,23 @@ struct blink_token_location {
     size_t col;
 };
 
+struct blink_stream;
+typedef struct blink_stream * blink_stream_t;
+
 /* function prototypes ************************************************/
 
-/** Use this function to convert an octet string into a token
- *
- * @code
- * const char input[] = "emptyGroup";
- * size_t read;
- * union blink_token_value value;
- *
- * // will return TOK_NAME
- * enum blink_token tok = BLINK_GetToken(input, sizeof(input), &read, &value, NULL);
- * @endcode
+/** Use this function to convert a stream of characters into a token
  * 
- * @param[in] in input to convert into a token
- * @param[in] inLen byte length of input
- * @param[out] read bytes read from input
+ * @param[in] in input stream
+ * @param[in] buffer a buffer for caching name, cname, or literal
+ * @param[in] max byte length of buffer
  * @param[out] value value of token (only initialised for TOK_NAME, TOK_CNAME, TOK_UINT, TOK_INT, TOK_LITERAL)
  * @param[out] location optional location information
  *
  * @return token
  *
  * */
-enum blink_token BLINK_Lexer_getToken(const char *in, size_t inLen, size_t *read, union blink_token_value *value, struct blink_token_location *location);
+enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t max, union blink_token_value *value, struct blink_token_location *location);
 
 /** Convert a token enum to a string representation
  * 
