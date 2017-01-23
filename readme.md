@@ -34,12 +34,26 @@ static void setup(void)
         "   u32 Price,\n"
         "   u32 Quantity\n";
 
-    schema = BLINK_Schema_new(pool, syntax, sizeof(syntax));
+    struct blink_stream stream;
+
+    schema = BLINK_Schema_new(pool, BLINK_Stream_initBufferReadOnly(&stream, syntax, sizeof(syntax)));
 }
 
 void example(void)
 {
     setup();
+
+    blink_group_t msg = BLINK_Object_newGroup(pool, "InsertOrder");
+
+    assert(msg != NULL);
+
+    const char *symbol = "IBM";
+    const char *orderID = "12345";
+
+    (void)BLINK_Object_setString(msg, "Symbol", symbol, strlen(symbol));
+    (void)BLINK_Object_setString(msg, "OrderID", orderID, strlen(orderID));
+    (void)BLINK_Object_setUint(msg, "Price", 100);
+    (void)BLINK_Object_setUint(msg, "Quantity", 5);
 }
 ~~~
 
@@ -70,6 +84,13 @@ DEFINES += -DNDEBUG
 
 # define the maximum number of references allowed in a chain (default: 10)
 DEFINES += -DBLINK_LINK_DEPTH=10
+
+# define the largest literal or name that can be handled by the lexer (default: 100)
+DEFINES += -DBLINK_TOKEN_MAX_SIZE=100
+
+# redefine the prefix (default: BLINK_)
+# example: remove the prefix entirely
+DEFINES += -DBLINK_
 ~~~
 
 ## See Also
