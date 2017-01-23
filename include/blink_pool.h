@@ -48,7 +48,7 @@
  * assert(memory != NULL);
  *
  * // note that BLINK_Pool_calloc interface will return zeroed memory
- * assert(*memory = 0);
+ * assert(*memory == 0);
  * 
  * *memory = 42;
  * @endcode
