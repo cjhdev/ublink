@@ -3,7 +3,8 @@ notifications:
 language: C
 script:
     - cd test
-    - sh build_and_run.sh
+    - make build_and_run
+    - make coverage
 
     
     
