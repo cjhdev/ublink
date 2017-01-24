@@ -33,23 +33,23 @@ static bool adjustOffset(int32_t *pos, int32_t max, int32_t offset);
 
 /* functions **********************************************************/
 
-bool BLINK_Stream_write(blink_stream_t self, const void *in, size_t bytesToWrite)
+bool BLINK_Stream_write(blink_stream_t self, const void *buf, size_t nbyte)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT((bytesToWrite == 0U) || (in != NULL))
+    BLINK_ASSERT((nbyte == 0U) || (buf != NULL))
 
     bool retval = false;
 
-    if(bytesToWrite <= (size_t)INT32_MAX){
+    if(nbyte <= (size_t)INT32_MAX){
 
         switch(self->type){
         case BLINK_STREAM_BUFFER:
         
             if(self->value.buffer.out != NULL){
-                if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)bytesToWrite){
+                if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)nbyte){
                     
-                    (void)memcpy(&self->value.buffer.out[self->value.buffer.pos], in, bytesToWrite);
-                    self->value.buffer.pos += (uint32_t)bytesToWrite;
+                    (void)memcpy(&self->value.buffer.out[self->value.buffer.pos], buf, nbyte);
+                    self->value.buffer.pos += (uint32_t)nbyte;
                     retval = true;
                 }
             }
@@ -57,9 +57,9 @@ bool BLINK_Stream_write(blink_stream_t self, const void *in, size_t bytesToWrite
             
         case BLINK_STREAM_USER:
 
-            if(self->value.user.writer != NULL){
+            if(self->value.user.fn.write != NULL){
 
-                retval = self->value.user.writer(self->value.user.state, in, bytesToWrite);
+                retval = self->value.user.fn.write(self->value.user.state, buf, nbyte);
             }
             break;                
         
@@ -72,23 +72,23 @@ bool BLINK_Stream_write(blink_stream_t self, const void *in, size_t bytesToWrite
     return retval;
 }
 
-bool BLINK_Stream_read(blink_stream_t self, void *out, size_t bytesToRead)
+bool BLINK_Stream_read(blink_stream_t self, void *buf, size_t nbyte)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT((bytesToRead == 0U) || (out != NULL))
+    BLINK_ASSERT((nbyte == 0U) || (buf != NULL))
 
     bool retval = false;
 
-    if(bytesToRead <= (size_t)INT32_MAX){
+    if(nbyte <= (size_t)INT32_MAX){
 
         switch(self->type){
         case BLINK_STREAM_BUFFER:
         
             if(self->value.buffer.in != NULL){
-                if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)bytesToRead){
+                if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)nbyte){
                     
-                    (void)memcpy(out, &self->value.buffer.in[self->value.buffer.pos], bytesToRead);
-                    self->value.buffer.pos += (uint32_t)bytesToRead;
+                    (void)memcpy(buf, &self->value.buffer.in[self->value.buffer.pos], nbyte);
+                    self->value.buffer.pos += (uint32_t)nbyte;
                     retval = true;
                 }                
             }
@@ -96,9 +96,9 @@ bool BLINK_Stream_read(blink_stream_t self, void *out, size_t bytesToRead)
 
         case BLINK_STREAM_USER:
 
-            if(self->value.user.reader != NULL){
+            if(self->value.user.fn.read != NULL){
 
-                retval = self->value.user.reader(self->value.user.state, out, bytesToRead);
+                retval = self->value.user.fn.read(self->value.user.state, buf, nbyte);
             }
             break;                
     
@@ -111,10 +111,10 @@ bool BLINK_Stream_read(blink_stream_t self, void *out, size_t bytesToRead)
     return retval;
 }
 
-bool BLINK_Stream_peek(blink_stream_t self, void *out)
+bool BLINK_Stream_peek(blink_stream_t self, void *buf)
 {
     BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(out != NULL)
+    BLINK_ASSERT(buf != NULL)
 
     bool retval = false;
 
@@ -125,13 +125,20 @@ bool BLINK_Stream_peek(blink_stream_t self, void *out)
             
             if((self->value.buffer.max - self->value.buffer.pos) >= 1U){
 
-                *((uint8_t *)out) = self->value.buffer.in[self->value.buffer.pos];
+                *((uint8_t *)buf) = self->value.buffer.in[self->value.buffer.pos];
                 retval = true;                
             }
         }
         break;
 
     case BLINK_STREAM_USER:
+
+        if(self->value.user.fn.peek != NULL){
+
+            retval = self->value.user.fn.peek(self->value.user.state, buf);
+        }
+        break;
+        
     default:
         /* no action */
         break;
@@ -141,7 +148,7 @@ bool BLINK_Stream_peek(blink_stream_t self, void *out)
     return retval;
 }
 
-blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const uint8_t *buf, uint32_t max)
+blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const void *buf, uint32_t max)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT((max == 0) || (buf != NULL))
@@ -152,7 +159,7 @@ blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const 
 
         (void)memset(self, 0, sizeof(*self));
         self->type = BLINK_STREAM_BUFFER;
-        self->value.buffer.in = buf;        
+        self->value.buffer.in = (uint8_t *)buf;        
         self->value.buffer.max = max;
         retval = (blink_stream_t)self;
     }
@@ -160,7 +167,7 @@ blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const 
     return retval;
 }
 
-blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, uint8_t *buf, uint32_t max)
+blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, void *buf, uint32_t max)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT((max == 0) || (buf != NULL))
@@ -172,7 +179,7 @@ blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, uint8_t *buf, 
         (void)memset(self, 0, sizeof(*self));
         self->type = BLINK_STREAM_BUFFER;
         self->value.buffer.out = buf;
-        self->value.buffer.in = buf;
+        self->value.buffer.in = (uint8_t *)buf;
         self->value.buffer.max = max;
         retval = (blink_stream_t)self;
     }
@@ -180,36 +187,49 @@ blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, uint8_t *buf, 
     return retval;
 }
 
-blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state, blink_stream_read_t reader, blink_stream_write_t writer)
+blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state,  struct blink_stream_user fn)
 {
     BLINK_ASSERT(self != NULL)
 
     (void)memset(self, 0, sizeof(*self));
     self->type = BLINK_STREAM_USER;
     self->value.user.state = state;
-    self->value.user.reader = reader;
-    self->value.user.writer = writer;
+    self->value.user.fn = fn;    
     return (blink_stream_t)self;
 }
 
 uint32_t BLINK_Stream_tell(blink_stream_t self)
 {
+    BLINK_ASSERT(self != NULL)
+
     uint32_t retval = 0U;
-    
+
     switch(self->type){
     case BLINK_STREAM_BUFFER:
+    
         retval = (uint32_t)self->value.buffer.pos;
         break;
+
+    case BLINK_STREAM_USER:
+
+        if(self->value.user.fn.tell != NULL){
+
+            retval = self->value.user.fn.tell(self->value.user.state);
+        }
+        break;
+        
     default:
         /* no action */
         break;
-    }
+    }    
 
     return retval;
 }
 
 bool BLINK_Stream_seekSet(blink_stream_t self, uint32_t offset)
 {
+    BLINK_ASSERT(self != NULL)
+
     bool retval = false;
 
     if(offset < (uint32_t)INT32_MAX){
@@ -221,6 +241,12 @@ bool BLINK_Stream_seekSet(blink_stream_t self, uint32_t offset)
                 self->value.buffer.pos = offset;
                 retval = true;
             }    
+            break;
+        case BLINK_STREAM_USER:
+            if(self->value.user.fn.seekSet != NULL){
+
+                retval = self->value.user.fn.seekSet(self->value.user.state, offset);
+            }
             break;
         default:
             /* no action */
@@ -234,11 +260,19 @@ bool BLINK_Stream_seekSet(blink_stream_t self, uint32_t offset)
 
 bool BLINK_Stream_seekCur(blink_stream_t self, int32_t offset)
 {
+    BLINK_ASSERT(self != NULL)
+    
     bool retval = false;
     
     switch(self->type){
     case BLINK_STREAM_BUFFER:
         retval = adjustOffset((int32_t *)&self->value.buffer.pos, (int32_t)self->value.buffer.max, offset);
+        break;
+    case BLINK_STREAM_USER:
+        if(self->value.user.fn.seekCur != NULL){
+
+            retval = self->value.user.fn.seekCur(self->value.user.state, offset);
+        }
         break;
     default:
         /* no action */
@@ -247,18 +281,6 @@ bool BLINK_Stream_seekCur(blink_stream_t self, int32_t offset)
     }
 
     return retval;
-}
-
-blink_stream_t BLINK_Stream_dup(struct blink_stream *self, blink_stream_t existing)
-{
-    BLINK_ASSERT(self != NULL)
-    BLINK_ASSERT(existing != NULL)
-
-    (void)memset(self, 0, sizeof(*self));
-
-    *self = *existing;
-
-    return self;
 }
 
 /* static functions ***************************************************/

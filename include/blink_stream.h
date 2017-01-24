@@ -45,8 +45,14 @@ extern "C" {
 
 /* types **************************************************************/
 
-typedef bool (*blink_stream_read_t)(void *state, void *out, size_t bytesToRead);
-typedef bool (*blink_stream_write_t)(void *state, const void *in, size_t bytesToWrite);
+struct blink_stream_user {
+    bool (*read)(void *state, void *out, size_t bytesToRead);
+    bool (*write)(void *state, const void *in, size_t bytesToWrite);
+    uint32_t (*tell)(void *state);
+    bool (*peek)(void *state, void *c);
+    bool (*seekCur)(void *state, int32_t offset);
+    bool (*seekSet)(void *state, uint32_t offset);
+};
 
 struct blink_stream {
     enum blink_stream_type {
@@ -62,8 +68,7 @@ struct blink_stream {
             uint32_t pos;        /**< current position */
         } buffer;
         struct {
-            blink_stream_read_t reader;
-            blink_stream_write_t writer;
+            struct blink_stream_user fn;
             void *state;
         } user;
     } value;
@@ -74,67 +79,70 @@ typedef struct blink_stream * blink_stream_t;
 
 /* function prototypes ************************************************/
 
-/** Write to an output stream
+/** Write to a stream
  *
- * @param[in] self output stream
- * @param[in] in buffer to write to stream
- * @param[in] inLen byte length of buffer to write to stream
+ * @param[in] self stream
+ * @param[in] buf buffer to write
+ * @param[in] nbyte number of bytes to write 
  *
- * @return `bytesToWrite` bytes were successfully written
- * @retval true
- * @retval false
+ * @return true if successful
  *
  * */
-bool BLINK_Stream_write(blink_stream_t self, const void *in, size_t bytesToWrite);
+bool BLINK_Stream_write(blink_stream_t self, const void *buf, size_t nbyte);
 
-/** Read from an input stream
+/** Read from a stream
+ *
+ * @param[in] self stream
+ * @param[out] buf buffer of at least `nbyte` bytes
+ * @param[in] nbyte number of bytes to read
+ *
+ * @return true if successful
+ *
+ * */
+bool BLINK_Stream_read(blink_stream_t self, void *buf, size_t nbyte);
+
+/** Read next byte in stream without removing it
  *
  * @param[in] self input stream
- * @param[out] out buffer of at least `bytesToRead` bytes
- * @param[in] bytesToRead number of bytes to read from stream into buffer
+ * @param[out] buf single byte buffer
  *
- * @return `bytesToRead` bytes were successfully read 
- * @retval true
- * @retval false
+ * @return true if successful
  *
  * */
-bool BLINK_Stream_read(blink_stream_t self, void *out, size_t bytesToRead);
+bool BLINK_Stream_peek(blink_stream_t self, void *buf);
 
-bool BLINK_Stream_peek(blink_stream_t self, void *out);
-
-/** Init a read only buffer
+/** Init a read only buffer stream
  *
  * @param[in] self
  * @param[in] buf buffer
  * @param[in] max length of buffer
  *
- * @return generic stream
+ * @return stream
  * 
  * */
-blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const uint8_t *buf, uint32_t max);
+blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const void *buf, uint32_t max);
 
-/** Init a read/write buffer
+/** Init a read/write buffer stream
  *
  * @param[in] self
  * @param[in] buf buffer
  * @param[in] max length of buffer
  *
- * @return generic stream
+ * @return stream
  * 
  * */
-blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, uint8_t *buf, uint32_t max);
+blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, void *buf, uint32_t max);
 
 /** Init a user defined stream
  *
  * @param[in] self
- * @param[in] user defined state
- * @param[in] reader read handler
- * @param[in] writer write handler
+ * @param[in] user user state
+ * @param[in] fn user defined functions
  *
- * @return generic stream
+ * @return stream
  * 
  * */
-blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state, blink_stream_read_t reader, blink_stream_write_t writer);
+blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state, struct blink_stream_user fn);
 
 /** Get current position
  *
@@ -143,18 +151,6 @@ blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state, bli
  *
  * */
 uint32_t BLINK_Stream_tell(blink_stream_t self);
-
-/** Duplicate stream state
- *
- * @param[in] self new stream structure
- * @param[in] existing stream state to duplicate
- *
- * @return generic stream (duplicate of existing)
- *
- * @retval NULL existing could not be duplicated
- *
- * */
-blink_stream_t BLINK_Stream_dup(struct blink_stream *self, blink_stream_t existing);
 
 /** Set position to offset
  *
