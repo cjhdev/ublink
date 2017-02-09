@@ -1,5 +1,0 @@
-InsertOrder/1 ->
-    string Symbol,
-    string OrderId,
-    u32 Price,
-    u32 Quantity
