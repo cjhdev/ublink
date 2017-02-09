@@ -55,7 +55,7 @@ struct blink_object_field {
 
 struct blink_object {
     uint32_t size;                      /** encoded size cache */
-    blink_pool_t pool;
+    struct blink_allocator a;
     blink_schema_t definition;          /**< group definition */    
     struct blink_object_field *fields;  /**< array of fields */
     size_t numberOfFields;
@@ -68,38 +68,43 @@ static size_t countFields(blink_schema_t group);
 
 /* functions **********************************************************/
 
-blink_object_t BLINK_Object_newGroup(blink_pool_t pool, blink_schema_t group)
+blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_schema_t group)
 {
     BLINK_ASSERT(group != NULL)
 
     blink_object_t retval = NULL;
-    struct blink_object *self = BLINK_Pool_calloc(pool, sizeof(struct blink_object));
 
-    if(self != NULL){
+    if(alloc->calloc != NULL){
+    
+        struct blink_object *self = alloc->calloc(1U, sizeof(struct blink_object));
 
-        self->definition = group;
-        self->numberOfFields = countFields(group);
-        self->fields = BLINK_Pool_calloc(pool, (sizeof(struct blink_object_field) * self->numberOfFields));
+        if(self != NULL){
 
-        if(self->fields != NULL){
+            self->a = *alloc;
+            self->definition = group;
+            self->numberOfFields = countFields(group);
+            self->fields = self->a.calloc(self->numberOfFields, sizeof(struct blink_object_field));
 
-            size_t stackDepth = BLINK_Group_numberOfSuperGroup(group) + 1U;
-            blink_schema_t stack[stackDepth];
-            struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackDepth, group);
-            blink_schema_t f = BLINK_FieldIterator_next(&iter);
-            size_t i = 0U;
+            if(self->fields != NULL){
 
-            while(f != NULL){
-            
-                self->fields[i].definition = f;
-                i++;
+                size_t stackDepth = BLINK_Group_numberOfSuperGroup(group) + 1U;
+                blink_schema_t stack[stackDepth];
+                struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackDepth, group);
+                blink_schema_t f = BLINK_FieldIterator_next(&iter);
+                size_t i = 0U;
+
+                while(f != NULL){
+                
+                    self->fields[i].definition = f;
+                    i++;
+                }
+
+                retval = (blink_object_t)self;
             }
-
-            retval = (blink_object_t)self;
         }
     }
 
-    return retval;
+    return retval;    
 }
 
 bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value)

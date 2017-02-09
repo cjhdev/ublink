@@ -44,7 +44,7 @@
 
 static bool parseSchema(struct blink_schema_base *self, const struct blink_syntax *in);
 
-static struct blink_schema *newListElement(blink_pool_t pool, struct blink_schema **head, enum blink_schema_subclass type);
+static struct blink_schema *newListElement(const struct blink_allocator *alloc, struct blink_schema **head, enum blink_schema_subclass type);
 
 static bool tokenToIType(enum blink_token tok, enum blink_itype_tag *type);
 
@@ -76,22 +76,20 @@ static struct blink_schema_annote *castAnnote(struct blink_schema *self);
 //static struct blink_schema_incr_annote *castIncrAnnote(struct blink_schema *self);
 static struct blink_schema_base *castSchema(struct blink_schema *self);
 
-static const char *newString(blink_pool_t pool, const char *ptr, size_t len);
+static const char *newString(const struct blink_allocator *alloc, const char *ptr, size_t len);
 
 static blink_schema_t takeAnnotes(blink_schema_t *annotes);
 
 /* functions **********************************************************/
 
-blink_schema_t BLINK_Schema_new(blink_pool_t pool, blink_stream_t in)
+blink_schema_t BLINK_Schema_new(const struct blink_allocator *alloc, blink_stream_t in)
 {
-    BLINK_ASSERT(pool != NULL)
-    
-    blink_schema_t retval = NULL;
-    struct blink_schema_base *self = BLINK_Pool_calloc(pool, sizeof(struct blink_schema_base));
-    
+    blink_schema_t retval = NULL;    
+    struct blink_schema_base *self = alloc->calloc(1U, sizeof(struct blink_schema_base));
+
     if(self != NULL){
 
-        self->pool = pool;
+        self->alloc = *alloc;
 
         struct blink_syntax ctxt = {
             .name = NULL,
@@ -501,11 +499,11 @@ static struct blink_schema_namespace *getNamespace(struct blink_schema_base *sel
 
     if(retval == NULL){
 
-        retval = castNamespace(newListElement(self->pool, &self->ns, BLINK_SCHEMA_NS));
+        retval = castNamespace(newListElement(&self->alloc, &self->ns, BLINK_SCHEMA_NS));
 
         if(retval != NULL){
 
-            retval->super.name = newString(self->pool, name, nameLen);
+            retval->super.name = newString(&self->alloc, name, nameLen);
             retval->super.nameLen = nameLen;
             
             if(retval->super.name == NULL){
@@ -723,7 +721,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     state = P_DEF_ANNOTE;
                     break;
                 case TOK_NAME:                    
-                    name = newString(self->pool, value.literal.ptr, value.literal.len);
+                    name = newString(&self->alloc, value.literal.ptr, value.literal.len);
                     nameLen = value.literal.len;
                     if(name == NULL){
 
@@ -758,7 +756,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
 
                     if(annote == NULL){
 
-                        annote = castAnnote(newListElement(self->pool, (state == P_TYPEDEF_ANNOTE) ? &laAnnotes : &annotes, BLINK_SCHEMA_ANNOTE));
+                        annote = castAnnote(newListElement(&self->alloc, (state == P_TYPEDEF_ANNOTE) ? &laAnnotes : &annotes, BLINK_SCHEMA_ANNOTE));
 
                         if(annote == NULL){
 
@@ -766,7 +764,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                         }
                         else{
 
-                            annote->super.name = newString(self->pool, value.literal.ptr, value.literal.len);
+                            annote->super.name = newString(&self->alloc, value.literal.ptr, value.literal.len);
                             annote->super.nameLen = value.literal.len;
 
                             if(annote->super.name == NULL){
@@ -815,7 +813,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 switch(tok){
                 case TOK_LITERAL:
 
-                    annote->value = newString(self->pool, value.literal.ptr, value.literal.len);
+                    annote->value = newString(&self->alloc, value.literal.ptr, value.literal.len);
                     annote->valueLen = value.literal.len;
                     if(annote->value == NULL){
 
@@ -871,7 +869,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     }
                     else{
 
-                        g = castGroup(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_GROUP));
+                        g = castGroup(newListElement(&self->alloc, &ns->defs, BLINK_SCHEMA_GROUP));
 
                         if(g == NULL){
 
@@ -942,7 +940,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 /* <annotes> <name> = <laAnnotes> <laName> ... */
                 case TOK_NAME:
                     state = P_SYMBOL_OR_REF;                
-                    laName = newString(self->pool, value.literal.ptr, value.literal.len);
+                    laName = newString(&self->alloc, value.literal.ptr, value.literal.len);
                     laNameLen = value.literal.len;
                     laIType = BLINK_ITYPE_REF;                    
                     if(laName == NULL){
@@ -986,7 +984,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
 
             case P_TYPEDEF:
             {
-                struct blink_schema_type_def *t = castTypeDef(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_TYPE_DEF));
+                struct blink_schema_type_def *t = castTypeDef(newListElement(&self->alloc, &ns->defs, BLINK_SCHEMA_TYPE_DEF));
 
                 if(t == NULL){
 
@@ -1023,7 +1021,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
             case P_ENUM_SINGLETON:
             case P_ENUM:
 
-                e = castEnum(newListElement(self->pool, &ns->defs, BLINK_SCHEMA_ENUM));
+                e = castEnum(newListElement(&self->alloc, &ns->defs, BLINK_SCHEMA_ENUM));
 
                 if(e == NULL){
 
@@ -1071,7 +1069,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
 
                 if(tok == TOK_NAME){
 
-                    name = newString(self->pool, value.literal.ptr, value.literal.len);
+                    name = newString(&self->alloc, value.literal.ptr, value.literal.len);
                     nameLen = value.literal.len;
                     if(name == NULL){
 
@@ -1098,7 +1096,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 }
                 else{
 
-                    s = castSymbol(newListElement(self->pool, &e->s, BLINK_SCHEMA_SYMBOL));
+                    s = castSymbol(newListElement(&self->alloc, &e->s, BLINK_SCHEMA_SYMBOL));
 
                     if(s == NULL){
 
@@ -1285,7 +1283,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 case TOK_CNAME:
                 case TOK_NAME:
 
-                    g->superGroup = newString(self->pool, value.literal.ptr, value.literal.len);
+                    g->superGroup = newString(&self->alloc, value.literal.ptr, value.literal.len);
                     g->superGroupLen = value.literal.len;
                     if(g->superGroup == NULL){
 
@@ -1319,7 +1317,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
             
             case P_FIELD:
 
-                f = castField(newListElement(self->pool, &g->f, BLINK_SCHEMA_FIELD));
+                f = castField(newListElement(&self->alloc, &g->f, BLINK_SCHEMA_FIELD));
 
                 if(f == NULL){
 
@@ -1372,7 +1370,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     case TOK_NAME:
                     case TOK_CNAME:
 
-                        type->name = newString(self->pool, value.literal.ptr, value.literal.len);
+                        type->name = newString(&self->alloc, value.literal.ptr, value.literal.len);
                         type->nameLen = value.literal.len;
                         if(type->name == NULL){
 
@@ -1603,7 +1601,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     }
                     else{
 
-                        f->super.name = newString(self->pool, value.literal.ptr, value.literal.len);
+                        f->super.name = newString(&self->alloc, value.literal.ptr, value.literal.len);
                         f->super.nameLen = value.literal.len;
                         
                         if(f->super.name == NULL){
@@ -2078,9 +2076,9 @@ static bool testSuperGroupShadowConstraint(struct blink_schema_base *self, struc
     return true;
 }
 
-static struct blink_schema *newListElement(blink_pool_t pool, struct blink_schema **head, enum blink_schema_subclass type)
+static struct blink_schema *newListElement(const struct blink_allocator *alloc, struct blink_schema **head, enum blink_schema_subclass type)
 {
-    BLINK_ASSERT(pool != NULL)
+    BLINK_ASSERT(alloc != NULL)
     BLINK_ASSERT(head != NULL)
 
     struct blink_schema *retval = NULL;
@@ -2101,7 +2099,7 @@ static struct blink_schema *newListElement(blink_pool_t pool, struct blink_schem
 
         BLINK_ASSERT(type < sizeof(sizes)/sizeof(*sizes))
 
-        retval = (struct blink_schema *)BLINK_Pool_calloc(pool, sizes[type]);
+        retval = (struct blink_schema *)alloc->calloc(1, sizes[type]);
         
         if(retval == NULL){
 
@@ -2324,9 +2322,9 @@ static struct blink_schema_base *castSchema(struct blink_schema *self)
     return (struct blink_schema_base *)self;
 }
 
-static const char *newString(blink_pool_t pool, const char *ptr, size_t len)
+static const char *newString(const struct blink_allocator *alloc, const char *ptr, size_t len)
 {
-    char *retval = BLINK_Pool_calloc(pool, (len + 1U));
+    char *retval = (char *)alloc->calloc((len+1U), 1);
 
     if(retval != NULL){
 

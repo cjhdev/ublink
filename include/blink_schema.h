@@ -31,15 +31,7 @@
  *
  * ## Example Workflow
  *
- * First initialise a heap that will store the schema objects:
- *
- * @code
- * uint8_t heap[1024U];
- * struct blink_pool poolState;
- * blink_pool_t pool = BLINK_Pool_init(&poolState, heap, sizeof(heap));
- * @endcode
- *
- * Next create a schema object from schema syntax:
+ * Create a schema object from schema syntax:
  *
  * @code
  * const char syntax[] =
@@ -49,7 +41,7 @@
  *      "   u32 Price,\n"
  *      "   u32 Quantity\n";
  *
- * blink_schema_t schema = BLINK_Schema_new(pool, syntax, sizeof(syntax));
+ * blink_schema_t schema = BLINK_Schema_new((struct blink_allocator){.calloc = calloc, .free = free}, syntax, sizeof(syntax));
  * @endcode
  *
  * To operate on the "InsertOrder" group we need to get a reference to
@@ -119,8 +111,6 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "blink_pool.h"
-
 /* types **************************************************************/
 
 /** A field shall represent one of the following types */
@@ -160,6 +150,8 @@ struct blink_syntax {
 
 struct blink_schema;
 
+struct blink_allocator;
+
 /** this type refers to any immutable schema object */
 typedef struct blink_schema * blink_schema_t;
 
@@ -178,13 +170,13 @@ struct blink_group_iterator {
 
 /** Create a new schema object from schema syntax object
  *
- * @param[in] pool pool to allocate from
+ * @param[in] alloc allocator
  * @param[in] in schema syntax stream
  * @return schema
  * @retval NULL
  *
  * */
-blink_schema_t BLINK_Schema_new(blink_pool_t pool, blink_stream_t in);
+blink_schema_t BLINK_Schema_new(const struct blink_allocator *alloc, blink_stream_t in);
 
 /** Find group by name
  *

@@ -10,23 +10,23 @@ uBlink
 - Hand coded schema parser and lexer
 - Compact form encode/decode primitives
 - Allocate/reset pool based allocator
-- Message input/output streams
+- User configurable IO streams
 - Tests
 
 ## Example
 
 ~~~ C
 #include "ublink.h"
+#include <malloc.h>
 
-blink_pool_t pool;
+struct blink_allocator alloc = {
+    .calloc = calloc,
+    .free = free
+};
 blink_schema_t schema;
 
 static void setup(void)
 {
-    static uint8_t heap[ARBITRARY_HEAP_SIZE];
-    static struct blink_pool p;
-    pool = BLINK_Pool_init(&p, heap, sizeof(heap));
-
     static const char syntax[] =
         "InsertOrder/1 ->\n"
         "   string Symbol,\n"
@@ -36,14 +36,14 @@ static void setup(void)
 
     struct blink_stream stream;
 
-    schema = BLINK_Schema_new(pool, BLINK_Stream_initBufferReadOnly(&stream, syntax, sizeof(syntax)));
+    schema = BLINK_Schema_new(alloc, BLINK_Stream_initBufferReadOnly(&stream, syntax, sizeof(syntax)));
 }
 
 void example(void)
 {
     setup();
 
-    blink_group_t msg = BLINK_Object_newGroup(pool, "InsertOrder");
+    blink_group_t msg = BLINK_Object_newGroup(alloc, "InsertOrder");
 
     assert(msg != NULL);
 

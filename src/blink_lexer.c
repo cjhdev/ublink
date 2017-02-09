@@ -164,7 +164,7 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
             break;
         }
 
-        (void)BLINK_Stream_seekCur(in, sizeof(c));
+        (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
     }
 
     /* skip comment */
@@ -172,7 +172,7 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
 
         while(BLINK_Stream_peek(in, &c)){
 
-            (void)BLINK_Stream_seekCur(in, sizeof(c));
+            (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
 
             if(c == '\n'){
                 break;
@@ -187,7 +187,7 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
         return TOK_EOF;
     }
 
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
 
     if(isCName(in, &enomem, buffer, max, &value->literal.len)){
 
@@ -201,14 +201,14 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
         return TOK_ENOMEM;
     }
 
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
         
     if(stringToToken(in, &retval)){
 
         return retval;
     }
 
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
 
     if(isLiteral(in, &enomem, buffer, max, &value->literal.len)){
 
@@ -222,7 +222,7 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
         return TOK_ENOMEM;
     }
                 
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
 
     if(isName(in, &enomem, buffer, max, &value->literal.len)){
 
@@ -236,21 +236,21 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
         return TOK_ENOMEM;
     }
                     
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
                         
     if(isHexNumber(in, &value->number)){
 
         return TOK_UINT;                            
     }
                         
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
 
     if(isUnsignedNumber(in, &value->number)){
 
         return TOK_UINT;
     }
 
-    (void)BLINK_Stream_seekSet(in, pos);
+    (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
               
     if(isSignedNumber(in, &value->signedNumber)){
 
@@ -293,7 +293,7 @@ static bool stringToToken(blink_stream_t in, enum blink_token *token)
 
     for(i=0; i < (sizeof(tokenTable)/sizeof(*tokenTable)); i++){
 
-        (void)BLINK_Stream_seekSet(in, pos);
+        (void)BLINK_Stream_seekSet(in, (uint32_t)pos);
 
         BLINK_ASSERT(sizeof(buf) > tokenTable[i].size)
 
@@ -417,7 +417,7 @@ static bool isName(blink_stream_t in, bool *enomem, char *out, size_t outMax, si
 
                     if(isNameChar(c)){
 
-                        (void)BLINK_Stream_seekCur(in, sizeof(c));
+                        (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
 
                         if(pos < outMax){
 
@@ -492,7 +492,7 @@ static bool isCName(blink_stream_t in, bool *enomem, char *out, size_t outMax, s
                             
                             while(BLINK_Stream_peek(in, &c) && isNameChar(c)){
 
-                                (void)BLINK_Stream_seekCur(in, sizeof(c));
+                                (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
 
                                 if(pos < outMax){
 
@@ -555,7 +555,7 @@ static bool isUnsignedNumber(blink_stream_t in, uint64_t *out)
                     /* todo: overflow protect */
                     *out *= 10;                
                     *out += digit;
-                    (void)BLINK_Stream_seekCur(in, sizeof(c));
+                    (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
                 }
                 else{
 
@@ -590,7 +590,7 @@ static bool isSignedNumber(blink_stream_t in, int64_t *out)
                     if(isInteger(c, &digit)){
 
                         *out = (int64_t)digit;
-                        (void)BLINK_Stream_seekCur(in, sizeof(c));
+                        (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
                         retval = true;
                     }
                 }                
@@ -610,7 +610,7 @@ static bool isSignedNumber(blink_stream_t in, int64_t *out)
                         /* todo: overflow protect */
                         *out *= 10;                
                         *out += digit;
-                        (void)BLINK_Stream_seekCur(in, sizeof(c));
+                        (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
                     }
                     else{
 
@@ -652,7 +652,7 @@ static bool isHexNumber(blink_stream_t in, uint64_t *out)
 
                         if(isHexInteger(c, &digit)){
 
-                            (void)BLINK_Stream_seekCur(in, sizeof(c));
+                            (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
 
                             if(digits <= 16U){
 

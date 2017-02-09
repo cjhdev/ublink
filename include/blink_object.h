@@ -38,15 +38,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "blink_alloc.h"
+
 /* types **************************************************************/
 
 struct blink_object;
-struct blink_pool;
 struct blink_stream;
 struct blink_schema;
 
 typedef struct blink_object * blink_object_t;
-typedef struct blink_pool * blink_pool_t;
 typedef struct blink_stream * blink_stream_t;
 typedef struct blink_schema * blink_schema_t;
 
@@ -71,7 +71,7 @@ union blink_object_value {
 
 /** Create a new group model from a group definition
  *
- * @param[in] pool pool to allocate from
+ * @param[in] allocator
  * @param[in] group group definition
  *
  * @return group model
@@ -79,7 +79,7 @@ union blink_object_value {
  * @retval NULL could not create group model
  *
  * */
-blink_object_t BLINK_Object_newGroup(blink_pool_t pool, blink_schema_t group);
+blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_schema_t group);
 
 /** Clear a field (i.e. set to NULL)
  *

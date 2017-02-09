@@ -34,5 +34,6 @@
 #include "blink_schema.h"
 #include "blink_pool.h"
 #include "blink_stream.h"
+#include "blink_object.h"
 
 #endif

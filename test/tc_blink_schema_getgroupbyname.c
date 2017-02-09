@@ -10,8 +10,15 @@
 #include "cmocka.h"
 #include "blink_schema.h"
 #include "blink_stream.h"
-#include "blink_pool.h"
+#include "blink_alloc.h"
 #include <string.h>
+
+#include <malloc.h>
+
+static struct blink_allocator alloc = {
+    .calloc = calloc,
+    .free = free
+};
 
 static int setup(void **user)
 {
@@ -31,11 +38,9 @@ static int setup(void **user)
         "OrderCanceled/4 ->\n"
         "   string OrderId\n";
     
-    static uint8_t heap[2048U];
-    static struct blink_pool pool;
     static struct blink_stream stream;
     (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
-    *user = (void *)BLINK_Schema_new(BLINK_Pool_init(&pool, heap, sizeof(heap)), &stream);
+    *user = (void *)BLINK_Schema_new(&alloc, &stream);
     return 0;
 }
 

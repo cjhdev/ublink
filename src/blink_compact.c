@@ -52,7 +52,7 @@ bool BLINK_Compact_decodeBool(blink_stream_t in, bool *out, bool *isNull)
     BLINK_ASSERT(out != NULL)
 
     uint64_t number;
-    uint8_t retval = false;
+    bool retval = false;
     
     if(decodeVLC(in, false, &number, isNull)){
 
@@ -89,7 +89,7 @@ bool BLINK_Compact_decodeU8(blink_stream_t in, uint8_t *out, bool *isNull)
     BLINK_ASSERT(out != NULL)
 
     uint64_t number;
-    uint8_t retval = false;
+    bool retval = false;
 
     if(decodeVLC(in, false, &number, isNull)){
 
@@ -119,7 +119,7 @@ bool BLINK_Compact_decodeU16(blink_stream_t in, uint16_t *out, bool *isNull)
     BLINK_ASSERT(out != NULL)
 
     uint64_t number;
-    uint8_t retval = false;
+    bool retval = false;
 
     if(decodeVLC(in, false, &number, isNull)){
 
@@ -149,7 +149,7 @@ bool BLINK_Compact_decodeU32(blink_stream_t in, uint32_t *out, bool *isNull)
     BLINK_ASSERT(out != NULL)
 
     uint64_t number;
-    uint8_t retval = false;
+    bool retval = false;
 
     if(decodeVLC(in, false, &number, isNull)){
 
@@ -394,7 +394,7 @@ bool BLINK_Compact_encodeI32(int32_t in, blink_stream_t out)
 
 bool BLINK_Compact_encodeI64(int64_t in, blink_stream_t out)
 {
-    return encodeVLC(in, true, out);
+    return encodeVLC((uint64_t)in, true, out);
 }
 
 bool BLINK_Compact_encodeF64(double in, blink_stream_t out)
@@ -408,7 +408,7 @@ bool BLINK_Compact_encodeDecimal(int64_t mantissa, int8_t exponent, blink_stream
 {
     bool retval = false;
     
-    if(encodeVLC((int64_t)exponent, true, out)){
+    if(encodeVLC((uint64_t)exponent, true, out)){
 
         if(encodeVLC(mantissa, true, out)){
 

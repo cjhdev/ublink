@@ -38,6 +38,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "blink_alloc.h"
+
 /* types **************************************************************/
 
 /** internal field types */
@@ -164,7 +166,7 @@ struct blink_schema_incr_annote {
 struct blink_schema_base {
     struct blink_schema super;
     struct blink_schema *ns;        /**< a schema has zero or more namespace definitions */
-    blink_pool_t pool;
+    struct blink_allocator alloc;
 };
 
 /** @} */
