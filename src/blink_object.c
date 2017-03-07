@@ -92,22 +92,31 @@ blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_
             self->a = *alloc;
             self->definition = group;
             self->numberOfFields = countFields(group);
-            self->fields = self->a.calloc(self->numberOfFields, sizeof(struct blink_object_field));
 
-            if(self->fields != NULL){
+            if(self->numberOfFields > 0U){
 
-                size_t stackDepth = BLINK_Group_numberOfSuperGroup(group) + 1U;
-                blink_schema_t stack[stackDepth];
-                struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackDepth, group);
-                blink_schema_t f = BLINK_FieldIterator_next(&iter);
-                uint32_t i = 0U;
+                self->fields = self->a.calloc(self->numberOfFields, sizeof(struct blink_object_field));
 
-                while(f != NULL){
-                
-                    self->fields[i].definition = f;
-                    i++;
+                if(self->fields != NULL){
+
+                    size_t stackDepth = BLINK_Group_numberOfSuperGroup(group) + 1U;
+                    blink_schema_t stack[stackDepth];
+                    struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackDepth, group);
+                    blink_schema_t f = BLINK_FieldIterator_next(&iter);
+                    uint32_t i = 0U;
+
+                    while(f != NULL){
+                    
+                        self->fields[i].definition = f;
+                        f = BLINK_FieldIterator_next(&iter);
+                        i++;
+                    }
+
+                    retval = (blink_object_t)self;
                 }
-
+            }
+            else{
+            
                 retval = (blink_object_t)self;
             }
         }
