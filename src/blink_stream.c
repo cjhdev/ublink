@@ -283,6 +283,30 @@ bool BLINK_Stream_seekCur(blink_stream_t self, int32_t offset)
     return retval;
 }
 
+bool BLINK_Stream_eof(blink_stream_t self)
+{
+    BLINK_ASSERT(self != NULL)
+    
+    bool retval = false;
+    
+    switch(self->type){
+    case BLINK_STREAM_BUFFER:
+        retval = self->value.buffer.eof;
+        break;
+    case BLINK_STREAM_USER:
+        if(self->value.user.fn.eof != NULL){
+
+            retval = self->value.user.fn.eof(self->value.user.state);
+        }
+        break;
+    default:
+        /* no action */
+        break;
+    }
+
+    return retval;
+}
+
 /* static functions ***************************************************/
 
 static bool adjustOffset(int32_t *pos, int32_t max, int32_t offset)

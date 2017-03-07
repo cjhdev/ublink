@@ -23,24 +23,31 @@
 #define BLINK_DEBUG_H
 
 #ifdef NDEBUG
-
-    #define BLINK_ERROR(...) /* BLINK_ERROR(...) */
-
-    #define BLINK_DEBUG(...)  /* BLINK_DEBUG(...) */
-
     #define BLINK_ASSERT(X) /* BLINK_ASSERT(X) */
-
 #else
-
     #include <assert.h>
-    #include <stdio.h>
-
-    #define BLINK_ERROR(...)  do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);
-
-    #define BLINK_DEBUG(...)  do{fprintf(stdout, "%s: ", __FUNCTION__);fprintf(stdout, __VA_ARGS__);fprintf(stdout, "\n");}while(0);
-
     #define BLINK_ASSERT(X)   assert((X));
-    
+#endif
+
+#ifdef BLINK_DEBUG_INCLUDE
+BLINK_DEBUG_INCLUDE
+#endif
+
+#ifdef BLINK_NO_DEBUG_MESSAGE
+    #define BLINK_ERROR(...) /* BLINK_ERROR(...) */
+    #define BLINK_DEBUG(...)  /* BLINK_DEBUG(...) */
+#endif
+
+#if !defined(BLINK_ERROR) || !defined(BLINK_DEBUG)
+    #include <stdio.h>    
+#endif
+
+#ifndef BLINK_ERROR
+    #define BLINK_ERROR(...)  do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);    
+#endif
+
+#ifndef BLINK_DEBUG
+    #define BLINK_DEBUG(...)  do{fprintf(stdout, "%s: ", __FUNCTION__);fprintf(stdout, __VA_ARGS__);fprintf(stdout, "\n");}while(0);
 #endif
 
 #endif

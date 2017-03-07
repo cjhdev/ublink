@@ -52,6 +52,7 @@ struct blink_stream_user {
     bool (*peek)(void *state, void *c);
     bool (*seekCur)(void *state, int32_t offset);
     bool (*seekSet)(void *state, uint32_t offset);
+    bool (*eof)(void *state);
 };
 
 struct blink_stream {
@@ -65,13 +66,15 @@ struct blink_stream {
             const uint8_t *in;  /**< readable buffer */
             uint8_t *out;       /**< writeable buffer */
             uint32_t max;       /**< maximum size of buffer */
-            uint32_t pos;        /**< current position */
+            uint32_t pos;       /**< current position */
+            bool eof;
         } buffer;
         struct {
             struct blink_stream_user fn;
             void *state;
         } user;
     } value;
+    
 };
 
 typedef struct blink_stream * blink_stream_t;
@@ -175,6 +178,26 @@ bool BLINK_Stream_seekSet(blink_stream_t self, uint32_t offset);
  *
  * */
 bool BLINK_Stream_seekCur(blink_stream_t self, int32_t offset);
+
+/** Check if stream has reached EOF
+ *
+ * @param[in] self
+ *
+ * @return true if at EOF
+ *
+ * */
+bool BLINK_Stream_eof(blink_stream_t self);
+
+/** Return the maximum position of the stream
+ *
+ * @param[in] self
+ *
+ * @return maximum byte position
+ *
+ * @retval 0 stream doesn't have a maximum
+ *
+ * */
+size_t BLINK_Stream_max(blink_stream_t self);
 
 #ifdef __cplusplus
 }

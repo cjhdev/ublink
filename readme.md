@@ -9,7 +9,7 @@ uBlink
 
 - Hand coded schema parser and lexer
 - Compact form encode/decode primitives
-- Allocate/reset pool based allocator
+- Requires malloc but this can be a simple linear allocator
 - User configurable IO streams
 - Tests
 
@@ -54,6 +54,8 @@ void example(void)
     (void)BLINK_Object_setString(msg, "OrderID", orderID, strlen(orderID));
     (void)BLINK_Object_setUint(msg, "Price", 100);
     (void)BLINK_Object_setUint(msg, "Quantity", 5);
+
+    (void)BLINK_Object_encode(msg, out);
 }
 ~~~
 
@@ -81,6 +83,18 @@ The following options can be defined at compile time.
 ~~~ mf
 # remove asserts (default: not defined)
 DEFINES += -DNDEBUG
+
+# include a file before BLINK_ERROR and BLINK_DEBUG are defined (default: not defined)
+DEFINES += -DBLINK_DEBUG_INCLUDE='#include <ruby.h>'
+
+# remove all BLINK_DEBUG() and BLINK_ERROR() messages from code (default: not defined)
+DEFINES += -DBLINK_NO_DEBUG_MESSAGE
+
+# define your own BLINK_DEBUG() macro (default: defined as shown)
+DEFINES += -DBLINK_DEBUG(...)='do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);'
+
+# define your own BLINK_ERROR() macro (default: defined as shown)
+DEFINES += -DBLINK_ERROR(...)='do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);'
 
 # define the maximum number of references allowed in a chain (default: 10)
 DEFINES += -DBLINK_LINK_DEPTH=10

@@ -371,6 +371,10 @@ blink_object_t BLINK_Object_getGroup(blink_object_t group, const char *fieldName
  * */
 blink_schema_t BLINK_Object_getFieldDefinition(blink_object_t group, const char *fieldName);
 
+bool BLINK_Object_encodeCompact(blink_object_t group, blink_stream_t out);
+
+blink_object_t BLINK_Object_decodeCompact(blink_stream_t in, const struct blink_allocator *alloc);
+
 /** @} */
 
 #endif
