@@ -30,11 +30,6 @@
 
 /* definitions ********************************************************/
 
-#ifndef BLINK_LINK_DEPTH
-    /* maximum number of reference to reference links */
-    #define BLINK_LINK_DEPTH    10U
-#endif
-
 #ifndef BLINK_TOKEN_MAX_SIZE
     #define BLINK_TOKEN_MAX_SIZE 100U
 #endif
@@ -60,7 +55,7 @@ static bool testReferenceConstraint(struct blink_schema_base *self, struct blink
 static bool testSuperGroupReferenceConstraint(struct blink_schema_base *self, struct blink_schema_group *group);
 static bool testSuperGroupShadowConstraint(struct blink_schema_base *self, struct blink_schema_group *group);
 
-static struct blink_schema *getTerminal(struct blink_schema *element, bool *dynamic);
+static struct blink_schema *getTerminal(struct blink_schema *element, bool *dynamic, bool *sequence);
 
 static struct blink_group_iterator initDefinitionIterator(struct blink_schema *ns);
 static struct blink_schema *nextDefinition(struct blink_group_iterator *iter);
@@ -163,6 +158,7 @@ struct blink_field_iterator BLINK_FieldIterator_init(blink_schema_t *stack, size
     BLINK_ASSERT(group != NULL)
 
     bool dynamic;
+    bool sequence;
     struct blink_schema_group *ptr = castGroup(group);
     struct blink_field_iterator retval;
     size_t i;
@@ -182,7 +178,7 @@ struct blink_field_iterator BLINK_FieldIterator_init(blink_schema_t *stack, size
         }
         else{
 
-            ptr = castGroup(getTerminal(ptr->s, &dynamic));
+            ptr = castGroup(getTerminal(ptr->s, &dynamic, &sequence));
         }
     }
 
@@ -304,10 +300,11 @@ enum blink_type_tag BLINK_Field_getType(blink_schema_t self)
     struct blink_schema_field *field = castField(self);
     enum blink_type_tag retval;
     bool dynamic;
+    bool sequence;
 
     if(field->type.tag == BLINK_ITYPE_REF){ 
 
-        struct blink_schema *ptr = getTerminal(field->type.resolved, &dynamic);
+        struct blink_schema *ptr = getTerminal(field->type.resolved, &dynamic, &sequence);
 
         switch(ptr->type){
         case BLINK_SCHEMA_ENUM:
@@ -348,7 +345,8 @@ blink_schema_t BLINK_Field_getGroup(blink_schema_t self)
     if(field->type.tag == BLINK_ITYPE_REF){
 
         bool dynamic;
-        struct blink_schema *ref = getTerminal(field->type.resolved, &dynamic);
+        bool sequence;
+        struct blink_schema *ref = getTerminal(field->type.resolved, &dynamic, &sequence);
 
         BLINK_ASSERT(ref != NULL)
 
@@ -371,7 +369,8 @@ blink_schema_t BLINK_Field_getEnum(blink_schema_t self)
     if(field->type.tag == BLINK_ITYPE_REF){
 
         bool dynamic;
-        struct blink_schema *ref = getTerminal(field->type.resolved, &dynamic);
+        bool sequence;
+        struct blink_schema *ref = getTerminal(field->type.resolved, &dynamic, &sequence);
 
         BLINK_ASSERT(ref != NULL)
 
@@ -436,7 +435,8 @@ bool BLINK_Group_isKindOf(blink_schema_t self, blink_schema_t group)
     else{
                 
         bool dynamic;
-        struct blink_schema *ptr = getTerminal(castGroup(self)->s, &dynamic);
+        bool sequence;
+        struct blink_schema *ptr = getTerminal(castGroup(self)->s, &dynamic, &sequence);
 
         while(!retval && (ptr != NULL)){
 
@@ -447,7 +447,7 @@ bool BLINK_Group_isKindOf(blink_schema_t self, blink_schema_t group)
             }
             else{
 
-                ptr = getTerminal(castGroup(ptr)->s, &dynamic);
+                ptr = getTerminal(castGroup(ptr)->s, &dynamic, &sequence);
             }
         }
     }
@@ -461,13 +461,14 @@ size_t BLINK_Group_numberOfSuperGroup(blink_schema_t self)
 
     size_t retval = 0U;
     bool dynamic;   
+    bool sequence;   
 
     struct blink_schema_group *ptr = castGroup(self);
 
     while(ptr->s != NULL){
 
         retval++;
-        ptr = castGroup(getTerminal(ptr->s, &dynamic));
+        ptr = castGroup(getTerminal(ptr->s, &dynamic, &sequence));
     };
     
     return retval;
@@ -1871,82 +1872,96 @@ static bool testReferenceConstraint(struct blink_schema_base *self, struct blink
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(reference != NULL)
 
-    bool retval = true;
-    struct blink_schema *ptr = reference;
-    struct blink_schema *stack[BLINK_LINK_DEPTH];
     bool dynamic = false;
     bool sequence = false;
-    size_t depth = 0U;
-    size_t i;
+    bool errors = false;
 
-    (void)memset(stack, 0, sizeof(stack));
+    if(reference->type == BLINK_SCHEMA_TYPE_DEF){
 
-    while(retval && (ptr->type == BLINK_SCHEMA_TYPE_DEF) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){    /*lint !e9007 no side effect */
+        struct blink_schema_type_def *slow = castTypeDef(reference);
+        struct blink_schema_type_def *fast = slow;
 
-        for(i=0U; i < depth; i++){
+        while(true){
 
-            if(stack[i] == ptr){
+            if(fast != NULL){
+            
+                if(fast->type.resolved->type == BLINK_SCHEMA_TYPE_DEF){
 
-                BLINK_ERROR("reference cycle detected")
-                retval = false;
+                    fast = castTypeDef(slow->type.resolved);            
+                }
+                else{
+
+                    fast = NULL;
+                }
+            }
+
+            if(fast != NULL){
+
+                if(fast->type.resolved->type == BLINK_SCHEMA_TYPE_DEF){
+
+                    fast = castTypeDef(slow->type.resolved);            
+                }
+                else{
+
+                    fast = NULL;
+                }
+            }
+
+            if(slow->type.resolved->type == BLINK_SCHEMA_TYPE_DEF){
+
+                if(slow->type.isDynamic){
+
+                    if(dynamic){
+
+                        BLINK_ERROR("double dynamic reference not allowed")
+                        errors = true;
+                    }
+                    else{
+
+                        dynamic = true;
+                    }    
+                }
+
+                if(slow->type.isSequence){
+
+                    if(sequence){
+
+                        BLINK_ERROR("double sequence not allowed")
+                        errors = true;
+                    }
+                    else{
+
+                        sequence = true;
+                    }
+                }
+
+                slow = castTypeDef(slow->type.resolved);                
+            }
+            /* slow pointer resolved */
+            else{
+
+                if(!errors && dynamic && (slow->super.type != BLINK_SCHEMA_GROUP)){
+
+                    BLINK_ERROR("a dynamic reference must resolve to a group")
+                    errors = true;
+                }
+
                 break;
             }
-        }
 
-        if(i == depth){
-        
-            if(castTypeDef(ptr)->type.isDynamic){
+            if(fast != NULL){
 
-                /* dynamic reference to dynamic reference */
-                if(dynamic){
-
-                    BLINK_ERROR("dynamic reference must resolve to a group")
-                    retval = false;
-                }
-                else{
-
-                    dynamic = true;
-                }
-            }
-
-            if(retval && castTypeDef(ptr)->type.isSequence){   /*lint !e9007 no side effect */
-
-                /* sequence of a sequence */
-                if(sequence){
-
-                    BLINK_ERROR("cannot have a sequence of a sequence")
-                    retval = false;
-                }
-                else{
-
-                    sequence = true;
-                }
-            }
-
-            if(retval){
-
-                depth++;
-                if(depth == (sizeof(stack)/sizeof(*stack))){
-
-                    BLINK_ERROR("depth")
-                    retval = false;
-                }
-                else{
-
-                    stack[depth] = ptr;
-                    ptr = castTypeDef(ptr)->type.resolved;
+                if(fast == slow){
+                    
+                    BLINK_ERROR("Reference cycle detected");
+                    errors = true;
+                    break;
                 }
             }
         }
     }
 
-    if(dynamic && (ptr->type != BLINK_SCHEMA_GROUP)){
-
-        BLINK_ERROR("dynamic reference must resolve to a group")
-        retval = false;
-    }
-
-    return retval;
+    return (errors == false);            
 }
 
 static bool testSuperGroupReferenceConstraint(struct blink_schema_base *self, struct blink_schema_group *group)
@@ -1954,76 +1969,38 @@ static bool testSuperGroupReferenceConstraint(struct blink_schema_base *self, st
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(group != NULL)
 
-    bool retval = true;
-    struct blink_schema *ptr = group->s;
-    struct blink_schema *stack[BLINK_LINK_DEPTH];
-    size_t depth = 0U;
-    size_t i;
+    bool errors = false;
+    bool sequence;
+    bool dynamic;
+    struct blink_schema *ptr = getTerminal(group->s, &dynamic, &sequence);
 
-    (void)memset(stack, 0, sizeof(stack));
+    if(ptr->type != BLINK_SCHEMA_GROUP){
 
-    while(retval && (ptr->type == BLINK_SCHEMA_TYPE_DEF) && (castTypeDef(ptr)->type.tag == BLINK_ITYPE_REF)){ /*lint !e9007 no side effect */
-
-        for(i=0U; i < depth; i++){
-
-            if(stack[i] == ptr){
-
-                BLINK_ERROR("reference cycle detected")
-                retval = false;
-                break;
-            }
-        }
-
-        if(i == depth){
-
-            if(castTypeDef(ptr)->type.isSequence){
-
-                BLINK_ERROR("supergroup cannot be sequence");
-                retval = false;
-            }
-            else{
-
-                if(castTypeDef(ptr)->type.isDynamic){
-
-                    BLINK_ERROR("supergroup cannot be dynamic")
-                    retval = false;
-                }
-                else{
-
-                    depth++;
-                    if(depth == (sizeof(stack)/sizeof(*stack))){
-
-                        BLINK_ERROR("depth")
-                        retval = false;
-                    }
-                    else{
-
-                        stack[depth] = ptr;
-                        ptr = castTypeDef(ptr)->type.resolved;
-                    }
-                }
-            }
-        }
+        BLINK_ERROR("supergroup must be a group")
+        errors = true;
     }
+    else{
 
-    if(retval){
+        if(castGroup(ptr) == group){
 
-        if(ptr->type != BLINK_SCHEMA_GROUP){
-
-            BLINK_ERROR("supergroup must be a group")
-            retval = false;
+            BLINK_ERROR("group cannot be own supergroup")
+            errors = true;
         }
-        else{
-
-            if(castGroup(ptr) == group){
-
-                BLINK_ERROR("group cannot be own supergroup")
-                retval = false;
-            }
-        }
-    }
     
-    return retval;
+        if(sequence){
+
+            BLINK_ERROR("supergroup cannot be a sequence of a group");
+            errors = true;
+        }
+
+        if(dynamic){
+
+            BLINK_ERROR("supergroup cannot be a dynamic reference")
+            errors = true;
+        }
+    }
+
+    return (errors == false);
 }
 
 static bool testSuperGroupShadowConstraint(struct blink_schema_base *self, struct blink_schema_group *group)
@@ -2185,12 +2162,14 @@ static void splitCName(const char *in, size_t inLen, const char **nsName, size_t
     }
 }
 
-static struct blink_schema *getTerminal(struct blink_schema *element, bool *dynamic)
+static struct blink_schema *getTerminal(struct blink_schema *element, bool *dynamic, bool *sequence)
 {
     BLINK_ASSERT(dynamic != NULL)
+    BLINK_ASSERT(sequence != NULL)
 
     struct blink_schema *ptr = element;
     *dynamic = false;
+    *sequence = false;
 
     if(ptr != NULL){
 
@@ -2199,6 +2178,11 @@ static struct blink_schema *getTerminal(struct blink_schema *element, bool *dyna
             if(castTypeDef(ptr)->type.isDynamic){
 
                 *dynamic = true;
+            }
+
+            if(castTypeDef(ptr)->type.isSequence){
+
+                *sequence = true;
             }
             
             ptr = castTypeDef(ptr)->type.resolved;

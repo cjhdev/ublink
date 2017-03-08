@@ -26,6 +26,7 @@ RULES += co-gcc.lnt
 
 # remove debug code
 RULES += '-dNDEBUG'
+RULES += '-dBLINK_NO_DEBUG_MESSAGE'
 
 # n pass algorithm
 RULES += '-passes(2)'

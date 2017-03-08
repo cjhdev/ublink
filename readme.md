@@ -13,52 +13,6 @@ uBlink
 - User configurable IO streams
 - Tests
 
-## Example
-
-~~~ C
-#include "ublink.h"
-#include <malloc.h>
-
-struct blink_allocator alloc = {
-    .calloc = calloc,
-    .free = free
-};
-blink_schema_t schema;
-
-static void setup(void)
-{
-    static const char syntax[] =
-        "InsertOrder/1 ->\n"
-        "   string Symbol,\n"
-        "   string OrderId,\n"
-        "   u32 Price,\n"
-        "   u32 Quantity\n";
-
-    struct blink_stream stream;
-
-    schema = BLINK_Schema_new(alloc, BLINK_Stream_initBufferReadOnly(&stream, syntax, sizeof(syntax)));
-}
-
-void example(void)
-{
-    setup();
-
-    blink_group_t msg = BLINK_Object_newGroup(alloc, "InsertOrder");
-
-    assert(msg != NULL);
-
-    const char *symbol = "IBM";
-    const char *orderID = "12345";
-
-    (void)BLINK_Object_setString(msg, "Symbol", symbol, strlen(symbol));
-    (void)BLINK_Object_setString(msg, "OrderID", orderID, strlen(orderID));
-    (void)BLINK_Object_setUint(msg, "Price", 100);
-    (void)BLINK_Object_setUint(msg, "Quantity", 5);
-
-    (void)BLINK_Object_encode(msg, out);
-}
-~~~
-
 ## Integrating With Your Project
 
 Example makefile snippet:
@@ -74,7 +28,6 @@ OBJECTS += $(SRC:.c=.o)
 ~~~
 
 Add `#include "ublink.h"` to source files that use the UBlink API.
-
 
 ### Compile Time Options
 
@@ -95,9 +48,6 @@ DEFINES += -DBLINK_DEBUG(...)='do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "
 
 # define your own BLINK_ERROR() macro (default: defined as shown)
 DEFINES += -DBLINK_ERROR(...)='do{fprintf(stderr, __VA_ARGS__);fprintf(stderr, "\n");}while(0);'
-
-# define the maximum number of references allowed in a chain (default: 10)
-DEFINES += -DBLINK_LINK_DEPTH=10
 
 # define the largest literal or name that can be handled by the lexer (default: 100)
 DEFINES += -DBLINK_TOKEN_MAX_SIZE=100
