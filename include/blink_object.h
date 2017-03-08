@@ -224,9 +224,8 @@ const char *BLINK_Object_getEnum(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value boolean
  *
- * @return true if value can be read
+ * @return boolean
  *
  * */
 bool BLINK_Object_getBool(blink_object_t group, const char *fieldName);
@@ -235,9 +234,8 @@ bool BLINK_Object_getBool(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value boolean
  *
- * @return true if value can be read
+ * @return decimal
  *
  * */
 struct blink_decimal BLINK_Object_getDecimal(blink_object_t group, const char *fieldName);
@@ -246,9 +244,8 @@ struct blink_decimal BLINK_Object_getDecimal(blink_object_t group, const char *f
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value u8
  *
- * @return true if value can be read
+ * @return uint
  *
  * */
 uint64_t BLINK_Object_getUint(blink_object_t group, const char *fieldName);
@@ -257,9 +254,8 @@ uint64_t BLINK_Object_getUint(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value i8
  *
- * @return true if value can be read
+ * @return int
  *
  * */
 int64_t BLINK_Object_getInt(blink_object_t group, const char *fieldName);
@@ -268,9 +264,8 @@ int64_t BLINK_Object_getInt(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value f64
  *
- * @return true if value can be read
+ * @return f64
  *
  * */
 double BLINK_Object_getF64(blink_object_t group, const char *fieldName);
@@ -279,9 +274,8 @@ double BLINK_Object_getF64(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value string
  *
- * @return true if value can be read
+ * @return string
  *
  * */
 struct blink_string BLINK_Object_getString(blink_object_t group, const char *fieldName);
@@ -290,9 +284,8 @@ struct blink_string BLINK_Object_getString(blink_object_t group, const char *fie
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value binary
  *
- * @return true if value can be read
+ * @return binary string
  *
  * */
 struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fieldName);
@@ -301,9 +294,8 @@ struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fi
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value fixed
  *
- * @return true if value can be read
+ * @return fixed size string
  *
  * */
 struct blink_string  BLINK_Object_getFixed(blink_object_t group, const char *fieldName);
@@ -312,9 +304,8 @@ struct blink_string  BLINK_Object_getFixed(blink_object_t group, const char *fie
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value group
  *
- * @return true if value can be read
+ * @return group
  *
  * */
 blink_object_t BLINK_Object_getGroup(blink_object_t group, const char *fieldName);
