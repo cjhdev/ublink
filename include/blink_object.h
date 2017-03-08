@@ -50,23 +50,6 @@ typedef struct blink_object * blink_object_t;
 typedef struct blink_stream * blink_stream_t;
 typedef struct blink_schema * blink_schema_t;
 
-union blink_object_value {
-    bool boolean;   
-    uint64_t u64;   /**< unsigned integer */
-    int64_t i64;    /**< signed integer */
-    double f64;
-    struct blink_string {
-        const uint8_t *data;
-        uint32_t len;
-    } string;       /**< binary, string, and fixed */
-    const char *enumeration;
-    struct blink_decimal {
-        int64_t mantissa;   
-        int8_t exponent;
-    }decimal;
-    blink_object_t group;   /**< static and dynamic groups */
-};
-
 /* functions **********************************************************/
 
 /** Create a new group model from a group definition
@@ -91,35 +74,6 @@ blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_
  * */
 bool BLINK_Object_clear(blink_object_t group, const char *fieldName);
 
-/** Set a field value
- *
- * @note not type safe
- * @note if type safety is required, use one of the specialised set functions
- *
- * @param[in] group
- * @param[in] fieldName null terminated field name string
- * @param[in] value
- *
- * @return true if successful
- *
- * */
-bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value);
-
-/** Get a field value
- *
- * @note not type safe
- * @note if type safety is required, use one of the specialised get functions
- *
- * @param[in] group
- * @param[in] fieldName null terminated field name string
- * 
- * @return value
- *
- * @note if field is NULL it will still return a default value equivalent to zero or NULL
- *
- * */
-union blink_object_value BLINK_Object_get(blink_object_t group, const char *fieldName);
-
 /** Test if a field value is NULL
  *
  * @param[in] group
@@ -134,12 +88,12 @@ bool BLINK_Object_fieldIsNull(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[in] value enum
+ * @param[in] symbol
  *
  * @return true if successful
  *
  * */
-bool BLINK_Object_setEnum(blink_object_t group, const char *fieldName, const char *value);
+bool BLINK_Object_setEnum(blink_object_t group, const char *fieldName, const char *symbol);
 
 /** Write boolean to field
  *
@@ -156,12 +110,13 @@ bool BLINK_Object_setBool(blink_object_t group, const char *fieldName, bool valu
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[in] value decimal
+ * @param[in] mantissa
+ * @param[in] exponent
  *
  * @return true if successful
  *
  * */
-bool BLINK_Object_setDecimal(blink_object_t group, const char *fieldName, struct blink_decimal *value);
+bool BLINK_Object_setDecimal(blink_object_t group, const char *fieldName, int64_t mantissa, int8_t exponent);
 
 /** Write an unsigned integer to field
  *
@@ -200,34 +155,39 @@ bool BLINK_Object_setF64(blink_object_t group, const char *fieldName, double val
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[in] value string
+ * @param[in] str
+ * @param[in] len byte length of str
  *
  * @return true if successful
  *
  * */
-bool BLINK_Object_setString(blink_object_t group, const char *fieldName, struct blink_string *value);
+bool BLINK_Object_setString(blink_object_t group, const char *fieldName, const char *str, uint32_t len);
+
+bool BLINK_Object_setString2(blink_object_t group, const char *fieldName, const char *str);
 
 /** Write binary to field
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[in] value binary
+ * @param[in] data
+ * @param[in] len byte length of data
  *
  * @return true if successful
  *
  * */
-bool BLINK_Object_setBinary(blink_object_t group, const char *fieldName, struct blink_string *value);
+bool BLINK_Object_setBinary(blink_object_t group, const char *fieldName, const uint8_t *data, uint32_t len);
 
 /** Write fixed to field
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[in] value fixed
+ * @param[in] data
+ * @param[in] value byte length of data
  *
  * @return true if successful
  *
  * */
-bool BLINK_Object_setFixed(blink_object_t group, const char *fieldName, struct blink_string *value);
+bool BLINK_Object_setFixed(blink_object_t group, const char *fieldName, const uint8_t *data, uint32_t len);
 
 /** Write group to field
  *
@@ -254,13 +214,11 @@ bool BLINK_Object_fieldIsNull(blink_object_t group, const char *fieldName);
  *
  * @param[in] group
  * @param[in] fieldName null terminated field name string
- * @param[out] value length of enum 
- * @param[out] valueLen length of enum value
  *
- * @return true if value can be read
+ * @return pointer to enum string
  *
  * */
-struct blink_string BLINK_Object_getEnum(blink_object_t group, const char *fieldName);
+const char *BLINK_Object_getEnum(blink_object_t group, const char *fieldName);
 
 /** Read boolean from field
  *

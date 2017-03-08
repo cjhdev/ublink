@@ -41,6 +41,22 @@
 
 /* types **************************************************************/
 
+union blink_object_value {
+    bool boolean;   
+    uint64_t u64;   /**< unsigned integer */
+    int64_t i64;    /**< signed integer */
+    double f64;
+    struct blink_string {
+        const uint8_t *data;
+        uint32_t len;
+    } string;       /**< binary, string, and fixed */
+    struct blink_decimal {
+        int64_t mantissa;   
+        int8_t exponent;
+    }decimal;
+    blink_object_t group;   /**< static and dynamic groups */
+};
+
 struct blink_object_sequence {  
     union blink_object_value value;
     struct blink_object_sequence *next;
@@ -69,6 +85,9 @@ struct blink_object {
 };
 
 /* static function prototypes *****************************************/
+
+static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value);
+static union blink_object_value BLINK_Object_get(blink_object_t group, const char *fieldName);
 
 static struct blink_object_field *lookupField(struct blink_object *group, const char *name, size_t nameLen);
 static size_t countFields(blink_schema_t group);
@@ -803,11 +822,13 @@ bool BLINK_Object_encodeCompact(blink_object_t group, blink_stream_t out)
 
     if(BLINK_Group_hasID(group->definition)){
 
+        uint64_t id = BLINK_Group_getID(group->definition);
+
         if(cacheSize(group)){
 
-            if(BLINK_Compact_encodeU32(group->size, out)){
+            if(BLINK_Compact_encodeU32(group->size + BLINK_Compact_sizeofUnsigned(id), out)){
 
-                if(BLINK_Compact_encodeU64(BLINK_Group_getID(group->definition), out)){
+                if(BLINK_Compact_encodeU64(id, out)){
 
                     retval = encodeBody(group, out);
                 }
@@ -868,7 +889,159 @@ void BLINK_Object_iterate(blink_object_t group, const char *fieldName, void *use
     }
 }
     
-bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value)
+
+
+bool BLINK_Object_clear(blink_object_t group, const char *fieldName)
+{
+    BLINK_ASSERT(group != NULL)
+
+    bool retval = false;
+    struct blink_object_field *field = lookupField(group, fieldName, strlen(fieldName));
+
+    if(field != NULL){
+
+        field->initialised = false;
+        retval = true;
+    }
+
+    return retval;
+}
+
+bool BLINK_Object_setEnum(blink_object_t group, const char *fieldName, const char *symbol)
+{
+    union blink_object_value value = {.string = {.data = (uint8_t *)symbol}};
+
+    return BLINK_Object_set(group, fieldName, &value);
+}
+
+bool BLINK_Object_setBool(blink_object_t group, const char *fieldName, bool value)
+{
+    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);    
+}
+
+bool BLINK_Object_setDecimal(blink_object_t group, const char *fieldName, int64_t mantissa, int8_t exponent)
+{
+    union blink_object_value value = {.decimal = {.mantissa = mantissa, .exponent = exponent}};
+
+    return BLINK_Object_set(group, fieldName, &value);    
+}
+
+bool BLINK_Object_setUint(blink_object_t group, const char *fieldName, uint64_t value)
+{
+    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
+}
+
+bool BLINK_Object_setInt(blink_object_t group, const char *fieldName, int64_t value)
+{
+    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
+}
+
+bool BLINK_Object_setF64(blink_object_t group, const char *fieldName, double value)
+{
+    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
+}
+
+bool BLINK_Object_setString(blink_object_t group, const char *fieldName, const char *str, uint32_t len)
+{
+    union blink_object_value value = {.string = {.data = (uint8_t *)str, .len = len}};
+
+    return BLINK_Object_set(group, fieldName, &value);        
+}
+
+bool BLINK_Object_setString2(blink_object_t group, const char *fieldName, const char *str)
+{
+    union blink_object_value value = {.string = {.data = (uint8_t *)str, .len = (uint32_t)strlen(str)}};
+    
+    return BLINK_Object_set(group, fieldName, &value);        
+}
+
+bool BLINK_Object_setBinary(blink_object_t group, const char *fieldName, const uint8_t *data, uint32_t len)
+{
+    union blink_object_value value = {.string = {.data = data, .len = len}};
+    
+    return BLINK_Object_set(group, fieldName, &value);        
+}
+
+bool BLINK_Object_setFixed(blink_object_t group, const char *fieldName, const uint8_t *data, uint32_t len)
+{
+    union blink_object_value value = {.string = {.data = data, .len = len}};
+    
+    return BLINK_Object_set(group, fieldName, &value);        
+}
+
+bool BLINK_Object_setGroup(blink_object_t group, const char *fieldName, blink_object_t value)
+{
+    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);        
+}
+
+bool BLINK_Object_fieldIsNull(blink_object_t group, const char *fieldName)
+{
+    BLINK_ASSERT(group != NULL)
+
+    bool retval = false;
+    struct blink_object_field *field = lookupField(group, fieldName, strlen(fieldName));
+
+    if(field != NULL){
+
+        retval = (false == field->initialised);
+    }
+
+    return retval;
+}
+
+const char *BLINK_Object_getEnum(blink_object_t group, const char *fieldName)
+{
+    return (const char *)BLINK_Object_get(group, fieldName).string.data;
+}
+
+bool BLINK_Object_getBool(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).boolean;
+}
+
+struct blink_decimal BLINK_Object_getDecimal(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).decimal;
+}
+
+uint64_t BLINK_Object_getUint(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).u64;
+}
+
+int64_t BLINK_Object_getInt(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).i64;
+}
+
+double BLINK_Object_getF64(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).f64;
+}
+
+struct blink_string BLINK_Object_getString(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).string;
+}
+
+struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).string;
+}
+
+struct blink_string  BLINK_Object_getFixed(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).string;
+}   
+
+blink_object_t BLINK_Object_getGroup(blink_object_t group, const char *fieldName)
+{
+    return BLINK_Object_get(group, fieldName).group;
+}
+
+/* static functions ***************************************************/
+
+static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value)
 {
     BLINK_ASSERT(group != NULL)
 
@@ -892,7 +1065,7 @@ bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union b
                     (void)memcpy(data, value->string.data, value->string.len);
                     field->data.value.string.data = data;
                     field->data.value.string.len = value->string.len;
-                    retval = true;
+                    retval = true;                    
                 }
                 else{
 
@@ -951,13 +1124,17 @@ bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union b
             break;        
         case BLINK_TYPE_ENUM:
         {
-            blink_schema_t e = BLINK_Enum_getSymbolByName(field->definition, value->enumeration);
+            blink_schema_t s = BLINK_Enum_getSymbolByName(field->definition, (char *)value->string.data);
 
-            if(e != NULL){
+            if(s != NULL){
 
-                field->data.value.i64 = (int64_t)BLINK_Symbol_getValue(e);
+                field->data.value.i64 = (int64_t)BLINK_Symbol_getValue(s);
                 retval = true;
-            }                        
+            }
+            else{
+
+                BLINK_ERROR("enum symbol \"%s\" is undefined", value->string.data)
+            }
         }
             break;            
         case BLINK_TYPE_F64:
@@ -985,13 +1162,18 @@ bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union b
             break;        
         default:
             break;
-        }          
+        }
+
+        if(retval == true){
+
+            field->initialised = true;
+        }
     }
 
     return retval;    
 }
 
-union blink_object_value BLINK_Object_get(blink_object_t group, const char *fieldName)
+static union blink_object_value BLINK_Object_get(blink_object_t group, const char *fieldName)
 {
     BLINK_ASSERT(group != NULL)
 
@@ -1011,7 +1193,7 @@ union blink_object_value BLINK_Object_get(blink_object_t group, const char *fiel
 
                 if(s != NULL){
 
-                    retval.enumeration = BLINK_Symbol_getName(s);
+                    retval.string.data = (uint8_t *)BLINK_Symbol_getName(s);                    
                 }                            
             }
             else{
@@ -1023,140 +1205,6 @@ union blink_object_value BLINK_Object_get(blink_object_t group, const char *fiel
 
     return retval;    
 }
-
-bool BLINK_Object_clear(blink_object_t group, const char *fieldName)
-{
-    BLINK_ASSERT(group != NULL)
-
-    bool retval = false;
-    struct blink_object_field *field = lookupField(group, fieldName, strlen(fieldName));
-
-    if(field != NULL){
-
-        field->initialised = false;
-        retval = true;
-    }
-
-    return retval;
-}
-
-bool BLINK_Object_setEnum(blink_object_t group, const char *fieldName, const char *value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);
-}
-
-bool BLINK_Object_setBool(blink_object_t group, const char *fieldName, bool value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);    
-}
-
-bool BLINK_Object_setDecimal(blink_object_t group, const char *fieldName, struct blink_decimal *value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
-}
-
-bool BLINK_Object_setUint(blink_object_t group, const char *fieldName, uint64_t value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
-}
-
-bool BLINK_Object_setInt(blink_object_t group, const char *fieldName, int64_t value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
-}
-
-bool BLINK_Object_setF64(blink_object_t group, const char *fieldName, double value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)&value);    
-}
-
-bool BLINK_Object_setString(blink_object_t group, const char *fieldName, struct blink_string *value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);        
-}
-
-bool BLINK_Object_setBinary(blink_object_t group, const char *fieldName, struct blink_string *value)
-{
-    
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);        
-}
-
-bool BLINK_Object_setFixed(blink_object_t group, const char *fieldName, struct blink_string *value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);        
-}
-
-bool BLINK_Object_setGroup(blink_object_t group, const char *fieldName, blink_object_t value)
-{
-    return BLINK_Object_set(group, fieldName, (union blink_object_value *)value);        
-}
-
-bool BLINK_Object_fieldIsNull(blink_object_t group, const char *fieldName)
-{
-    BLINK_ASSERT(group != NULL)
-
-    bool retval = false;
-    struct blink_object_field *field = lookupField(group, fieldName, strlen(fieldName));
-
-    if(field != NULL){
-
-        retval = (false == field->initialised);
-    }
-
-    return retval;
-}
-
-struct blink_string BLINK_Object_getEnum(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).string;
-}
-
-bool BLINK_Object_getBool(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).boolean;
-}
-
-struct blink_decimal BLINK_Object_getDecimal(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).decimal;
-}
-
-uint64_t BLINK_Object_getUint(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).u64;
-}
-
-int64_t BLINK_Object_getInt(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).i64;
-}
-
-double BLINK_Object_getF64(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).f64;
-}
-
-struct blink_string BLINK_Object_getString(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).string;
-}
-
-struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).string;
-}
-
-struct blink_string  BLINK_Object_getFixed(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).string;
-}   
-
-blink_object_t BLINK_Object_getGroup(blink_object_t group, const char *fieldName)
-{
-    return BLINK_Object_get(group, fieldName).group;
-}
-
-/* static functions ***************************************************/
 
 static struct blink_object_field *lookupField(struct blink_object *group, const char *name, size_t nameLen)
 {
@@ -1213,7 +1261,7 @@ static bool cacheSize(blink_object_t group)
 
         bool isSequence = BLINK_Field_isSequence(f->definition);
 
-        if(group->fields[i].initialised){
+        if(f->initialised){
 
             if(isSequence){
 
@@ -1269,11 +1317,9 @@ static bool cacheSize(blink_object_t group)
                     case BLINK_TYPE_NANO_TIME:
                     case BLINK_TYPE_MILLI_TIME:
                     case BLINK_TYPE_I64:
+                    case BLINK_TYPE_ENUM:
                         group->size += BLINK_Compact_sizeofSigned(value->i64);                
                         break;        
-                    case BLINK_TYPE_ENUM:
-                        group->size += BLINK_Compact_sizeofSigned(BLINK_Symbol_getValue(BLINK_Enum_getSymbolByName(BLINK_Field_getEnum(f->definition), value->enumeration)));
-                        break;                            
                     case BLINK_TYPE_DECIMAL:
                         group->size += BLINK_Compact_sizeofSigned(value->decimal.exponent);
                         group->size += BLINK_Compact_sizeofSigned(value->decimal.mantissa);
@@ -1423,6 +1469,7 @@ static bool encodeBody(const blink_object_t g, blink_stream_t out)
                     case BLINK_TYPE_NANO_TIME:
                     case BLINK_TYPE_MILLI_TIME:
                     case BLINK_TYPE_I64:
+                    case BLINK_TYPE_ENUM:
                 
                         if(!BLINK_Compact_encodeI64(value->i64, out)){
 
@@ -1445,17 +1492,6 @@ static bool encodeBody(const blink_object_t g, blink_stream_t out)
                             return NULL;
                         }
                         break;
-
-                    case BLINK_TYPE_ENUM:
-                    {
-                        blink_schema_t e = BLINK_Field_getEnum(f->definition);
-                        blink_schema_t s = BLINK_Enum_getSymbolByName(e, value->enumeration);
-                        if(!BLINK_Compact_encodeU32(BLINK_Symbol_getValue(s), out)){
-
-                            return NULL;
-                        }
-                        break;
-                    }
 
                     case BLINK_TYPE_STATIC_GROUP:
 

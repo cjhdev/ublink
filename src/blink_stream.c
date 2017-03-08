@@ -61,7 +61,15 @@ bool BLINK_Stream_write(blink_stream_t self, const void *buf, size_t nbyte)
 
                 retval = self->value.user.fn.write(self->value.user.state, buf, nbyte);
             }
-            break;                
+            break;
+
+        case BLINK_STREAM_BOUNDED:
+
+            if((self->value.bounded.max - self->value.bounded.pos) >= (uint32_t)nbyte){
+
+                retval = BLINK_Stream_write(self->value.bounded.stream, buf, nbyte);
+            }
+            break;
         
         default:
             /* no action */
@@ -100,7 +108,15 @@ bool BLINK_Stream_read(blink_stream_t self, void *buf, size_t nbyte)
 
                 retval = self->value.user.fn.read(self->value.user.state, buf, nbyte);
             }
-            break;                
+            break;
+
+        case BLINK_STREAM_BOUNDED:
+
+            if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)nbyte){
+
+                retval = BLINK_Stream_read(self->value.bounded.stream, buf, nbyte);
+            }
+            break;
     
         default:
             /* no action */
@@ -195,6 +211,17 @@ blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state,  st
     self->type = BLINK_STREAM_USER;
     self->value.user.state = state;
     self->value.user.fn = fn;    
+    return (blink_stream_t)self;
+}
+
+blink_stream_t BLINK_Stream_initBounded(struct blink_stream *self, blink_stream_t stream, uint32_t max)
+{
+    BLINK_ASSERT(self != NULL)
+
+    (void)memset(self, 0, sizeof(*self));
+    self->type = BLINK_STREAM_BOUNDED;
+    self->value.bounded.stream = stream;
+    self->value.bounded.max = max;    
     return (blink_stream_t)self;
 }
 
@@ -299,6 +326,8 @@ bool BLINK_Stream_eof(blink_stream_t self)
             retval = self->value.user.fn.eof(self->value.user.state);
         }
         break;
+    case BLINK_STREAM_BOUNDED:
+        
     default:
         /* no action */
         break;

@@ -60,6 +60,7 @@ struct blink_stream {
         BLINK_STREAM_NULL = 0,        /**< uninitialised */
         BLINK_STREAM_BUFFER,          /**< buffer stream */
         BLINK_STREAM_USER,            /**< user stream */
+        BLINK_STREAM_BOUNDED          /**< bounded stream */
     } type;
     union blink_stream_state {
         struct {
@@ -73,6 +74,11 @@ struct blink_stream {
             struct blink_stream_user fn;
             void *state;
         } user;
+        struct {
+            struct blink_stream *stream;
+            uint32_t max;                   
+            uint32_t pos;                              
+        } bounded;
     } value;
     
 };
@@ -146,6 +152,17 @@ blink_stream_t BLINK_Stream_initBuffer(struct blink_stream *self, void *buf, uin
  * 
  * */
 blink_stream_t BLINK_Stream_initUser(struct blink_stream *self, void *state, struct blink_stream_user fn);
+
+/** Init a bounded stream
+ *
+ * @param[in] self
+ * @param[in] stream stream to bound
+ * @param[in] max stream is allowed to read/seek within range (cur .. cur + max) bytes
+ *
+ * @return stream
+ *
+ * */
+blink_stream_t BLINK_Stream_initBounded(struct blink_stream *self, blink_stream_t stream, uint32_t max);
 
 /** Get current position
  *
