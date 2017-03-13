@@ -53,23 +53,22 @@ union blink_object_value {
     struct blink_decimal {
         int64_t mantissa;   
         int8_t exponent;
-    }decimal;
+    } decimal;
     blink_object_t group;   /**< static and dynamic groups */
 };
 
-struct blink_object_sequence {  
+struct sequence_elem {
     union blink_object_value value;
-    struct blink_object_sequence *next;
+    struct sequence_elem *next;
 };
 
 struct blink_object_field {
-    uint32_t size;
     blink_schema_t definition;           /**< field definition */
     union {
         union blink_object_value value;
-        struct {
-            struct blink_object_sequence *head;
-            struct blink_object_sequence *tail;
+        struct sequence_type {
+            struct sequence_elem *head;
+            struct sequence_elem *tail;
             uint32_t size;
         } sequence;
     } data;                         /**< field data may be singular or sequence */
@@ -78,13 +77,59 @@ struct blink_object_field {
 
 struct blink_object {
     uint32_t size;                      /** encoded size cache */
-    struct blink_allocator a;
+    struct blink_allocator alloc;
     blink_schema_t definition;          /**< group definition */    
     struct blink_object_field *fields;  /**< array of fields */
     size_t numberOfFields;
 };
 
+/* used to share scope with helper functions */
+struct decode_state {
+
+    struct stack_element {
+
+        uint32_t i;
+        uint32_t j;
+        uint32_t max;
+        blink_object_t g;
+        struct blink_object_field *f;
+
+    } stack[BLINK_OBJECT_NEST_DEPTH];
+
+    struct stack_element *top;
+    struct blink_stream bounded;
+    blink_schema_t schema;
+    const struct blink_allocator *alloc;
+    union blink_object_value *value;
+    bool *initialised;
+    
+    #if BLINK_OBJECT_NEST_DEPTH > UINT8_MAX
+    #error "BLINK_OBJECT_NEST_DEPTH will overflow depth index"
+    #endif
+    uint8_t depth;
+};
+
+typedef bool (* handler)(struct decode_state *);
+
 /* static function prototypes *****************************************/
+
+static bool decodeCompact_groupHeader(blink_stream_t in, struct decode_state *self);
+static bool decodeCompact_bool(struct decode_state *self);
+static bool decodeCompact_i8(struct decode_state *self);
+static bool decodeCompact_i16(struct decode_state *self);
+static bool decodeCompact_i32(struct decode_state *self);
+static bool decodeCompact_i64(struct decode_state *self);
+static bool decodeCompact_u8(struct decode_state *self);
+static bool decodeCompact_u16(struct decode_state *self);
+static bool decodeCompact_u32(struct decode_state *self);
+static bool decodeCompact_u64(struct decode_state *self);
+static bool decodeCompact_decimal(struct decode_state *self);
+static bool decodeCompact_f64(struct decode_state *self);
+static bool decodeCompact_string(struct decode_state *self);
+static bool decodeCompact_fixed(struct decode_state *self);
+static bool decodeCompact_enum(struct decode_state *self);
+static bool decodeCompact_staticGroup(struct decode_state *self);
+static bool decodeCompact_dynamicGroup(struct decode_state *self);
 
 static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value);
 static union blink_object_value BLINK_Object_get(blink_object_t group, const char *fieldName);
@@ -96,9 +141,72 @@ static bool cacheSize(blink_object_t group);
 
 /* functions **********************************************************/
 
+void BLINK_Object_destroyGroup(blink_object_t *group)
+{
+    BLINK_ASSERT(group != NULL)
+    
+    uint32_t i;
+
+    if(*group != NULL){
+    
+        for(i=0U; i < (*group)->numberOfFields; i++){
+            
+            enum blink_type_tag type = BLINK_Field_getType((*group)->fields[i].definition);
+            struct blink_object_field *f = &(*group)->fields[i];
+            bool isSequence = BLINK_Field_isSequence(f->definition);
+            struct sequence_elem *elem = (isSequence) ? f->data.sequence.head : NULL;
+            
+            if(!isSequence || (elem != NULL)){
+
+                do{
+
+                    union blink_object_value *value = (isSequence) ? &elem->value : &f->data.value;
+
+                    switch(type){
+                    case BLINK_TYPE_STRING:            
+                    case BLINK_TYPE_BINARY:
+                    case BLINK_TYPE_FIXED:
+                        if((*group)->alloc.free != NULL){                
+                            (*group)->alloc.free((void *)value->string.data);
+                            value->string.data = NULL;
+                        }
+                        break;
+                    case BLINK_TYPE_DYNAMIC_GROUP:
+                    case BLINK_TYPE_STATIC_GROUP:
+                        BLINK_Object_destroyGroup(&value->group);
+                        break;
+                    default:
+                        break;
+                    }
+
+                    if(isSequence){
+
+                        struct sequence_elem *cur = elem;
+                        elem = elem->next;
+
+                        if((*group)->alloc.free != NULL){                
+
+                            (*group)->alloc.free(cur);
+                        }
+                    }
+                }
+                while(elem != NULL);
+            }                        
+        }
+
+        if((*group)->alloc.free != NULL){
+            
+            (*group)->alloc.free(*group);
+        }
+                    
+        *group = NULL;
+    }
+}
+
 blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_schema_t group)
 {
     BLINK_ASSERT(group != NULL)
+    BLINK_ASSERT(alloc != NULL)
 
     blink_object_t retval = NULL;
 
@@ -108,13 +216,13 @@ blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_
 
         if(self != NULL){
 
-            self->a = *alloc;
+            self->alloc = *alloc;
             self->definition = group;
             self->numberOfFields = countFields(group);
 
             if(self->numberOfFields > 0U){
 
-                self->fields = self->a.calloc(self->numberOfFields, sizeof(struct blink_object_field));
+                self->fields = self->alloc.calloc(self->numberOfFields, sizeof(struct blink_object_field));
 
                 if(self->fields != NULL){
 
@@ -133,688 +241,223 @@ blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_
 
                     retval = (blink_object_t)self;
                 }
+                else{
+
+                    BLINK_ERROR("calloc()")
+
+                    if(alloc->free != NULL){
+
+                        alloc->free(self);
+                    }
+                }
             }
             else{
             
                 retval = (blink_object_t)self;
             }
         }
+        else{
+
+            BLINK_ERROR("calloc()")
+        }
+    }
+    else{
+
+        BLINK_ERROR("alloc struct must define a pointer to a calloc-like function")
     }
 
     return retval;    
 }
 
-#if 0
-blink_object_t BLINK_Object_decodeCompact(blink_stream_t in, blink_schema_t schema, struct blink_allocator *alloc)
+blink_object_t BLINK_Object_decodeCompact(blink_stream_t in, blink_schema_t schema, const struct blink_allocator *alloc)
 {
-    blink_object_t retval = NULL;
-    blink_schema_t definition;
+    const static handler decoder[] = {
+        decodeCompact_string,       /* BLINK_TYPE_STRING */
+        decodeCompact_string,       /* BLINK_TYPE_BINARY */
+        decodeCompact_fixed,        /* BLINK_TYPE_FIXED */
+        decodeCompact_bool,         /* BLINK_TYPE_BOOL */
+        decodeCompact_u8,           /* BLINK_TYPE_U8 */
+        decodeCompact_u16,          /* BLINK_TYPE_U16 */
+        decodeCompact_u32,          /* BLINK_TYPE_U32 */
+        decodeCompact_u64,          /* BLINK_TYPE_U64 */
+        decodeCompact_i8,           /* BLINK_TYPE_I8 */
+        decodeCompact_i16,          /* BLINK_TYPE_I16 */
+        decodeCompact_i32,          /* BLINK_TYPE_I32 */
+        decodeCompact_i64,          /* BLINK_TYPE_I64 */
+        decodeCompact_f64,          /* BLINK_TYPE_F64 */
+        decodeCompact_i32,          /* BLINK_TYPE_DATE */
+        decodeCompact_u32,          /* BLINK_TYPE_TIME_OF_DAY_MILLI */
+        decodeCompact_u64,          /* BLINK_TYPE_TIME_OF_DAY_NANO */
+        decodeCompact_i64,          /* BLINK_TYPE_NANO_TIME */
+        decodeCompact_i64,          /* BLINK_TYPE_MILLI_TIME */
+        decodeCompact_decimal,      /* BLINK_TYPE_DECIMAL */
+        decodeCompact_dynamicGroup, /* BLINK_TYPE_OBJECT */
+        decodeCompact_enum,         /* BLINK_TYPE_ENUM */
+        decodeCompact_staticGroup,   /* BLINK_TYPE_STATIC_GROUP */
+        decodeCompact_dynamicGroup  /* BLINK_TYPE_DYNAMIC_GROUP */
+    };
 
-    struct stack_element {
-
-        uint32_t i;
-        uint32_t size;
-        blink_group_t g;
-
-    } stack[BLINK_OBJECT_NEST_DEPTH];
-
-    uint8_t depth = 0U;
-
-    struct stack_element *s = &stack[depth];
-
-    struct blink_stream stream;
-
-    if(!BLINK_Compact_decodeU32(in, &size, &isNull)){
-
-        return NULL;
-    }
-
-    if(isNull){
-
-        return NULL;
-    }
-
-    if(size == 0U){
-
-        return NULL;
-    }
-
-    if(!BLINK_Stream_initBounded(&stream, in, size)){
-
-        return NULL;
-    }
-
-    if(!BLINK_Compact_decodeU64(&stream, &id, &isNull)){
-
-        return NULL;
-    }
-
-    if(isNull){
-
-        return NULL;
-    }
-
-    definition = BLINK_Schema_getGroupByID(schema, id);
-
-    if(definition == NULL){
-
-        BLINK_ERROR("W1: unknown group ID")
-        return NULL;
-    }
-
-    retval = BLINK_Object_newGroup(alloc, definition);
-
-    if(retval == NULL){
-
-        return NULL;
-    }
-
-    s->i = 0U;
-    s->g = retval;
-
-    while(true){
-
-        if(s->event == NEXT_FIELD_DEFINITION){
+    blink_object_t retval = NULL;    
+    struct decode_state self;
+    bool isNull;
+    bool error = false;
     
-            while(true){
+    (void)memset(&self, 0, sizeof(self));
 
-                
-            }    
-        }
-        else{
+    self.top = self.stack;
+    self.alloc = alloc;
+    self.schema = schema;
 
-            struct blink_object_field *f = &s->g->fields[i];
-            bool optional = BLINK_Field_isOptional(f->definition);
+    if(decodeCompact_groupHeader(in, &self)){
 
-            switch(BLINK_Field_getType(f->definition)){
-            case BLINK_TYPE_FIXED:
-            {
-                bool present;
-                
-                if(optional){
+        while(!error){
 
-                    if(!BLINK_Compact_decodePresent(in, &present)){
+            if(self.top->i < self.top->g->numberOfFields){
 
-                        event = EVENT_EOF_OR_ERROR;
-                        present = false;
-                    }
-                }
-                else{
+                self.top->f = &self.top->g->fields[self.top->i];
 
-                    present = true;
-                }
+                enum blink_type_tag type = BLINK_Field_getType(self.top->f->definition);
 
-                if(present){
+                if(BLINK_Field_isSequence(self.top->f->definition)){
 
-                    size = BLINK_Field_getSize(f->definition);
-                    
-                    uint8_t *data = alloc->calloc(1, size);
+                    if(self.top->j == 0){
 
-                    if(BLINK_Stream_read(&stream, data, size)){
+                        if(BLINK_Compact_decodeU32(&self.bounded, &self.top->f->data.sequence.size, &isNull)){
 
-                        f->initialised = true;                        
-                        f->data.value.string.data = data;                        
-                        f->data.value.string.len = size;                        
-                    }
-                    else{
+                            self.top->j++;
 
-                        f->data.value.string.data = data;
+                            if(isNull){
 
-                        event = EVENT_EOF_OR_ERROR;
-                    }
-                }
-            }
-                break;
+                                if(BLINK_Field_isOptional(self.top->f->definition)){
 
-            case BLINK_TYPE_STRING:            
-            case BLINK_TYPE_BINARY:
-            
-                if(BLINK_Compact_decodeU32(&stream, &size, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else if(size == 0U){
-
-                        s->g->fields[s->i].initialised = true;                        
-                    }
-                    else{
-                        
-                        uint8_t *data = alloc->calloc(1, size);
-
-                        if(data != NULL){
-                        
-                            if(BLINK_Stream_read(&stream, data, size)){
-
-                                f->initialised = true;                        
-                                f->data.value.string.data = data;                        
-                                f->data.value.string.len = size;                        
-                            }
-                            else{
-
-                                f->data.value.string.data = data;
-
-                                event = EVENT_EOF_OR_ERROR;
-                            }
-                        }
-                    }
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-                break;
-            
-            case BLINK_TYPE_BOOL:
-            {
-                bool value;
-                if(BLINK_Compact_decodeBool(&stream, &value, &isNULL)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-
-                        f->initialised = true;
-                        f->data.value.boolean = value;
-                    }                                                        
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                
-            case BLINK_TYPE_U8:
-            {
-                uint8_t value;
-                if(BLINK_Compact_decodeU8(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.u64 = (uint64_t)value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                
-            case BLINK_TYPE_U16:
-            {
-                uint16_t value;
-                if(BLINK_Compact_decodeU16(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.u64 = (uint64_t)value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                
-            case BLINK_TYPE_U32:
-            case BLINK_TYPE_TIME_OF_DAY_MILLI:
-            {
-                uint32_t value;
-                if(BLINK_Compact_decodeU32(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.u64 = (uint64_t)value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-            
-            case BLINK_TYPE_U64:            
-            case BLINK_TYPE_TIME_OF_DAY_NANO:
-            {
-                uint64_t value;
-                if(BLINK_Compact_decodeU64(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.u64 = value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-            
-            case BLINK_TYPE_I8:
-            {
-                int8_t value;
-                if(BLINK_Compact_decodeI8(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.i64 = (int64_t)value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                
-            case BLINK_TYPE_I16:
-            {
-                int16_t value;
-                if(BLINK_Compact_decodeI16(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.i64 = (int64_t)value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                
-            case BLINK_TYPE_I32:            
-            case BLINK_TYPE_DATE:
-            {
-                int32_t value;
-                if(BLINK_Compact_decodeI32(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                            
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.i64 = (int64_t)value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-            
-            case BLINK_TYPE_NANO_TIME:
-            case BLINK_TYPE_MILLI_TIME:
-            case BLINK_TYPE_I64:
-            {
-                int64_t value;
-                if(BLINK_Compact_decodeI64(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-            
-                        f->initialised = true;
-                        f->data.value.i64 = value;
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                        
-            case BLINK_TYPE_ENUM:
-            {
-                int32_t value;
-                if(BLINK_Compact_decodeI32(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-
-                        blink_schema_t s = BLINK_Enum_getSymbolByValue(field->definition, value->enumeration);
-                        
-                        if(s != NULL){
-
-                            value->enumeration = BLINK_Symbol_getName(s);
-                            f->initialised = true;
-                        }
-                        else{
-
-                            BLINK_ERROR("symbol not found in enum")
-                        }                        
-                    }                    
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }            
-                break;
-                
-            case BLINK_TYPE_F64:
-            {
-                double value;
-                if(BLINK_Compact_decodeF64(&stream, &value, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-
-                        f->initialised = true;
-                        f->data.value.f64 = value;
-                    }
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-                    
-            case BLINK_TYPE_DECIMAL:
-            {
-                int64_t mantissa;
-                int8_t exponent;
-                if(BLINK_Compact_decodeDecimal(&stream, &mantissa, &exponent, &isNull)){
-
-                    if(isNull){
-
-                        if(!optional){
-
-                            event = EVENT_MANDATORY_MISSING;
-                        }
-                    }
-                    else{
-
-                        f->initialised = true;
-                        f->data.value.decimal.mantissa = mantissa;
-                        f->data.value.decimal.exponent = exponent;
-                    }
-                }
-                else{
-
-                    event = EVENT_EOF_OR_ERROR;
-                }
-            }
-                break;
-
-            case BLINK_TYPE_STATIC_GROUP:
-            {
-                bool present;
-                
-                if(optional){
-
-                    if(!BLINK_Compact_decodePresent(in, &present)){
-
-                        event = EVENT_EOF_OR_ERROR;
-                        present = false;
-                    }
-                }
-                else{
-
-                    present = true;
-                }
-
-                if(present){
-
-                    if(depth == ((sizeof(stack)/sizeof(*stack))-1U)){
-
-                        s->event = EVENT_NEST_ERROR;
-                    }
-                    else{
-                    
-                        depth++;
-                        s = &stack[depth];
-                        s->i = 0U;
-                        s->g = BLINK_Field_getGroup(stack[depth-1U].f);
-                        s->event = NEXT_FIELD_DEFINITION;
-                    }
-                }                
-            }
-                break;
-                
-            case BLINK_TYPE_OBJECT:
-            case BLINK_TYPE_DYNAMIC_GROUP:
-            {
-                if(BLINK_Compact_decodeU32(in, &size, &isNull)){
-
-                   if(isNull){
-
-                        if(!optional){
-
-                            
-                        }
-                   }
-                   else{
-
-                        if(size == 0U){
-
-                            BLINK_ERROR("W1: Group cannot have size of zero")
-                        }
-                        else{
-
-                            if((s->size - (uint32_t)BLINK_Stream_tell(&stream)) >= size){
-
-                                (void)BLINK_Stream_initBounded(&stream, size);
-
-                                if(depth == ((sizeof(stack)/sizeof(*stack))-1U)){
-
-                                    BLINK_ERROR("too deep!")
-                                    event = EVENT_NEST_DEPTH;
+                                    self.top->j = 0U;
+                                    self.top->i++;
                                 }
                                 else{
 
-                                    depth++;
-                                    s = &stack[depth];
-                                    s->size = size;
+                                    BLINK_ERROR("cannot be NULL")
+                                    error = true;
+                                }             
+                            }
+                        }
+                        else{
 
-                                    if(BLINK_Compact_decodeU64(in, &id, &isNull)){
+                            error = true;
+                        }
+                    }
+                    else{
 
-                                        if(isNull){
+                        if(self.top->j <= self.top->f->data.sequence.size){
+                        
+                            struct sequence_elem *elem = alloc->calloc(1, sizeof(struct sequence_elem));
 
-                                            BLINK_ERROR("W14: ID is null (and therefore unknown)")
-                                        }
-                                        else{
+                            if(elem == NULL){
 
-                                            definition = BLINK_Schema_getGroupByID(schema, id);
-
-                                            if(definition == NULL){
-
-                                                BLINK_ERROR("W14: ID is unknown")                            
-                                            }
-                                            else{
-
-                                                s->g = BLINK_Object_newGroup(alloc, definition);
-
-                                                if(s->g == NULL){
-
-                                                    //destroy everything?
-                                                }
-                                                else{
-
-                                                    //next field?
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else{
-
-                                        event = EVENT_EOF_OR_ERROR;
-                                    }
-                                }
+                                BLINK_ERROR("calloc()")
+                                error = true;
                             }
                             else{
 
-                                BLINK_ERROR("S1: nested group will overrun parent group")
-                                event = EVENT_INNER_OVERRUN;
+                                if(self.top->f->data.sequence.tail == NULL){
+
+                                    self.top->f->data.sequence.head = elem;
+                                    self.top->f->data.sequence.tail = elem;
+                                }
+                                else{
+
+                                    self.top->f->data.sequence.tail->next = elem;
+                                    self.top->f->data.sequence.tail = elem;                            
+                                }
+
+                                self.value = &elem->value;
+                                self.top->j++;
+                                self.initialised = NULL;
+                                
+                                //callout
+                                error = (decoder[type](&self)) ? false : true;
                             }
-                        }                    
-                   }
-                }
-                else{
+                        }
+                        else{
 
-                    event = EVENT_EOF_OR_ERROR;
-                }
-                break;
-                
-            default:
-                break;
-            }
-
-            switch(s->event){
-            case EVENT_NEST_DEPTH:
-
-                BLINK_ERROR("too many nested groups!")
-                return NULL;
-                
-            case EVENT_EOF_OR_ERROR:
-        
-                if(BLINK_Stream_eof(&stream)){
-
-                    BLINK_ERROR("S1: nested group ended prematurely")
-                }
-                else if(BLINK_Stream_eof(in)){
-
-                    BLINK_ERROR("S1: group ended prematurely")
-                }
-                else{
-
-                    BLINK_ERROR("encoding error")
-                }
-                event = 
-                break;
-
-            case EVENT_MANDATORY_MISSING:
-
-                BLINK_ERROR("W5: field \"%s\" may not be null", BLINK_Field_getName(f->definition))
-                break;
-                
-            case NEXT_SEQUENCE_VALUE:
-            case NEXT_EXTENSION_VALUE:
-                s->sequenceCount++;
-                if(s->sequenceCount == s->sequenceSize){
-            
-                    //raise event end-of-sequence
-                    //raise event end-of-field
-
-                    if(s->event == NEXT_EXTENSION_VALUE){
-
-                        
-                        
-
-                        if((s->inLen - s->pos) > 0U){
-
-                            BLINK_ERROR("extra bytes after sequence but before end of group")
-                            return 0U;                            
+                            self.top->j = 0U;
+                            self.top->i++;
                         }
                     }
-
-                    s->event = NEXT_FIELD_DEFINITION;
                 }
-                break;
-            case NEXT_FIELD_VALUE:
-                //raise end-of-field
-                break;
-            default:
-                /* nothing to be done */
-                break;
-            }
-            
+                else{
 
+                    //callout
+                    self.value = &self.top->f->data.value;
+                    self.initialised = &self.top->f->initialised;
+                    self.top->i++;
+                    error = (decoder[type](&self)) ? false : true;                                
+                }          
+            }
+
+            if(!error){
+                
+                if(self.top->i == self.top->g->numberOfFields){
+
+                    if(
+                        (
+                            (self.top == self.stack)
+                            ||
+                            (
+                                (BLINK_Field_getType(self.top[-1].f->definition) == BLINK_TYPE_DYNAMIC_GROUP)
+                                ||
+                                (BLINK_Field_getType(self.top[-1].f->definition) == BLINK_TYPE_OBJECT)
+                            )
+                        )
+                        &&
+                        (BLINK_Stream_tell(&self.bounded) < BLINK_Stream_max(&self.bounded))
+                    ){
+                                
+                        BLINK_ERROR("additional bytes at end of group are not allowed...for now")
+                        error = true;                        
+                    }
+                    /* unwind */
+                    else{
+
+                        if(self.top == self.stack){
+
+                            /* finished */
+                            retval = self.stack->g;
+                            break;
+                        }
+                        else{
+
+                            self.top = &self.top[-1];
+                            (void)BLINK_Stream_setMax(&self.bounded, self.top->max);
+                        }
+                    }
+                }
+            }            
         }
     }
-    
+    else{
+
+        error = true;
+    }
+
+    if(error){
+
+        if(BLINK_Stream_eof(in)){
+
+            BLINK_ERROR("S1: group ended prematurely")
+        }
+        else{
+
+            if(BLINK_Stream_eof(&self.bounded)){
+
+                BLINK_ERROR("S1: nested group ended prematurely")
+            }            
+        }
+
+        BLINK_Object_destroyGroup(&self.stack->g);        
+    }
+
     return retval;
 }
-#endif
 
 bool BLINK_Object_encodeCompact(blink_object_t group, blink_stream_t out)
 {
@@ -837,7 +480,7 @@ bool BLINK_Object_encodeCompact(blink_object_t group, blink_stream_t out)
     }
     else{
 
-        BLINK_ERROR("cannot encode group without and ID")
+        BLINK_ERROR("cannot encode group without an ID")
     }
 
     return retval;
@@ -869,7 +512,7 @@ void BLINK_Object_iterate(blink_object_t group, const char *fieldName, void *use
 {
     BLINK_ASSERT(group != NULL)
 
-    struct blink_object_sequence *seq;
+    struct sequence_elem *seq;
     struct blink_object_field *field = lookupField(group, fieldName, strlen(fieldName));
 
     if(field != NULL){
@@ -889,8 +532,6 @@ void BLINK_Object_iterate(blink_object_t group, const char *fieldName, void *use
     }
 }
     
-
-
 bool BLINK_Object_clear(blink_object_t group, const char *fieldName)
 {
     BLINK_ASSERT(group != NULL)
@@ -999,9 +640,12 @@ bool BLINK_Object_getBool(blink_object_t group, const char *fieldName)
     return BLINK_Object_get(group, fieldName).boolean;
 }
 
-struct blink_decimal BLINK_Object_getDecimal(blink_object_t group, const char *fieldName)
+void BLINK_Object_getDecimal(blink_object_t group, const char *fieldName, int64_t *mantissa, int8_t *exponent)
 {
-    return BLINK_Object_get(group, fieldName).decimal;
+    union blink_object_value value = BLINK_Object_get(group, fieldName);
+
+    *mantissa = value.decimal.mantissa;
+    *exponent = value.decimal.exponent;
 }
 
 uint64_t BLINK_Object_getUint(blink_object_t group, const char *fieldName)
@@ -1019,19 +663,28 @@ double BLINK_Object_getF64(blink_object_t group, const char *fieldName)
     return BLINK_Object_get(group, fieldName).f64;
 }
 
-struct blink_string BLINK_Object_getString(blink_object_t group, const char *fieldName)
+void BLINK_Object_getString(blink_object_t group, const char *fieldName, const char **str, uint32_t *len)
 {
-    return BLINK_Object_get(group, fieldName).string;
+    union blink_object_value value = BLINK_Object_get(group, fieldName);
+
+    *str = (char *)value.string.data;
+    *len = value.string.len;    
 }
 
-struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fieldName)
+void BLINK_Object_getBinary(blink_object_t group, const char *fieldName, const uint8_t **data, uint32_t *len)
 {
-    return BLINK_Object_get(group, fieldName).string;
+    union blink_object_value value = BLINK_Object_get(group, fieldName);
+
+    *data = value.string.data;
+    *len = value.string.len;
 }
 
-struct blink_string  BLINK_Object_getFixed(blink_object_t group, const char *fieldName)
+void BLINK_Object_getFixed(blink_object_t group, const char *fieldName, const uint8_t **data, uint32_t *len)
 {
-    return BLINK_Object_get(group, fieldName).string;
+    union blink_object_value value = BLINK_Object_get(group, fieldName);
+
+    *data = value.string.data;
+    *len = value.string.len;
 }   
 
 blink_object_t BLINK_Object_getGroup(blink_object_t group, const char *fieldName)
@@ -1040,6 +693,632 @@ blink_object_t BLINK_Object_getGroup(blink_object_t group, const char *fieldName
 }
 
 /* static functions ***************************************************/
+
+static bool decodeCompact_groupHeader(blink_stream_t in, struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    uint64_t id;    
+    
+    if(BLINK_Compact_decodeU32(in, &self->top->max, &isNull)){
+    
+        if(isNull || (self->top->max == 0U)){
+
+            BLINK_ERROR("W1: Top level group size is NULL or zero")
+        }
+        else{
+
+            (void)BLINK_Stream_initBounded(&self->bounded, in, self->top->max);
+
+            if(BLINK_Compact_decodeU64(&self->bounded, &id, &isNull)){
+
+                if(isNull){
+
+                    BLINK_ERROR("W1: unknown group ID")                
+                }
+                else{
+
+                    blink_schema_t groupDef = BLINK_Schema_getGroupByID(self->schema, id);
+
+                    if(groupDef == NULL){
+
+                        BLINK_ERROR("W1: unknown group ID")
+                    }
+                    else{
+
+                        self->top->g = BLINK_Object_newGroup(self->alloc, groupDef);
+
+                        if(self->top->g != NULL){
+
+                            retval = true;
+                        }                        
+                    }
+                }
+            }
+        }
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_fixed(struct decode_state *self)
+{
+    bool retval = true;
+    bool isPresent = true;
+    struct stack_element *top = self->top;
+                
+    if(BLINK_Field_isOptional(top->f->definition)){
+
+        if(!BLINK_Compact_decodePresent(&self->bounded, &isPresent)){
+
+            retval = false;
+        }
+    }
+
+    if(retval && isPresent){
+
+        retval = false;
+        
+        uint32_t size = BLINK_Field_getSize(top->f->definition);        
+        uint8_t *data = self->alloc->calloc(1, size);
+
+        if(data != NULL){
+
+            self->value->string.data = data;
+            self->value->string.len = size;
+
+            if(BLINK_Stream_read(&self->bounded, data, size)){
+
+               retval = true;
+
+               if(self->initialised != NULL){
+
+                    *self->initialised = true;
+               }               
+            }
+        }
+        else{
+
+            BLINK_ERROR("calloc()")
+        }        
+    }
+    
+    return retval;
+}
+
+static bool decodeCompact_string(struct decode_state *self)
+{
+    bool retval = false;
+    uint32_t size;
+    bool isNull;
+    struct stack_element *top = self->top;
+
+    if(BLINK_Compact_decodeU32(&self->bounded, &size, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+            
+            if(size > 0U){
+
+                uint8_t *data = self->alloc->calloc(1U, size);
+
+                if(data != NULL){
+
+                    self->value->string.data = data;                        
+                    self->value->string.len = size;        
+                
+                    if(BLINK_Stream_read(&self->bounded, data, size)){
+
+                        retval = true;
+
+                        if(self->initialised != NULL){
+
+                            *self->initialised = true;
+                       }               
+                    }
+                }
+                else{
+
+                    BLINK_ERROR("calloc()")
+                }
+            }
+            else{
+
+                retval = true;
+            }
+        }
+    }
+    
+    return retval;
+}
+
+static bool decodeCompact_bool(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    bool value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeBool(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+        
+            self->value->boolean = value;
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            retval = true;
+        }                                                        
+    }
+    
+    return retval;
+}
+
+static bool decodeCompact_u8(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    uint8_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeU8(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            self->value->u64 = (uint64_t)value;
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_u16(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    uint16_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeU16(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            self->value->u64 = (uint64_t)value;
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+static bool decodeCompact_u32(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    uint32_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeU32(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->u64 = (uint64_t)value;
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+static bool decodeCompact_u64(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    uint64_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeU64(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->u64 = value;
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+static bool decodeCompact_i8(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    int8_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeI8(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->i64 = (int64_t)value;
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+static bool decodeCompact_i16(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    int16_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeI16(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->i64 = (int64_t)value;
+            retval = true;        
+        }                    
+    }
+
+    return retval;
+}
+static bool decodeCompact_i32(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    int32_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeI32(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->i64 = (int64_t)value;
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+static bool decodeCompact_i64(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    int64_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeI64(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->i64 = value;
+            retval = true;
+        }                    
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_enum(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    int32_t value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeI32(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(BLINK_Enum_getSymbolByValue(top->f->definition, value) != NULL){
+
+                if(self->initialised != NULL){
+
+                    *self->initialised = true;
+                }
+                self->value->i64 = (int64_t)value;            
+                retval = true;
+            }
+            else{
+
+                BLINK_ERROR("symbol not found in enum")
+            }                        
+        }                    
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_f64(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    double value;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeF64(&self->bounded, &value, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->f64 = value;
+            retval = true;
+        }
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_decimal(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    int64_t mantissa;
+    int8_t exponent;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeDecimal(&self->bounded, &mantissa, &exponent, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+    
+                retval = true;
+            }            
+        }
+        else{
+
+            if(self->initialised != NULL){
+
+                *self->initialised = true;
+            }
+            self->value->decimal.mantissa = mantissa;
+            self->value->decimal.exponent = exponent;
+            retval = true;
+        }
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_staticGroup(struct decode_state *self)
+{
+    bool retval = true;
+    bool isPresent = true;
+    struct stack_element *top = self->top;
+                
+    if(BLINK_Field_isOptional(top->f->definition)){
+
+        if(!BLINK_Compact_decodePresent(&self->bounded, &isPresent)){
+
+            retval = false;
+        }
+    }
+
+    if(retval && isPresent){
+
+        retval = false;
+
+        if(top == &self->stack[(BLINK_OBJECT_NEST_DEPTH-1U)]){
+
+            BLINK_ERROR("too much nesting")
+        }
+        else{
+
+            (void)memset(&top[1], 0, sizeof(*self->stack));
+
+            top[1].g = BLINK_Object_newGroup(self->alloc, BLINK_Field_getGroup(top->f->definition));
+
+            if(top[1].g != NULL){
+
+                top = &top[1];
+                retval = true;
+            }
+            else{
+
+                BLINK_ERROR("calloc()")
+            }            
+        }
+    }
+
+    return retval;
+}
+
+static bool decodeCompact_dynamicGroup(struct decode_state *self)
+{
+    bool retval = false;
+    bool isNull;
+    uint32_t size;
+    uint64_t id;
+    blink_schema_t groupDef;
+    struct stack_element *top = self->top;
+    
+    if(BLINK_Compact_decodeU32(&self->bounded, &size, &isNull)){
+
+        if(isNull){
+
+            if(BLINK_Field_isOptional(top->f->definition)){
+
+                retval = true;
+            }            
+        }
+        else if(size == 0U){
+
+            BLINK_ERROR("W1: Group cannot have size of zero")
+        }
+        else if((BLINK_Stream_max(&self->bounded) - BLINK_Stream_tell(&self->bounded)) < size){
+
+            BLINK_ERROR("S1: nested group will overrun parent group")
+        }
+        else{
+
+            if(top == &self->stack[(BLINK_OBJECT_NEST_DEPTH-1U)]){
+
+                BLINK_ERROR("too much nesting")
+            }
+            else{
+
+                (void)memset(&top[1], 0, sizeof(*self->stack));
+
+                BLINK_Stream_setMax(&self->bounded, top->max);
+                        
+                if(BLINK_Compact_decodeU64(&self->bounded, &id, &isNull)){
+
+                    if(!isNull){
+
+                        groupDef = BLINK_Schema_getGroupByID(self->schema, id);
+                    }
+
+                    if(isNull || (groupDef == NULL)){
+
+                        BLINK_ERROR("W14: Group is unknown")
+                    }
+                    else{
+
+                        if((BLINK_Field_getType(top->f->definition) == BLINK_TYPE_OBJECT) || BLINK_Group_isKindOf(groupDef, BLINK_Field_getGroup(top->f->definition))){
+
+                            top = &top[1];
+                            top->max = size;
+
+                            top->g = BLINK_Object_newGroup(self->alloc, groupDef);
+
+                            if(top->g != NULL){
+
+                                retval = true;
+                            }
+                            else{
+
+                                BLINK_ERROR("calloc()")
+                            }
+                        }
+                        else{
+
+                            BLINK_ERROR("not what we expect")
+                        }
+                    }
+                }
+            }
+        }
+    }
+     
+    return retval;
+}
 
 static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const union blink_object_value *value)
 {
@@ -1058,7 +1337,7 @@ static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const 
 
             if(value->string.len <= BLINK_Field_getSize(field->definition)){
 
-                uint8_t *data = group->a.calloc(1, value->string.len);
+                uint8_t *data = group->alloc.calloc(1, value->string.len);
 
                 if(data != NULL){
 
@@ -1080,7 +1359,7 @@ static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const 
         case BLINK_TYPE_FIXED:
             if(value->string.len == BLINK_Field_getSize(field->definition)){
 
-                uint8_t *data = group->a.calloc(1, value->string.len);
+                uint8_t *data = group->alloc.calloc(1, value->string.len);
 
                 if(data != NULL){
 
@@ -1249,7 +1528,7 @@ static size_t countFields(blink_schema_t group)
  * if all mandatory fields have been initialised */
 static bool cacheSize(blink_object_t group)
 {
-    struct blink_object_sequence *seq;
+    struct sequence_elem *seq;
     uint32_t i;
     group->size = 0U;
     
@@ -1367,7 +1646,7 @@ static bool cacheSize(blink_object_t group)
 
 static bool encodeBody(const blink_object_t g, blink_stream_t out)
 {
-    struct blink_object_sequence *seq;
+    struct sequence_elem *seq;
     bool retval = false;
     uint32_t i;
     

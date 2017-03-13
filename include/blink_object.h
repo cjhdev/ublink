@@ -235,10 +235,9 @@ bool BLINK_Object_getBool(blink_object_t group, const char *fieldName);
  * @param[in] group
  * @param[in] fieldName null terminated field name string
  *
- * @return decimal
  *
  * */
-struct blink_decimal BLINK_Object_getDecimal(blink_object_t group, const char *fieldName);
+void BLINK_Object_getDecimal(blink_object_t group, const char *fieldName, int64_t *mantissa, int8_t *exponent);
 
 /** Read Uint from field
  *
@@ -275,10 +274,8 @@ double BLINK_Object_getF64(blink_object_t group, const char *fieldName);
  * @param[in] group
  * @param[in] fieldName null terminated field name string
  *
- * @return string
- *
  * */
-struct blink_string BLINK_Object_getString(blink_object_t group, const char *fieldName);
+void BLINK_Object_getString(blink_object_t group, const char *fieldName, const char **str, uint32_t *len);
 
 /** Read binary from field
  *
@@ -288,7 +285,7 @@ struct blink_string BLINK_Object_getString(blink_object_t group, const char *fie
  * @return binary string
  *
  * */
-struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fieldName);
+void BLINK_Object_getBinary(blink_object_t group, const char *fieldName, const uint8_t **data, uint32_t *len);
 
 /** Read fixed from field
  *
@@ -298,7 +295,7 @@ struct blink_string  BLINK_Object_getBinary(blink_object_t group, const char *fi
  * @return fixed size string
  *
  * */
-struct blink_string  BLINK_Object_getFixed(blink_object_t group, const char *fieldName);
+void BLINK_Object_getFixed(blink_object_t group, const char *fieldName, const uint8_t **data, uint32_t *len);
 
 /** Read group from field
  *
@@ -322,7 +319,7 @@ blink_schema_t BLINK_Object_getFieldDefinition(blink_object_t group, const char 
 
 bool BLINK_Object_encodeCompact(blink_object_t group, blink_stream_t out);
 
-blink_object_t BLINK_Object_decodeCompact(blink_stream_t in, const struct blink_allocator *alloc);
+blink_object_t BLINK_Object_decodeCompact(blink_stream_t in, blink_schema_t schema, const struct blink_allocator *alloc);
 
 /** @} */
 

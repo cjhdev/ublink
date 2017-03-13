@@ -116,8 +116,9 @@ bool BLINK_Stream_read(blink_stream_t self, void *buf, size_t nbyte)
 
         case BLINK_STREAM_BOUNDED:
 
-            if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)nbyte){
+            if((self->value.bounded.max - self->value.bounded.pos) >= (uint32_t)nbyte){
 
+                self->value.bounded.pos += (uint32_t)nbyte;
                 retval = BLINK_Stream_read(self->value.bounded.stream, buf, nbyte);
             }
             else{
@@ -251,6 +252,11 @@ uint32_t BLINK_Stream_tell(blink_stream_t self)
 
             retval = self->value.user.fn.tell(self->value.user.state);
         }
+        break;
+
+    case BLINK_STREAM_BOUNDED:
+
+        retval = (uint32_t)self->value.bounded.pos;
         break;
         
     default:
