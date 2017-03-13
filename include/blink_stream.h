@@ -77,7 +77,8 @@ struct blink_stream {
         struct {
             struct blink_stream *stream;
             uint32_t max;                   
-            uint32_t pos;                              
+            uint32_t pos;
+            bool eof;
         } bounded;
     } value;
     
@@ -214,7 +215,20 @@ bool BLINK_Stream_eof(blink_stream_t self);
  * @retval 0 stream doesn't have a maximum
  *
  * */
-size_t BLINK_Stream_max(blink_stream_t self);
+uint32_t BLINK_Stream_max(blink_stream_t self);
+
+
+/** Set the maximum position of the stream
+ *
+ * @note for bounded streams
+ *
+ * @param[in] self
+ * @param[in] offset byte offset from zero
+ *
+ * @return true if max could be set
+ *
+ * */
+bool BLINK_Stream_setMax(blink_stream_t self, uint32_t offset);
 
 #ifdef __cplusplus
 }

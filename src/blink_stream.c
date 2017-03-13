@@ -98,7 +98,11 @@ bool BLINK_Stream_read(blink_stream_t self, void *buf, size_t nbyte)
                     (void)memcpy(buf, &self->value.buffer.in[self->value.buffer.pos], nbyte);
                     self->value.buffer.pos += (uint32_t)nbyte;
                     retval = true;
-                }                
+                }
+                else{
+
+                    self->value.buffer.eof = true;
+                }         
             }
             break;
 
@@ -115,6 +119,10 @@ bool BLINK_Stream_read(blink_stream_t self, void *buf, size_t nbyte)
             if((self->value.buffer.max - self->value.buffer.pos) >= (uint32_t)nbyte){
 
                 retval = BLINK_Stream_read(self->value.bounded.stream, buf, nbyte);
+            }
+            else{
+
+                self->value.bounded.eof = true;
             }
             break;
     
@@ -327,9 +335,51 @@ bool BLINK_Stream_eof(blink_stream_t self)
         }
         break;
     case BLINK_STREAM_BOUNDED:
-        
+        retval = self->value.bounded.eof;
+        break;
     default:
         /* no action */
+        break;
+    }
+
+    return retval;
+}
+
+bool BLINK_Stream_setMax(blink_stream_t self, uint32_t offset)
+{
+    BLINK_ASSERT(self != NULL)
+    
+    bool retval = false;
+    
+    switch(self->type){
+    case BLINK_STREAM_BOUNDED:
+        if(offset >= self->value.bounded.pos){
+
+            self->value.bounded.max = offset;
+            retval = true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return retval;
+}
+
+uint32_t BLINK_Stream_max(blink_stream_t self)
+{
+    BLINK_ASSERT(self != NULL)
+    
+    uint32_t retval = 0U;
+    
+    switch(self->type){
+    case BLINK_STREAM_BOUNDED:
+        retval = self->value.bounded.max;
+        break;
+    case BLINK_STREAM_BUFFER:
+        retval = self->value.buffer.max;
+        break;
+    default:
         break;
     }
 
