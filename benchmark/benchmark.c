@@ -27,11 +27,11 @@ int main(int argc, const char **argv)
     blink_schema_t schema;
     struct blink_stream stream;
     const char syntax[] = 
-    "InsertOrder/1 ->"
-    "        string Symbol,"
-    "        string OrderId,"
-    "        u32 Price,"
-    "        u32 Quantity";
+    "InsertOrder/1 ->\n"
+            "string Symbol,  # set to 'IBM'\n"
+            "string OrderId, # set to 'ABC123'\n"
+            "u32 Price,      # set to 125\n"
+            "u32 Quantity    # set to 1000\n";
 
     const uint8_t compact_form[] = "\x0f\x01\x03\x49\x42\x4d\x06\x41\x42\x43\x31\x32\x33\x7d\xa8\x0f";
 

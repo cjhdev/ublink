@@ -48,7 +48,7 @@ static struct blink_schema *searchListByName(struct blink_schema *head, const ch
 static void splitCName(const char *in, size_t inLen, const char **nsName, size_t *nsNameLen, const char **name, size_t *nameLen);
 
 static bool resolveDefinitions(struct blink_schema_base *self);
-static struct blink_schema *resolve(struct blink_schema_base *self, const char *cName, size_t cNameLen);
+static struct blink_schema *resolve(struct blink_schema_base *self, const char *cName);
 
 static bool testConstraints(struct blink_schema_base *self);
 static bool testReferenceConstraint(struct blink_schema_base *self, struct blink_schema *reference);
@@ -304,7 +304,7 @@ enum blink_type_tag BLINK_Field_getType(blink_schema_t self)
 
     if(field->type.tag == BLINK_ITYPE_REF){ 
 
-        struct blink_schema *ptr = getTerminal(field->type.resolved, &dynamic, &sequence);
+        struct blink_schema *ptr = getTerminal(field->type.attr.resolved, &dynamic, &sequence);
 
         switch(ptr->type){
         case BLINK_SCHEMA_ENUM:
@@ -330,9 +330,20 @@ enum blink_type_tag BLINK_Field_getType(blink_schema_t self)
 
 uint32_t BLINK_Field_getSize(blink_schema_t self)
 {
-    BLINK_ASSERT(self != NULL)
+    uint32_t retval;
 
-    return castField(self)->type.size;
+    switch(BLINK_Field_getType(self)){
+    case BLINK_TYPE_BINARY:
+    case BLINK_TYPE_STRING:
+    case BLINK_TYPE_FIXED:
+        retval = castField(self)->type.attr.size;
+        break;
+    default:
+        retval = 0U;
+        break;
+    }
+
+    return retval;
 }
 
 blink_schema_t BLINK_Field_getGroup(blink_schema_t self)
@@ -346,7 +357,7 @@ blink_schema_t BLINK_Field_getGroup(blink_schema_t self)
 
         bool dynamic;
         bool sequence;
-        struct blink_schema *ref = getTerminal(field->type.resolved, &dynamic, &sequence);
+        struct blink_schema *ref = getTerminal(field->type.attr.resolved, &dynamic, &sequence);
 
         BLINK_ASSERT(ref != NULL)
 
@@ -370,7 +381,7 @@ blink_schema_t BLINK_Field_getEnum(blink_schema_t self)
 
         bool dynamic;
         bool sequence;
-        struct blink_schema *ref = getTerminal(field->type.resolved, &dynamic, &sequence);
+        struct blink_schema *ref = getTerminal(field->type.attr.resolved, &dynamic, &sequence);
 
         BLINK_ASSERT(ref != NULL)
 
@@ -505,7 +516,6 @@ static struct blink_schema_namespace *getNamespace(struct blink_schema_base *sel
         if(retval != NULL){
 
             retval->super.name = newString(&self->alloc, name, nameLen);
-            retval->super.nameLen = nameLen;
             
             if(retval->super.name == NULL){
 
@@ -518,6 +528,7 @@ static struct blink_schema_namespace *getNamespace(struct blink_schema_base *sel
     return retval;
 }
 
+#ifndef BLINK_NO_ANNOTES
 static blink_schema_t takeAnnotes(blink_schema_t *annotes)
 {
     BLINK_ASSERT(annotes != NULL)
@@ -529,6 +540,7 @@ static blink_schema_t takeAnnotes(blink_schema_t *annotes)
 
     return retval;
 }
+#endif
 
 static bool parseSchema(struct blink_schema_base *self, const struct blink_syntax *in)
 {
@@ -633,9 +645,14 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
 
     char buffer[BLINK_TOKEN_MAX_SIZE];
 
+    struct blink_token_location location = {
+        .row = 1,
+        .col = 0
+    };
+    
     do{
 
-        tok = BLINK_Lexer_getToken(in->in, buffer, sizeof(buffer), &value, NULL);
+        tok = BLINK_Lexer_getToken(in->in, buffer, sizeof(buffer), &value, &location);
         
         if(tok == TOK_ENOMEM){
 
@@ -766,7 +783,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                         else{
 
                             annote->super.name = newString(&self->alloc, value.literal.ptr, value.literal.len);
-                            annote->super.nameLen = value.literal.len;
 
                             if(annote->super.name == NULL){
                                 
@@ -815,7 +831,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 case TOK_LITERAL:
 
                     annote->value = newString(&self->alloc, value.literal.ptr, value.literal.len);
-                    annote->valueLen = value.literal.len;
                     if(annote->value == NULL){
 
                         retval = false;
@@ -877,9 +892,8 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                             retval = false;
                         }
                         else{
-        
+
                             g->super.name = name;
-                            g->super.nameLen = nameLen;
                             g->ns = ns;
                             g->a = takeAnnotes(&annotes);
                             
@@ -996,7 +1010,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     t->a = takeAnnotes(&annotes);
 
                     t->super.name = name;
-                    t->super.nameLen = nameLen;
 
                     type = &t->type;
 
@@ -1006,7 +1019,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     switch(laIType){
                     case BLINK_ITYPE_REF:
                         type->name = laName;
-                        type->nameLen = laNameLen;
                         state = P_TYPEDEF_TYPE_DYNAMIC;
                         break;
                     
@@ -1033,7 +1045,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     e->a = takeAnnotes(&annotes);
                     
                     e->super.name = name;
-                    e->super.nameLen = nameLen;
 
                     shift = false;
 
@@ -1108,7 +1119,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                         s->a = takeAnnotes(&annotes);
                         
                         s->super.name = name;
-                        s->super.nameLen = nameLen;
 
                         state = P_SYMBOL_SLASH;
                         shift = false;                                            
@@ -1285,7 +1295,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 case TOK_NAME:
 
                     g->superGroup = newString(&self->alloc, value.literal.ptr, value.literal.len);
-                    g->superGroupLen = value.literal.len;
                     if(g->superGroup == NULL){
 
                         retval = false;
@@ -1372,7 +1381,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     case TOK_CNAME:
 
                         type->name = newString(&self->alloc, value.literal.ptr, value.literal.len);
-                        type->nameLen = value.literal.len;
                         if(type->name == NULL){
 
                             retval = false;
@@ -1508,7 +1516,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                 }
                 else{
 
-                    type->size = UINT32_MAX;
+                    type->attr.size = UINT32_MAX;
                     shift = false;
 
                     switch(state){
@@ -1534,7 +1542,7 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     }
                     else{
 
-                        type->size = value.number;
+                        type->attr.size = value.number;
 
                         switch(state){
                         default:
@@ -1603,7 +1611,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     else{
 
                         f->super.name = newString(&self->alloc, value.literal.ptr, value.literal.len);
-                        f->super.nameLen = value.literal.len;
                         
                         if(f->super.name == NULL){
 
@@ -1740,9 +1747,9 @@ static bool resolveDefinitions(struct blink_schema_base *self)
         
             if(t->type.tag == BLINK_ITYPE_REF){
 
-                t->type.resolved = resolve(self, t->type.name, t->type.nameLen);
+                t->type.attr.resolved = resolve(self, t->type.name);
 
-                if(castTypeDef(defPtr)->type.resolved == NULL){
+                if(castTypeDef(defPtr)->type.attr.resolved == NULL){
 
                     BLINK_ERROR("unresolved")
                     return false;
@@ -1756,7 +1763,7 @@ static bool resolveDefinitions(struct blink_schema_base *self)
 
             if(g->superGroup != NULL){
 
-                g->s = resolve(self, g->superGroup, g->superGroupLen);
+                g->s = resolve(self, g->superGroup);
 
                 if(g->s == NULL){
 
@@ -1773,9 +1780,9 @@ static bool resolveDefinitions(struct blink_schema_base *self)
 
                 if(f->type.tag == BLINK_ITYPE_REF){
 
-                    f->type.resolved = resolve(self, f->type.name, f->type.nameLen);
+                    f->type.attr.resolved = resolve(self, f->type.name);
 
-                    if(f->type.resolved == NULL){
+                    if(f->type.attr.resolved == NULL){
 
                         BLINK_ERROR("unresolved")
                         return false;
@@ -1797,11 +1804,12 @@ static bool resolveDefinitions(struct blink_schema_base *self)
     return true;
 }
 
-static struct blink_schema *resolve(struct blink_schema_base *self, const char *cName, size_t cNameLen)
+static struct blink_schema *resolve(struct blink_schema_base *self, const char *cName)
 {
     BLINK_ASSERT(self != NULL)
     BLINK_ASSERT(cName != NULL)
 
+    size_t cNameLen = strlen(cName);
     const char *nsName;
     size_t nsNameLen;
     const char *name;
@@ -1885,9 +1893,9 @@ static bool testReferenceConstraint(struct blink_schema_base *self, struct blink
 
             if(fast != NULL){
             
-                if(fast->type.resolved->type == BLINK_SCHEMA_TYPE_DEF){
+                if(fast->type.attr.resolved->type == BLINK_SCHEMA_TYPE_DEF){
 
-                    fast = castTypeDef(slow->type.resolved);            
+                    fast = castTypeDef(slow->type.attr.resolved);            
                 }
                 else{
 
@@ -1897,9 +1905,9 @@ static bool testReferenceConstraint(struct blink_schema_base *self, struct blink
 
             if(fast != NULL){
 
-                if(fast->type.resolved->type == BLINK_SCHEMA_TYPE_DEF){
+                if(fast->type.attr.resolved->type == BLINK_SCHEMA_TYPE_DEF){
 
-                    fast = castTypeDef(slow->type.resolved);            
+                    fast = castTypeDef(slow->type.attr.resolved);            
                 }
                 else{
 
@@ -1907,7 +1915,7 @@ static bool testReferenceConstraint(struct blink_schema_base *self, struct blink
                 }
             }
 
-            if(slow->type.resolved->type == BLINK_SCHEMA_TYPE_DEF){
+            if(slow->type.attr.resolved->type == BLINK_SCHEMA_TYPE_DEF){
 
                 if(slow->type.isDynamic){
 
@@ -1935,7 +1943,7 @@ static bool testReferenceConstraint(struct blink_schema_base *self, struct blink
                     }
                 }
 
-                slow = castTypeDef(slow->type.resolved);                
+                slow = castTypeDef(slow->type.attr.resolved);                
             }
             /* slow pointer resolved */
             else{
@@ -2033,14 +2041,11 @@ static bool testSuperGroupShadowConstraint(struct blink_schema_base *self, struc
                 }
                 else{
 
-                    if(gField->nameLen == aField->nameLen){
+                    if(strncmp(gField->name, aField->name, BLINK_TOKEN_MAX_SIZE) == 0){
 
-                        if(memcmp(gField->name, aField->name, gField->nameLen) == 0){
-
-                            BLINK_ERROR("field name shadowed in subgroup")
-                            return false;
-                        }
-                    }
+                        BLINK_ERROR("field name shadowed in subgroup")
+                        return false;
+                    }                    
                 }
 
                 gField = BLINK_FieldIterator_next(&g);
@@ -2114,9 +2119,9 @@ static struct blink_schema *searchListByName(struct blink_schema *head, const ch
 
     while(ptr != NULL){
 
-        if(ptr->nameLen == nameLen){
+        if(ptr->name != NULL){
 
-            if(memcmp(ptr->name, name, nameLen) == 0){
+            if(strncmp(ptr->name, name, nameLen) == 0){
 
                 retval = ptr;
                 break;
@@ -2185,7 +2190,7 @@ static struct blink_schema *getTerminal(struct blink_schema *element, bool *dyna
                 *sequence = true;
             }
             
-            ptr = castTypeDef(ptr)->type.resolved;
+            ptr = castTypeDef(ptr)->type.attr.resolved;
         }
     }
 

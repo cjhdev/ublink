@@ -81,55 +81,63 @@ enum blink_schema_subclass {
 
 struct blink_schema {
     enum blink_schema_subclass type;
-    const char *name;                   /**< name of type definition */
-    size_t nameLen;                     /**< byte length of `name` */
+    const char *name;                   /**< name of type definition */          
     struct blink_schema *next;
 };
 
 /** type */
 struct blink_schema_type {
     const char *name;               /**< name of reference (applicable to #BLINK_ITYPE_REF) */
-    size_t nameLen;                 /**< byte length of `name` */
+#ifndef BLINK_NO_ANNOTES    
     struct blink_schema *a;         /**< annotations */
-    uint32_t size;                  /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */    
+#endif    
+    /** use a union to save some memory */
+    union {
+        struct blink_schema *resolved;  /**< resolved attribute (applicable to #BLINK_ITYPE_REF) */
+        uint32_t size;                  /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */
+    } attr;
+    enum blink_itype_tag tag;       /**< what type is this? */    
     bool isDynamic;                 /**< reference is dynamic (applicable to #BLINK_ITYPE_REF) */
-    bool isSequence;                /**< this is a SEQUENCE of type */                
-    enum blink_itype_tag tag;       /**< what type is this? */
-    struct blink_schema *resolved;
+    bool isSequence;                /**< this is a SEQUENCE of type */
 };
 
 /** field */
 struct blink_schema_field {
     struct blink_schema super;
-    struct blink_schema *a;         /**< annotations */
-    bool isOptional;                /**< field is optional */
+    struct blink_schema *a;         /**< annotations */    
     struct blink_schema_type type;  /**< field type information */
+    bool isOptional;                /**< field is optional */
 };
 
 /** namespace */
 struct blink_schema_namespace {
     struct blink_schema super;    
     struct blink_schema *defs;  /**< list of groups, enums, and types in this namespace */
+#ifndef BLINK_NO_ANNOTES    
     struct blink_schema *a;     /**< schema <- <annotes> */
+#endif    
 };
 
 /** group */
 struct blink_schema_group {
     struct blink_schema super;
+#ifndef BLINK_NO_ANNOTES    
     struct blink_schema *a;
-    bool hasID;                     /**< group has an ID */
+#endif    
     uint64_t id;                    /**< group ID */
-    const char *superGroup;         /**< name of super group */
-    size_t superGroupLen;           /**< byte length of supergroup name */    
+    const char *superGroup;         /**< name of super group */    
     struct blink_schema *s;         /**< optional supergroup */
     struct blink_schema *f;         /**< fields belonging to group */
     struct blink_schema_namespace *ns;     /**< link back to namespace */
+    bool hasID;                     /**< group has an ID */
 };
 
 /** enumeration symbol */
 struct blink_schema_symbol {
     struct blink_schema super;
+#ifndef BLINK_NO_ANNOTES    
     struct blink_schema *a;
+#endif    
     int32_t value;                  /**< integer value */
     bool implicitValue;             /**< true if `value` is not explicitly defined */
 };
@@ -137,30 +145,34 @@ struct blink_schema_symbol {
 /** enumeration */
 struct blink_schema_enum {
     struct blink_schema super;
+#ifndef BLINK_NO_ANNOTES
     struct blink_schema *a;
+#endif    
     struct blink_schema *s;   /**< symbols belonging to enumeration */
 };
 
 /** type definition */
 struct blink_schema_type_def {
     struct blink_schema super;
+#ifndef BLINK_NO_ANNOTES
     struct blink_schema *a;
+#endif    
     struct blink_schema_type type;         /**< type information */
 };
 
 struct blink_schema_annote {
     struct blink_schema super;
-    const char *value;              /**< annotation value */
-    size_t valueLen;                /**< byte length of `value` */                
+    const char *value;              /**< annotation value */    
     uint64_t number;
 };
 
 struct blink_schema_incr_annote {
     struct blink_schema super;
     const char *fieldName;
-    size_t fieldNameLen;
-    bool type;
+#ifndef BLINK_NO_ANNOTES
     struct blink_schema *a;   /**< annotations */
+#endif    
+    bool type;    
 };
 
 struct blink_schema_base {

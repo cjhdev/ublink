@@ -269,6 +269,20 @@ static void test_BLINK_Schema_new_superSuperGroupShadowField(void **user)
     assert_true(schema == NULL);
 }
 
+static void test_BLINK_Schema_new_comments(void **user)
+{
+    struct blink_stream stream;
+    const char input[] =
+            "InsertOrder/1 ->\n"
+            "string Symbol,  # set to 'IBM'\n"
+            "string OrderId, # set to 'ABC123'\n"
+            "u32 Price,      # set to 125\n"
+            "u32 Quantity    # set to 1000\n";
+    (void)BLINK_Stream_initBufferReadOnly(&stream, (const uint8_t *)input, sizeof(input));
+    blink_schema_t schema = BLINK_Schema_new(&alloc, &stream);
+    assert_true(schema != NULL);
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -294,6 +308,7 @@ int main(void)
         cmocka_unit_test(test_BLINK_Schema_new_duplicate_group_field),
         cmocka_unit_test(test_BLINK_Schema_new_superGroupShadowField),
         cmocka_unit_test(test_BLINK_Schema_new_superSuperGroupShadowField),
+        cmocka_unit_test(test_BLINK_Schema_new_comments),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -164,6 +164,19 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
             break;
         }
 
+        if(location != NULL){
+
+            if(c == '\n'){
+
+                location->row++;
+                location->col = 0U;            
+            }
+            else{
+
+                location->col++;            
+            }
+        }
+            
         (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
     }
 
@@ -175,6 +188,12 @@ enum blink_token BLINK_Lexer_getToken(blink_stream_t in, char *buffer, size_t ma
             (void)BLINK_Stream_seekCur(in, (int32_t)sizeof(c));
 
             if(c == '\n'){
+
+                if(location != NULL){
+
+                    location->row++;
+                    location->col = 0U;
+                }                    
                 break;
             }
         }
