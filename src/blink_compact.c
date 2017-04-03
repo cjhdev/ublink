@@ -410,7 +410,7 @@ bool BLINK_Compact_encodeDecimal(int64_t mantissa, int8_t exponent, blink_stream
     
     if(encodeVLC((uint64_t)exponent, true, out)){
 
-        if(encodeVLC(mantissa, true, out)){
+        if(encodeVLC((uint64_t)mantissa, true, out)){
 
             retval = true;
         }

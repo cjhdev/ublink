@@ -184,7 +184,7 @@ blink_stream_t BLINK_Stream_initBufferReadOnly(struct blink_stream *self, const 
 
         (void)memset(self, 0, sizeof(*self));
         self->type = BLINK_STREAM_BUFFER;
-        self->value.buffer.in = (uint8_t *)buf;        
+        self->value.buffer.in = (const uint8_t *)buf;        
         self->value.buffer.max = max;
         retval = (blink_stream_t)self;
     }
@@ -366,6 +366,7 @@ bool BLINK_Stream_setMax(blink_stream_t self, uint32_t offset)
         }
         break;
     default:
+        /* no action */
         break;
     }
 
@@ -386,6 +387,7 @@ uint32_t BLINK_Stream_max(blink_stream_t self)
         retval = self->value.buffer.max;
         break;
     default:
+        /* no action */
         break;
     }
 
