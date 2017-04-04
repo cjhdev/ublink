@@ -19,6 +19,22 @@ static int setupSingleByteZero(void **user)
     return 0;
 }
 
+static int setupSingleByteOne(void **user)
+{
+    static const uint8_t in[] = {0x01U};
+    static struct blink_stream s;
+    *user = (void *)BLINK_Stream_initBufferReadOnly(&s, in, sizeof(in));
+    return 0;
+}
+
+static int setupSingleByteNull(void **user)
+{
+    static const uint8_t in[] = {0xC0U};
+    static struct blink_stream s;
+    *user = (void *)BLINK_Stream_initBufferReadOnly(&s, in, sizeof(in));
+    return 0;
+}
+
 static void test_BLINK_Compact_decodeU8(void **user)
 {
     uint8_t out;
@@ -296,6 +312,26 @@ static void test_BLINK_Compact_decodeBool(void **user)
     assert_false(isNull);
 }
 
+static void test_BLINK_Compact_decodeBool_true(void **user)
+{
+    bool out;
+    bool isNull = true;
+    bool expectedOut = true;
+
+    assert_true(BLINK_Compact_decodeBool((blink_stream_t)(*user), &out, &isNull));
+    assert_int_equal(expectedOut, out);
+    assert_false(isNull);
+}
+
+static void test_BLINK_Compact_decodeBool_null(void **user)
+{
+    bool out;
+    bool isNull = true;
+    
+    assert_true(BLINK_Compact_decodeBool((blink_stream_t)(*user), &out, &isNull));
+    assert_true(isNull);
+}
+
 static void test_BLINK_Compact_Decimal(void **user)
 {
     const uint8_t in[] = {0x00, 0x00};
@@ -350,7 +386,9 @@ int main(void)
         cmocka_unit_test_setup(test_BLINK_Compact_decodeF64, setupSingleByteZero),
         cmocka_unit_test_setup(test_BLINK_Compact_decodeBool, setupSingleByteZero),
         cmocka_unit_test(test_BLINK_Compact_Decimal),
-        cmocka_unit_test(test_BLINK_Compact_Decimal_nullMantissa)
+        cmocka_unit_test(test_BLINK_Compact_Decimal_nullMantissa),
+        cmocka_unit_test_setup(test_BLINK_Compact_decodeBool_true, setupSingleByteOne),
+        cmocka_unit_test_setup(test_BLINK_Compact_decodeBool_null, setupSingleByteNull)
     };
     
     return cmocka_run_group_tests(tests, NULL, NULL);
