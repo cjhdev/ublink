@@ -109,6 +109,11 @@ struct decode_state {
     uint8_t depth;
 };
 
+struct field_init_user_data {
+    struct blink_object *self;
+    size_t i;
+};
+
 typedef bool (* handler)(struct decode_state *);
 
 /* static function prototypes *****************************************/
@@ -135,9 +140,10 @@ static bool BLINK_Object_set(blink_object_t group, const char *fieldName, const 
 static union blink_object_value BLINK_Object_get(blink_object_t group, const char *fieldName);
 
 static struct blink_object_field *lookupField(struct blink_object *group, const char *name, size_t nameLen);
-static size_t countFields(blink_schema_t group);
 static bool encodeBody(const blink_object_t g, blink_stream_t out);
 static bool cacheSize(blink_object_t group);
+
+static bool initFieldsHandler(blink_schema_t group, blink_schema_t field, void *user);
 
 /* functions **********************************************************/
 
@@ -211,14 +217,15 @@ blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_
     blink_object_t retval = NULL;
 
     if(alloc->calloc != NULL){
-    
+
         struct blink_object *self = alloc->calloc(1U, sizeof(struct blink_object));
 
         if(self != NULL){
 
             self->alloc = *alloc;
             self->definition = group;
-            self->numberOfFields = countFields(group);
+
+            self->numberOfFields = BLINK_Group_numberOfFields(group);
 
             if(self->numberOfFields > 0U){
 
@@ -226,19 +233,12 @@ blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_
 
                 if(self->fields != NULL){
 
-                    size_t stackDepth = BLINK_Group_numberOfSuperGroup(group) + 1U;
-                    blink_schema_t stack[stackDepth];
-                    struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackDepth, group);
-                    blink_schema_t f = BLINK_FieldIterator_next(&iter);
-                    uint32_t i = 0U;
+                    struct field_init_user_data user = {
+                        .self = self,
+                        .i = 0U
+                    };
 
-                    while(f != NULL){
-                    
-                        self->fields[i].definition = f;
-                        f = BLINK_FieldIterator_next(&iter);
-                        i++;
-                    }
-
+                    BLINK_Group_eachField(group, initFieldsHandler, &user);
                     retval = (blink_object_t)self;
                 }
                 else{
@@ -1509,21 +1509,6 @@ static struct blink_object_field *lookupField(struct blink_object *group, const 
     return retval;
 }
 
-static size_t countFields(blink_schema_t group)
-{
-    size_t retval = 0U;
-    size_t stackSize = BLINK_Group_numberOfSuperGroup(group) + 1U;
-    blink_schema_t stack[stackSize];
-    struct blink_field_iterator iter = BLINK_FieldIterator_init(stack, stackSize, group);
-
-    while(BLINK_FieldIterator_next(&iter) != NULL){
-
-        retval++;
-    }
-
-    return retval;
-}
-
 /* recursively walks group and calculates encoded size and determines
  * if all mandatory fields have been initialised */
 static bool cacheSize(blink_object_t group)
@@ -1826,4 +1811,13 @@ static bool encodeBody(const blink_object_t g, blink_stream_t out)
     }
 
     return retval;
+}
+
+static bool initFieldsHandler(blink_schema_t group, blink_schema_t field, void *user)
+{
+    struct field_init_user_data *data = (struct field_init_user_data *)user;
+
+    data->self->fields[data->i].definition = field;
+    data->i++;    
+    return true;    
 }

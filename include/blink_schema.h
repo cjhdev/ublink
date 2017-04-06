@@ -143,11 +143,6 @@ enum blink_type_tag {
 struct blink_stream;
 typedef struct blink_stream * blink_stream_t;
 
-struct blink_syntax {
-    const char *name;
-    blink_stream_t in;
-};
-
 struct blink_schema;
 
 struct blink_allocator;
@@ -241,6 +236,14 @@ uint64_t BLINK_Group_getID(blink_schema_t self);
  *
  * */
 bool BLINK_Group_hasID(blink_schema_t self);
+
+/** Return number of fields in this group
+ *
+ * @param[in] self
+ * @return number of fields
+ *
+ * */
+size_t BLINK_Group_numberOfFields(blink_schema_t self);
 
 /** Get field name
  * 
@@ -357,6 +360,16 @@ const char *BLINK_Symbol_getName(blink_schema_t self);
  *
  * */
 int32_t BLINK_Symbol_getValue(blink_schema_t self);
+
+/** Call handler for each field in group
+ *
+ * @param[in] self
+ * @param[in] block this handler will be called for each field
+ * @param[in] user this pointer will be passed through to handler
+ * 
+ * */
+void BLINK_Group_eachField(blink_schema_t group, bool (*block)(blink_schema_t group, blink_schema_t field, void *user), void *user);
+
 
 /** Create field iterator object
  *

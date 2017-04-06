@@ -64,6 +64,13 @@ typedef struct blink_schema * blink_schema_t;
  * */
 blink_object_t BLINK_Object_newGroup(const struct blink_allocator *alloc, blink_schema_t group);
 
+/** Destroy an existing group model
+ *
+ * @param[in] group
+ * 
+ * */
+void BLINK_Object_destroyGroup(blink_object_t *group);
+
 /** Clear a field (i.e. set to NULL)
  *
  * @param[in] group

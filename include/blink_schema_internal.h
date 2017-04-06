@@ -91,7 +91,6 @@ struct blink_schema_type {
 #ifndef BLINK_NO_ANNOTES    
     struct blink_schema *a;         /**< annotations */
 #endif    
-    /** use a union to save some memory */
     union {
         struct blink_schema *resolved;  /**< resolved attribute (applicable to #BLINK_ITYPE_REF) */
         uint32_t size;                  /**< size attribute (applicable to #BLINK_ITYPE_BINARY, #BLINK_ITYPE_FIXED, and #BLINK_ITYPE_STRING) */
@@ -139,7 +138,6 @@ struct blink_schema_symbol {
     struct blink_schema *a;
 #endif    
     int32_t value;                  /**< integer value */
-    bool implicitValue;             /**< true if `value` is not explicitly defined */
 };
 
 /** enumeration */

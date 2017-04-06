@@ -34,6 +34,12 @@
     #define BLINK_TOKEN_MAX_SIZE 100U
 #endif
 
+/* types **************************************************************/
+
+struct blink_syntax {
+    const char *name;
+    blink_stream_t in;
+};
 
 /* static prototypes **************************************************/
 
@@ -152,6 +158,42 @@ blink_schema_t BLINK_Schema_getGroupByID(blink_schema_t schema, uint64_t id)
     return retval;
 }
 
+void BLINK_Group_eachField(blink_schema_t group, bool (*handler)(blink_schema_t group, blink_schema_t field, void *user), void *user)
+{
+    size_t depth = BLINK_Group_numberOfSuperGroup(group)+1U;
+    struct {
+        blink_schema_t g;
+        blink_schema_t f;
+    } stack[depth];
+      
+    size_t i;
+    blink_schema_t ptr = group;
+
+    for(i=0U; i < depth; i++){
+
+        stack[i].f = castGroup(ptr)->f;
+    }
+
+    while(i > 0){
+
+        if(stack[i-1].f != NULL){
+
+            if(handler(stack[i-1].g, stack[i-1].f, user)){
+
+                stack[i-1].f = stack[i-1].f->next;
+            }
+            else{
+
+                break;
+            }
+        }
+        else{
+
+            i--;
+        }
+    }
+}
+
 struct blink_field_iterator BLINK_FieldIterator_init(blink_schema_t *stack, size_t depth, blink_schema_t group)
 {
     BLINK_ASSERT((depth == 0U) || (stack != NULL))
@@ -249,6 +291,23 @@ bool BLINK_Group_hasID(blink_schema_t self)
     BLINK_ASSERT(self != NULL)
 
     return castGroup(self)->hasID;
+}
+
+static bool handlerCountNumberOfFields(blink_schema_t group, blink_schema_t field, void *user)
+{
+    (*((size_t *)user))++;
+    return true;
+}
+
+size_t BLINK_Group_numberOfFields(blink_schema_t self)
+{
+    BLINK_ASSERT(self != NULL)
+
+    size_t retval = 0U;
+    
+    BLINK_Group_eachField(self, handlerCountNumberOfFields, &retval);
+
+    return retval;
 }
 
 const char *BLINK_Field_getName(blink_schema_t self)
@@ -1133,8 +1192,6 @@ static bool parseSchema(struct blink_schema_base *self, const struct blink_synta
                     state = P_SYMBOL_VALUE;
                 }
                 else{
-
-                    s->implicitValue = true;
 
                     if(castSymbol(e->s) != s){
 

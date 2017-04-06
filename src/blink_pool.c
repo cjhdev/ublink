@@ -74,8 +74,3 @@ size_t BLINK_Pool_getFreeSpace(blink_pool_t self)
 
     return (self->size - self->pos);
 }
-
-void BLINK_Pool_destroy(blink_pool_t self)
-{
-    BLINK_ASSERT(self != NULL)
-}
